@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not ov or not ov.latest %}
+<div class="card">
+  <h1>Chào mừng!</h1>
+  {% if not account %}
+  <p>Chưa có kênh nào được kết nối.</p>
+  <div class="row">
+    <a class="btn" href="/settings">Kết nối kênh TikTok</a>
+    <form method="post" action="/demo/seed" style="margin:0"><button class="btn sec">Xem thử với dữ liệu demo</button></form>
+  </div>
+  {% else %}
+  <p>Kênh đã kết nối nhưng chưa có dữ liệu. Bấm <b>Quét ngay</b> ở thanh trên.</p>
+  {% endif %}
+</div>
+{% else %}
+{% set L = ov.latest %}{% set d7 = ov.deltas['7d'] or {} %}{% set d24 = ov.deltas['24h'] or {} %}
+<h1>Tổng quan kênh</h1>
+<div class="grid g4">
+  <div class="card stat"><div class="label">Người theo dõi</div><div class="value">{{ L.follower_count|num }}</div>
+    <div class="sub"><span class="{{ 'up' if (d24.follower_count or 0)>=0 else 'down' }}">{{ d24.follower_count|delta }}</span> 24h · <span class="{{ 'up' if (d7.follower_count or 0)>=0 else 'down' }}">{{ d7.follower_count|delta }}</span> 7 ngày</div></div>
+  <div class="card stat"><div class="label">Tổng lượt thích</div><div class="value">{{ L.likes_count|num }}</div>
+    <div class="sub">{{ d7.likes_count|delta }} trong 7 ngày</div></div>
+  <div class="card stat"><div class="label">Lượt xem TB / video</div><div class="value">{{ ov.avg_views|num }}</div>
+    <div class="sub">Trung vị {{ ov.median_views|num }} · {{ ov.video_tracked }} video</div></div>
+  <div class="card stat"><div class="label">Tỉ lệ tương tác TB</div><div class="value">{{ ov.avg_engagement }}%</div>
+    <div class="sub">(like + comment + share) / view</div></div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Tăng trưởng người theo dõi</h2><canvas id="cFollow"></canvas></div>
+  <div class="card"><h2>Tổng lượt xem các video</h2><canvas id="cViews"></canvas></div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Nhận định nhanh</h2><ul class="ins">{% for i in an.insights %}<li>{{ i }}</li>{% endfor %}</ul>
+    <p><a href="/strategy">→ Lên chiến lược chi tiết</a></p></div>
+  <div class="card"><h2>Video đang tăng mạnh</h2>
+    {% if an.trending %}<table>{% for v in an.trending %}<tr><td><a href="/videos/{{ v.id }}">{{ v.label }}</a></td><td class="n up">+{{ v.gain|num }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="muted">Cần ít nhất 2 lần quét để tính.</p>{% endif %}</div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Top video theo lượt xem</h2><table>
+    {% for v in an.top %}<tr><td><a href="/videos/{{ v.id }}">{{ v.label }}</a><div class="muted">{{ v.posted_str }}</div></td><td class="n">{{ v.view_count|num }}</td><td class="n">{{ v.engagement }}%</td></tr>{% endfor %}
+  </table></div>
+  <div class="card"><h2>Lịch sử quét</h2>
+    <p class="muted">Lần quét tự động tiếp theo: {{ next_run.strftime('%d/%m %H:%M UTC') if next_run else '—' }}</p>
+    <table>{% for s in scans %}<tr><td>{{ s.started_at }}</td><td><span class="badge {{ s.status }}">{{ s.status }}</span></td><td class="muted">{{ s.message }}</td></tr>{% else %}<tr><td class="muted">Chưa có lần quét nào.</td></tr>{% endfor %}</table></div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if ov and ov.latest %}<script>
+lineChart('cFollow', {{ series.labels|tojson }}, [{label:'Follower', data:{{ series.followers|tojson }}, color:'#fe2c55', fill:true}]);
+lineChart('cViews', {{ views.labels|tojson }}, [{label:'Lượt xem', data:{{ views.views|tojson }}, color:'#25c2d8', fill:true},{label:'Lượt thích', data:{{ views.likes|tojson }}, color:'#a970ff', axis:'y2'}]);
+</script>{% endif %}{% endblock %}

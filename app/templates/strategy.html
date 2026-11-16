@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Chiến lược nội dung</h1>
+{% if not gemini_ready %}<div class="flash">Chưa có <code>GEMINI_API_KEY</code> — chiến lược sẽ được tạo bằng quy tắc đơn giản. Thêm key để dùng Gemini.</div>{% endif %}
+<div class="side">
+  <div>
+    <div class="card">
+      <form method="post" action="/strategy/generate" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerText='Đang tạo… (có thể mất 1 phút)'">
+        <label>Mục tiêu (tuỳ chọn)</label>
+        <textarea name="goal" rows="3" placeholder="VD: đạt 50k follower trong 2 tháng, bán khoá học nấu ăn"></textarea>
+        <p><button class="btn" style="width:100%">Tạo chiến lược mới</button></p>
+      </form>
+    </div>
+    <div class="card list" style="margin-top:16px"><h2>Lịch sử</h2>
+      {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at[:16].replace('T',' ') }} <span class="badge">{{ it.source }}</span><div class="muted">{{ (it.goal or '')[:50] }}</div></a>
+      {% else %}<p class="muted">Chưa có.</p>{% endfor %}
+    </div>
+  </div>
+  <div>
+    <div class="card md">
+      {% if current %}
+        <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at }} · {{ current.source }} {{ current.model }}</span>
+        <form method="post" action="/strategy/{{ current.id }}/delete" onsubmit="return confirm('Xoá chiến lược này?')"><button class="btn sec small">Xoá</button></form></div>
+        {{ current.content_md|markdown|safe }}
+      {% else %}<p class="muted">Bấm "Tạo chiến lược mới" để AI phân tích số liệu và đề xuất kế hoạch.</p>{% endif %}
+    </div>
+    <div class="card md" id="ask" style="margin-top:16px"><h2>Hỏi đáp về số liệu kênh (Gemini)</h2>
+      <form method="post" action="/strategy/ask" class="row"><input name="question" required placeholder="VD: Vì sao tuần này view giảm?" style="flex:1"><button class="btn">Hỏi</button></form>
+      {% if answer %}<p><b>Hỏi:</b> {{ answer.q }}</p>{{ answer.a|markdown|safe }}{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

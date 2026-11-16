@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}TikTok Manager{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/chart.umd.min.js"></script>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Tik<span>Tok</span> Manager</a>
+  <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan</a>
+  <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
+  <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
+  <a class="tab {{ 'on' if active=='strategy' }}" href="/strategy">Chiến lược</a>
+  <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo</a>
+  <a class="tab {{ 'on' if active=='settings' }}" href="/settings">Cài đặt</a>
+  <div class="right">
+    {% if account %}<span>@{{ account.username or account.display_name or 'kênh' }}</span>{% endif %}
+    <form method="post" action="/scan" style="margin:0"><button class="btn small">Quét ngay</button></form>
+    <a href="/logout">Đăng xuất</a>
+  </div>
+</nav>
+<main>
+{% if account and account.is_demo %}<div class="demo">Đang hiển thị <b>dữ liệu DEMO giả lập</b>. Vào Cài đặt để kết nối kênh TikTok thật.</div>{% endif %}
+{% if flash %}<div class="flash {{ flash.kind }}">{{ flash.msg }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<script>
+Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+Chart.defaults.font.family = 'system-ui, sans-serif';
+function lineChart(id, labels, sets){
+  new Chart(document.getElementById(id), {type:'line', data:{labels, datasets:sets.map(s=>({label:s.label, data:s.data, borderColor:s.color, backgroundColor:s.color+'22', fill:!!s.fill, tension:.3, pointRadius:0, borderWidth:2, yAxisID:s.axis||'y'}))},
+    options:{responsive:true, interaction:{mode:'index', intersect:false}, plugins:{legend:{display:sets.length>1}},
+      scales:{x:{ticks:{maxTicksLimit:8}}, y:{beginAtZero:false}, ...(sets.some(s=>s.axis==='y2')?{y2:{position:'right', grid:{drawOnChartArea:false}}}:{})}}});
+}
+function barChart(id, labels, data, label, color){
+  new Chart(document.getElementById(id), {type:'bar', data:{labels, datasets:[{label, data, backgroundColor:color||'#fe2c55', borderRadius:4}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

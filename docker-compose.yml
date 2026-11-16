@@ -1,0 +1,11 @@
+services:
+  tiktok-manager:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data          # SQLite
+      - ./exports:/app/exports    # file Markdown cho NotebookLM
+      - ./secrets:/app/secrets:ro # service-account.json
+    restart: unless-stopped

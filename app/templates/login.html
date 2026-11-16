@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng nhập · TikTok Manager</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><div class="login card">
+<h1>Tik<span style="color:var(--accent)">Tok</span> Manager</h1>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" action="/login">
+<label>Mật khẩu</label><input type="password" name="password" autofocus required>
+<p><button class="btn" style="width:100%">Đăng nhập</button></p>
+</form></div></body></html>

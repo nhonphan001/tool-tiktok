@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/videos">← Danh sách video</a></p>
+<h1>{{ v.label }}</h1>
+<p class="muted">Đăng {{ v.posted_str }} · {{ v.duration or 0 }}s {% if v.share_url %}· <a href="{{ v.share_url }}" target="_blank" rel="noopener">Mở trên TikTok ↗</a>{% endif %}</p>
+<div class="grid g4">
+  <div class="card stat"><div class="label">Lượt xem</div><div class="value">{{ v.view_count|num }}</div><div class="sub">{{ v.views_per_day|num }} / ngày</div></div>
+  <div class="card stat"><div class="label">Lượt thích</div><div class="value">{{ v.like_count|num }}</div></div>
+  <div class="card stat"><div class="label">Bình luận · Chia sẻ</div><div class="value">{{ v.comment_count|num }} · {{ v.share_count|num }}</div></div>
+  <div class="card stat"><div class="label">Tỉ lệ tương tác</div><div class="value">{{ v.engagement }}%</div></div>
+</div>
+<div class="card" style="margin-top:16px"><h2>Diễn biến theo các lần quét</h2><canvas id="cHist"></canvas></div>
+{% if v.description %}<div class="card" style="margin-top:16px"><h2>Mô tả</h2><p>{{ v.description }}</p></div>{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+lineChart('cHist', {{ hist.labels|tojson }}, [{label:'View', data:{{ hist.views|tojson }}, color:'#25c2d8', fill:true},{label:'Like', data:{{ hist.likes|tojson }}, color:'#fe2c55', axis:'y2'},{label:'Comment', data:{{ hist.comments|tojson }}, color:'#a970ff', axis:'y2'},{label:'Share', data:{{ hist.shares|tojson }}, color:'#f5a524', axis:'y2'}]);
+</script>{% endblock %}
