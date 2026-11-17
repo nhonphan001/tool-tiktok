@@ -95,7 +95,10 @@ def generate(open_id: str, goal: str = "") -> dict:
     prev = db.query_one(
         "SELECT content_md, created_at FROM strategies WHERE open_id=? ORDER BY created_at DESC LIMIT 1", (open_id,)
     )
-    prompt = f"Mục tiêu của chủ kênh: {goal or 'Tăng trưởng follower, lượt xem và tương tác bền vững'}\n\n"
+    prompt = ""
+    if settings.channel_context:
+        prompt += f"=== THÔNG TIN KÊNH (do chủ kênh mô tả) ===\n{settings.channel_context}\n\n"
+    prompt += f"Mục tiêu của chủ kênh: {goal or 'Tăng trưởng follower, lượt xem và tương tác bền vững'}\n\n"
     prompt += "=== SỐ LIỆU KÊNH ===\n" + data_md
     if prev:
         prompt += f"\n=== CHIẾN LƯỢC TRƯỚC ĐÓ ({prev['created_at']}) — đánh giá xem đã hiệu quả chưa ===\n"
@@ -118,4 +121,5 @@ def ask(open_id: str, question: str) -> str:
     """Hỏi đáp tự do về số liệu kênh."""
     data_md = report.build_report(open_id)
     system = "Bạn là chuyên gia phân tích TikTok. Trả lời ngắn gọn bằng tiếng Việt, dựa trên số liệu được cung cấp."
-    return call_gemini(f"=== SỐ LIỆU KÊNH ===\n{data_md}\n\n=== CÂU HỎI ===\n{question}", system=system)
+    ctx = f"=== THÔNG TIN KÊNH ===\n{settings.channel_context}\n\n" if settings.channel_context else ""
+    return call_gemini(f"{ctx}=== SỐ LIỆU KÊNH ===\n{data_md}\n\n=== CÂU HỎI ===\n{question}", system=system)

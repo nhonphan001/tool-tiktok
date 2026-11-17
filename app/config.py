@@ -29,6 +29,7 @@ class Settings:
 
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
     gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+    channel_context: str = field(default_factory=lambda: os.getenv("CHANNEL_CONTEXT", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
@@ -56,6 +57,7 @@ EDITABLE_KEYS = {
     "scan_interval_hours": float,
     "max_videos_per_scan": int,
     "gemini_model": str,
+    "channel_context": str,
     "auto_strategy": lambda v: _bool(str(v)),
     "notebooklm_mode": str,
     "google_doc_id_report": str,
@@ -68,8 +70,11 @@ settings = Settings()
 
 def apply_overrides(overrides: dict[str, str]) -> None:
     for key, raw in overrides.items():
-        if key in EDITABLE_KEYS and raw is not None and raw != "":
-            try:
-                setattr(settings, key, EDITABLE_KEYS[key](raw))
-            except (TypeError, ValueError):
-                pass
+        if key not in EDITABLE_KEYS or raw is None:
+            continue
+        if raw == "" and EDITABLE_KEYS[key] is not str:
+            continue  # ô số để trống: giữ giá trị cũ
+        try:
+            setattr(settings, key, EDITABLE_KEYS[key](raw))
+        except (TypeError, ValueError):
+            pass

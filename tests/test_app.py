@@ -45,7 +45,10 @@ def test_scan_and_velocity(seeded):
 
 
 def test_report_and_strategy_fallback(seeded):
+    settings.channel_context = "Kênh trà thảo mộc"
     md = report.build_report(seeded)
+    assert "Kênh trà thảo mộc" in md
+    settings.channel_context = ""
     assert "Báo cáo kênh TikTok" in md and "| Ngày |" in md
     res = strategy.generate(seeded, "test")
     assert res["source"] == "rule" and "Hành động đề xuất" in res["content_md"]
@@ -61,6 +64,11 @@ def test_web_pages(seeded):
         r = c.get(path)
         assert r.status_code == 200, path
     assert c.get("/api/overview").json()["latest"]
+    c.post("/settings", data={"channel_context": "Tiệm trà"})
+    assert settings.channel_context == "Tiệm trà"
+    assert "Tiệm trà" in c.get("/settings").text
+    c.post("/settings", data={"channel_context": ""})
+    assert settings.channel_context == ""
 
 
 def test_tiktok_verify_file(tmp_path, monkeypatch):

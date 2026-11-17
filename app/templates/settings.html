@@ -18,6 +18,8 @@
   </div>
   <div class="card"><h2>Quét định kỳ & chiến lược</h2>
     <form method="post" action="/settings">
+      <label>Thông tin kênh (Gemini dùng khi lên chiến lược)</label>
+      <textarea name="channel_context" rows="6" placeholder="Lĩnh vực, sản phẩm/dịch vụ, khán giả mục tiêu, phong cách, người dẫn, điều muốn tránh...">{{ s.channel_context }}</textarea>
       <label>Chu kỳ quét (giờ)</label><input type="number" step="0.25" min="0.25" name="scan_interval_hours" value="{{ s.scan_interval_hours }}">
       <label>Số video tối đa mỗi lần quét</label><input type="number" min="1" name="max_videos_per_scan" value="{{ s.max_videos_per_scan }}">
       <label>Model Gemini</label><input name="gemini_model" value="{{ s.gemini_model }}">

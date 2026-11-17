@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from . import analytics, db
+from .config import settings
 
 
 def _n(x) -> str:
@@ -24,8 +25,10 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
         f"# Báo cáo kênh TikTok @{acc.get('username') or acc.get('display_name') or open_id}",
         f"_Cập nhật: {now} ({tz.key})_",
         "",
-        "## 1. Tổng quan kênh",
     ]
+    if settings.channel_context:
+        lines += ["## Thông tin kênh", settings.channel_context, ""]
+    lines += ["## 1. Tổng quan kênh"]
     latest = ov.get("latest")
     if latest:
         d = ov["deltas"]
