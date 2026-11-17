@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TikTok Channel Manager", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback")
+PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback", "/privacy", "/terms")
 
 
 @app.middleware("http")
@@ -72,6 +72,20 @@ def flash(request: Request, msg: str, kind: str = "info"):
 @app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
     return {"ok": True}
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page(request: Request):
+    return templates.TemplateResponse(
+        request, "legal.html", {"kind": "privacy", "title": "Chính sách quyền riêng tư", "base_url": settings.base_url}
+    )
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms_page(request: Request):
+    return templates.TemplateResponse(
+        request, "legal.html", {"kind": "terms", "title": "Điều khoản sử dụng", "base_url": settings.base_url}
+    )
 
 
 @app.get("/login", response_class=HTMLResponse)

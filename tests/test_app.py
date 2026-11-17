@@ -53,6 +53,7 @@ def test_report_and_strategy_fallback(seeded):
 
 def test_web_pages(seeded):
     c = TestClient(app)
+    assert c.get("/privacy").status_code == 200 and c.get("/terms").status_code == 200
     assert c.get("/", follow_redirects=False).status_code == 303
     assert c.post("/login", data={"password": "bad"}).status_code == 401
     c.post("/login", data={"password": "pw"})

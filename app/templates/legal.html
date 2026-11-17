@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title }} · TikTok Manager</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main><div class="card md" style="max-width:800px;margin:0 auto">
+<h1>{{ title }}</h1>
+{% if kind == 'privacy' %}
+<p>TikTok Manager là công cụ nội bộ do chủ kênh tự vận hành tại {{ base_url }} để theo dõi số liệu kênh TikTok của chính mình.</p>
+<h2>Dữ liệu thu thập</h2>
+<p>Sau khi chủ tài khoản đồng ý qua TikTok Login Kit, công cụ đọc: thông tin hồ sơ cơ bản (tên hiển thị, ảnh đại diện, username, mô tả), số liệu kênh (người theo dõi, đang theo dõi, lượt thích, số video) và danh sách video công khai kèm lượt xem, thích, bình luận, chia sẻ.</p>
+<h2>Mục đích sử dụng</h2>
+<p>Dữ liệu chỉ dùng để thống kê, phân tích hiệu quả nội dung và lập kế hoạch nội dung cho chính kênh đó. Không bán, không chia sẻ cho bên thứ ba vì mục đích quảng cáo.</p>
+<h2>Lưu trữ và xử lý</h2>
+<p>Dữ liệu được lưu trên máy chủ của chủ kênh. Báo cáo tổng hợp có thể được gửi tới các dịch vụ Google (Gemini, Google Docs, NotebookLM) do chủ kênh cấu hình, nhằm phân tích và lưu trữ báo cáo.</p>
+<h2>Xoá dữ liệu</h2>
+<p>Chủ tài khoản có thể ngắt kết nối và xoá toàn bộ dữ liệu bất cứ lúc nào trong trang Cài đặt, hoặc thu hồi quyền truy cập trong phần cài đặt bảo mật của ứng dụng TikTok.</p>
+{% else %}
+<p>TikTok Manager tại {{ base_url }} là công cụ nội bộ, chỉ dành cho chủ kênh sử dụng để theo dõi và phân tích kênh TikTok của chính mình.</p>
+<ul>
+<li>Người dùng chỉ kết nối tài khoản TikTok mà mình sở hữu hoặc được ủy quyền quản lý.</li>
+<li>Công cụ chỉ đọc dữ liệu qua API chính thức của TikTok, không đăng bài và không thay đổi gì trên tài khoản.</li>
+<li>Các phân tích và chiến lược được đưa ra mang tính tham khảo, không đảm bảo kết quả tăng trưởng.</li>
+<li>Người dùng có thể ngừng sử dụng và xoá dữ liệu bất cứ lúc nào.</li>
+<li>Việc sử dụng cũng tuân theo Điều khoản dịch vụ của TikTok.</li>
+</ul>
+{% endif %}
+</div></main></body></html>
