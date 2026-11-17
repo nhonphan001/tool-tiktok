@@ -18,8 +18,26 @@
   </div>
   <div class="card"><h2>Quét định kỳ & chiến lược</h2>
     <form method="post" action="/settings">
-      <label>Thông tin kênh (Gemini dùng khi lên chiến lược)</label>
+      <label>Thông tin kênh (Gemini dùng khi lên chiến lược) — để trống = dùng định vị mặc định</label>
       <textarea name="channel_context" rows="6" placeholder="Lĩnh vực, sản phẩm/dịch vụ, khán giả mục tiêu, phong cách, người dẫn, điều muốn tránh...">{{ s.channel_context }}</textarea>
+      <label>Quy tắc nội dung bắt buộc (luôn gửi kèm Gemini) — để trống = mặc định TikTok Shop</label>
+      <textarea name="content_rules" rows="6">{{ s.content_rules }}</textarea>
+      <h2 style="margin-top:20px">KPI</h2>
+      <div class="row" style="gap:10px">
+        <div style="flex:1;min-width:120px"><label>Mốc 1 (follower)</label><input type="number" name="kpi_target_1" value="{{ s.kpi_target_1 }}"></div>
+        <div style="flex:1;min-width:140px"><label>Hạn mốc 1</label><input type="date" name="kpi_deadline_1" value="{{ s.kpi_deadline_1 }}"></div>
+        <div style="flex:1;min-width:120px"><label>Mốc 2 (follower)</label><input type="number" name="kpi_target_2" value="{{ s.kpi_target_2 }}"></div>
+        <div style="flex:1;min-width:140px"><label>Hạn mốc 2</label><input type="date" name="kpi_deadline_2" value="{{ s.kpi_deadline_2 }}"></div>
+      </div>
+      <div class="row" style="gap:10px">
+        <div style="flex:1;min-width:120px"><label>Tim/view tối thiểu (%)</label><input type="number" step="0.1" name="kpi_like_view_min" value="{{ s.kpi_like_view_min }}"></div>
+        <div style="flex:2;min-width:200px"><label>Khung giờ đăng (phân tách dấu phẩy)</label><input name="posting_slots" value="{{ s.posting_slots }}"></div>
+      </div>
+      <h2 style="margin-top:20px">Bảng quản trị sản phẩm (chỉ đọc)</h2>
+      <label>ID Google Sheet (cần chia sẻ quyền Xem cho service account)</label><input name="product_sheet_id" value="{{ s.product_sheet_id }}">
+      <label>Vùng đọc</label><input name="product_sheet_range" value="{{ s.product_sheet_range }}">
+      <label>Hoặc link CSV đã xuất bản (vd. tab WEB_XUAT_BAN) — ưu tiên nếu có</label><input name="product_csv_url" value="{{ s.product_csv_url }}">
+      <h2 style="margin-top:20px">Quét & Gemini</h2>
       <label>Chu kỳ quét (giờ)</label><input type="number" step="0.25" min="0.25" name="scan_interval_hours" value="{{ s.scan_interval_hours }}">
       <label>Số video tối đa mỗi lần quét</label><input type="number" min="1" name="max_videos_per_scan" value="{{ s.max_videos_per_scan }}">
       <label>Model Gemini</label><input name="gemini_model" value="{{ s.gemini_model }}">
@@ -46,6 +64,13 @@
     <form method="post" action="/sync"><button class="btn sec">Đồng bộ NotebookLM ngay</button></form>
     <p class="muted">Lần quét tự động tiếp theo: {{ next_run|localtime }}</p>
   </div>
+</div>
+<div class="card" style="margin-top:16px"><h2>API chỉ-đọc cho bảng điều hành / Gemini</h2>
+  {% if s.api_token %}
+  <p>Đã bật. Gửi token qua header <code>x-api-token</code> hoặc tham số <code>?token=</code>:</p>
+  <ul class="ins"><li><code>{{ s.base_url }}/api/public/summary</code> — JSON: số liệu, KPI, video, vấn đề tuân thủ</li>
+  <li><code>{{ s.base_url }}/api/public/report.md</code> — báo cáo Markdown đầy đủ</li></ul>
+  {% else %}<p class="muted">Đang tắt. Đặt <code>API_TOKEN=</code> (chuỗi ngẫu nhiên dài) trong file .env trên VPS rồi khởi động lại để bật.</p>{% endif %}
 </div>
 <div class="grid g2" style="margin-top:16px">
   <div class="card scroll"><h2>Nhật ký quét</h2><table>

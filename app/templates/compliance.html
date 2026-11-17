@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Kiểm tra tuân thủ TikTok Shop</h1>
+<div class="grid g2">
+  <div class="card" id="ket-qua"><h2>Kiểm tra trước khi đăng</h2>
+    <p class="muted">Dán caption, hashtag, bình luận ghim, hook, CTA hoặc lời thoại. Kiểm tra cả chữ không dấu và cách viết né (l.i.n.k, b i o).</p>
+    <form method="post" action="/compliance/check">
+      <textarea name="text" rows="8" placeholder="Dán nội dung cần kiểm tra…" required>{{ result.text if result else '' }}</textarea>
+      <label>Video này có gắn giỏ hàng TikTok Shop?</label>
+      <select name="has_cart">
+        <option value="1" {{ 'selected' if not result or result.has_cart=='1' }}>Có giỏ hàng</option>
+        <option value="0" {{ 'selected' if result and result.has_cart=='0' }}>Không giỏ hàng</option>
+      </select>
+      <p><button class="btn">Kiểm tra</button></p>
+    </form>
+    {% if result %}
+      <div class="flash {{ 'success' if result.level=='ok' else ('error' if result.level=='violation' else '') }}">
+        <b>{{ level_labels[result.level] }}</b>
+        {% for x in result.offsite %}<div>• Mời ra ngoài nền tảng: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
+        {% for x in result.promise %}<div>• Hứa hẹn quá đà / hù dọa: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
+        {% if result.level=='ok' %}<div>Không phát hiện từ cấm.</div>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="card"><h2>Quy tắc đang áp dụng</h2>
+    <div class="md" style="white-space:pre-line;font-size:14px">{{ rules }}</div>
+    <h3 style="font-size:15px">CTA được phép</h3>
+    <ul class="ins">{% for a in allowed %}<li>“{{ a }}”</li>{% endfor %}</ul>
+    <p class="muted" style="font-size:12px">Sửa quy tắc trong Cài đặt. Quy tắc này cũng được gửi kèm mọi yêu cầu Gemini lên chiến lược.</p>
+  </div>
+</div>
+<div class="card scroll" style="margin-top:16px"><h2>Video đã đăng có vấn đề ({{ issues|length }})</h2>
+  <table><tr><th>Đăng lúc</th><th>Video</th><th>Mức</th><th>Phát hiện</th></tr>
+  {% for v in issues %}<tr><td>{{ v.posted_str }}</td><td><a href="/videos/{{ v.id }}">{{ v.label }}</a></td>
+    <td><span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart') }}">{{ level_labels[v.compliance.level] }}</span></td>
+    <td>{{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">Không có caption nào vi phạm.</td></tr>{% endfor %}</table>
+  <p class="muted" style="font-size:12px">Chỉ kiểm tra được tiêu đề/caption do TikTok API trả về. Lời thoại và bình luận ghim vẫn phải chấm theo Mẫu A/B.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row" style="justify-content:space-between"><h1>Sản phẩm affiliate ({{ items|length }})</h1>
+  <form method="post" action="/products/sync" style="margin:0"><button class="btn" {{ 'disabled' if running }}>{{ 'Đang đọc bảng…' if running else 'Đọc lại bảng quản trị' }}</button></form></div>
+<p class="muted">Nguồn: {% if s.product_csv_url %}link CSV xuất bản{% elif s.product_sheet_id %}Google Sheets (<code>{{ s.product_sheet_range }}</code>){% else %}<b>chưa cấu hình</b> — vào Cài đặt điền ID bảng hoặc link CSV{% endif %}.
+  Chỉ đọc, không bao giờ ghi vào bảng. {% if synced %}Lần đọc gần nhất: {{ synced|localtime }}.{% endif %}</p>
+<div class="card scroll"><table>
+<tr><th>Mã</th><th>Hành</th><th>Tên</th><th>Giá</th><th>Hoa hồng</th><th>Trạng thái</th><th>Link TikTok Shop</th><th class="n">Video dùng</th><th class="n">Tổng view</th></tr>
+{% for p in items %}<tr>
+  <td>{{ p.code }}</td><td>{{ p.element }}</td><td>{{ p.name }}<div class="muted" style="font-size:12px">{{ p.material }}</div></td>
+  <td>{{ p.price }}</td><td>{{ p.commission }}</td><td>{{ p.status }}</td>
+  <td>{% if p.link and p.link.startswith('http') %}<a href="{{ p.link }}" target="_blank" rel="noopener">mở</a>{% else %}<span class="badge error">chưa có link</span>{% endif %}</td>
+  <td class="n">{{ usage[p.code].count if p.code in usage else 0 }}</td><td class="n">{{ (usage[p.code].views if p.code in usage else 0)|num }}</td>
+</tr>{% else %}<tr><td colspan="9" class="muted">Chưa có dữ liệu. Cấu hình nguồn trong Cài đặt rồi bấm "Đọc lại bảng quản trị".</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,24 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Video ({{ videos|length }})</h1>
+<div class="row" style="justify-content:space-between"><h1>Video ({{ videos|length }})</h1>
+  <form method="post" action="/videos/classify" style="margin:0">
+    <button class="btn sec" {{ 'disabled' if classify_running or not gemini_ready }}>{{ 'Đang phân loại…' if classify_running else 'Phân loại video chưa gắn nhãn bằng Gemini' }}</button>
+  </form></div>
 <form class="row" method="get" style="margin-bottom:12px">
-  <input name="q" value="{{ q }}" placeholder="Tìm theo tiêu đề / hashtag" style="max-width:320px">
-  <select name="sort" style="max-width:220px" onchange="this.form.submit()">
-    {% for k,l in [('create_time','Mới nhất'),('view_count','Lượt xem'),('like_count','Lượt thích'),('comment_count','Bình luận'),('share_count','Chia sẻ'),('engagement','Tỉ lệ tương tác'),('views_per_day','View / ngày')] %}
+  <input name="q" value="{{ q }}" placeholder="Tìm theo tiêu đề / hashtag" style="max-width:240px">
+  <select name="group" style="max-width:230px"><option value="">Mọi nhóm nội dung</option>
+    {% for k,l in groups.items() %}<option value="{{ k }}" {{ 'selected' if group==k|string }}>{{ k }}. {{ l }}</option>{% endfor %}</select>
+  <select name="element" style="max-width:140px"><option value="">Mọi hành</option>
+    {% for e in elements %}<option {{ 'selected' if element==e }}>{{ e }}</option>{% endfor %}</select>
+  <select name="sort" style="max-width:200px">
+    {% for k,l in [('create_time','Mới nhất'),('view_count','Lượt xem'),('like_count','Lượt thích'),('comment_count','Bình luận'),('share_count','Chia sẻ'),('engagement','Tỉ lệ tương tác'),('like_view','Tim/view'),('views_per_day','View / ngày')] %}
     <option value="{{ k }}" {{ 'selected' if sort==k }}>Sắp xếp: {{ l }}</option>{% endfor %}
   </select>
+  <label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" name="issues" value="1" style="width:auto" {{ 'checked' if issues }}> Có vấn đề tuân thủ</label>
+  <label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" name="untagged" value="1" style="width:auto" {{ 'checked' if untagged }}> Chưa gắn nhãn</label>
   <button class="btn sec">Lọc</button>
 </form>
 <div class="card scroll"><table>
-<tr><th></th><th>Video</th><th>Đăng lúc</th><th class="n">Thời lượng</th><th class="n">View</th><th class="n">Like</th><th class="n">Comment</th><th class="n">Share</th><th class="n">Tương tác</th><th class="n">View/ngày</th></tr>
+<tr><th></th><th>Video</th><th>Nhãn</th><th>Tuân thủ</th><th>Đăng lúc</th><th class="n">View</th><th class="n">Like</th><th class="n">Cmt</th><th class="n">Share</th><th class="n">Tim/view</th><th class="n">View/ngày</th></tr>
 {% for v in videos %}
 <tr>
   <td>{% if v.cover_url %}<img class="thumb" src="{{ v.cover_url }}" loading="lazy" referrerpolicy="no-referrer">{% endif %}</td>
   <td><a href="/videos/{{ v.id }}">{{ v.label }}</a>{% if v.share_url %} <a href="{{ v.share_url }}" target="_blank" rel="noopener" class="muted">↗</a>{% endif %}</td>
-  <td>{{ v.posted_str }}</td><td class="n">{{ v.duration or 0 }}s</td>
+  <td style="font-size:12px;min-width:120px">{% if v.tag %}
+    {% if v.tag.content_group %}<span class="badge">N{{ v.tag.content_group }}</span>{% endif %}
+    {% if v.tag.element %}<span class="badge">{{ v.tag.element }}</span>{% endif %}
+    {% if v.tag.product_code %}<span class="badge">{{ v.tag.product_code }}</span>{% endif %}
+    {% if v.tag.has_cart %}<span class="badge">🛒</span>{% endif %}
+    {% if v.tag.goi %}<span class="badge">Gói {{ v.tag.goi }}</span>{% endif %}
+    {% if v.tag.source=='ai' %}<span class="muted">(AI)</span>{% endif %}
+  {% else %}<span class="muted">—</span>{% endif %}</td>
+  <td>{% if v.compliance.level=='ok' %}<span class="badge ok">Sạch</span>{% else %}<span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart') }}" title="{{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}">{{ level_labels[v.compliance.level] }}</span>{% endif %}</td>
+  <td>{{ v.posted_str }}</td>
   <td class="n">{{ v.view_count|num }}</td><td class="n">{{ v.like_count|num }}</td><td class="n">{{ v.comment_count|num }}</td><td class="n">{{ v.share_count|num }}</td>
-  <td class="n">{{ v.engagement }}%</td><td class="n">{{ v.views_per_day|num }}</td>
+  <td class="n">{{ v.like_view }}%</td><td class="n">{{ v.views_per_day|num }}</td>
 </tr>
-{% else %}<tr><td colspan="10" class="muted">Chưa có video.</td></tr>{% endfor %}
+{% else %}<tr><td colspan="11" class="muted">Không có video.</td></tr>{% endfor %}
 </table></div>
 {% endblock %}

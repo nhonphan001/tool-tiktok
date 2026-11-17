@@ -16,6 +16,26 @@
 {% else %}
 {% set L = ov.latest %}{% set d7 = ov.deltas['7d'] or {} %}{% set d24 = ov.deltas['24h'] or {} %}
 <h1>Tổng quan kênh</h1>
+{% set viol = issues|selectattr('compliance.level','equalto','violation')|list %}
+{% if issues %}<div class="flash {{ 'error' if viol else '' }}">
+  <b>{{ 'Có ' ~ viol|length ~ ' video có giỏ hàng vi phạm quy tắc TikTok Shop!' if viol else 'Có ' ~ issues|length ~ ' caption cần xem lại.' }}</b>
+  {% for v in issues[:3] %}<div>• <a href="/videos/{{ v.id }}">{{ v.label[:60] }}</a> — {{ level_labels[v.compliance.level] }}: {{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}</div>{% endfor %}
+  <a href="/compliance">Xem tất cả →</a>
+</div>{% endif %}
+<div class="grid g2" style="margin-bottom:16px">
+  {% for t in k.targets %}<div class="card"><h2>Mốc {{ t.target|num }} follower <span class="muted" style="font-weight:400">trước {{ t.deadline }}</span></h2>
+    <div class="bar"><div style="width:{{ t.pct }}%"></div></div>
+    <div class="row" style="justify-content:space-between;margin-top:6px"><b>{{ t.current|num }} ({{ t.pct }}%)</b><span class="badge {{ 'ok' if t.on_track else 'error' }}">{{ 'Đúng tiến độ' if t.on_track else 'Chậm tiến độ' }}</span></div>
+    <div class="muted" style="font-size:13px;margin-top:6px">Còn {{ t.remaining|num }} · cần {{ t.need_per_day if t.need_per_day is not none else '—' }}/ngày ({{ t.days_left if t.days_left is not none else '—' }} ngày) · tốc độ 7 ngày: {{ t.pace }}/ngày · dự kiến đạt: {{ t.eta }}</div>
+  </div>{% endfor %}
+  <div class="card"><h2>Tỷ lệ tim / view ({{ k.like_view.days }} ngày)</h2>
+    <div class="row" style="justify-content:space-between"><span style="font-size:26px;font-weight:700">{{ k.like_view.rate }}%</span><span class="badge {{ 'ok' if k.like_view.ok else 'error' }}">mục tiêu ≥ {{ k.like_view.min }}%</span></div>
+    <div class="muted" style="font-size:13px">{{ k.like_view.below }}/{{ k.like_view.videos }} video dưới mốc</div></div>
+  <div class="card"><h2>Khung giờ đăng</h2><table>
+    <tr><th>Khung</th><th class="n">Video</th><th class="n">View TB</th><th class="n">Tim/view</th></tr>
+    {% for s in k.slots %}<tr><td>{{ s.label }}</td><td class="n">{{ s.count }}</td><td class="n">{{ s.avg_views|num }}</td><td class="n">{{ s.like_view }}%</td></tr>{% endfor %}
+  </table></div>
+</div>
 <div class="grid g4">
   <div class="card stat"><div class="label">Người theo dõi</div><div class="value">{{ L.follower_count|num }}</div>
     <div class="sub"><span class="{{ 'up' if (d24.follower_count or 0)>=0 else 'down' }}">{{ d24.follower_count|delta }}</span> 24h · <span class="{{ 'up' if (d7.follower_count or 0)>=0 else 'down' }}">{{ d7.follower_count|delta }}</span> 7 ngày</div></div>

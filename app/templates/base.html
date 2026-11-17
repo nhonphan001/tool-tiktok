@@ -13,6 +13,8 @@
   <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
   <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
   <a class="tab {{ 'on' if active=='strategy' }}" href="/strategy">Chiến lược</a>
+  <a class="tab {{ 'on' if active=='compliance' }}" href="/compliance">Tuân thủ</a>
+  <a class="tab {{ 'on' if active=='products' }}" href="/products">Sản phẩm</a>
   <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo</a>
   <a class="tab {{ 'on' if active=='settings' }}" href="/settings">Cài đặt</a>
   <div class="right">
@@ -51,6 +53,14 @@ function askNotifyPermission(){ try{ if('Notification' in window && Notification
     document.getElementById('toasts').appendChild(el); setTimeout(()=>el.remove(), 20000);
   }
   function notify(j){
+    if(j.type==='job'){
+      const okj=j.status==='done';
+      const extra=j.total_tokens? '<div>'+money(j.total_tokens)+' token · ≈ '+money(j.cost_vnd)+' ₫</div>' : '';
+      toast('<b>'+(okj?'Xong: ':'Lỗi: ')+j.title+'</b><div>'+(j.message||'').replace(/</g,'&lt;')+'</div>'+extra+'<a href="'+j.link+'">Xem</a>', okj?'ok':'warn');
+      document.title='✅ '+baseTitle;
+      try{ if('Notification' in window && Notification.permission==='granted' && document.hidden) new Notification(j.title,{body:j.message||'',icon:'/static/favicon.png'}); }catch(e){}
+      return;
+    }
     const ok=j.status==='done' && j.source==='gemini';
     const msg = j.status==='error' ? 'Tạo chiến lược bị lỗi' : (ok ? 'Chiến lược mới đã sẵn sàng' : 'Đã tạo chiến lược (dự phòng, Gemini lỗi)');
     const detail = ok ? (money(j.total_tokens)+' token · ≈ '+money(j.cost_vnd)+' ₫ · '+j.duration_sec+'s') : '';

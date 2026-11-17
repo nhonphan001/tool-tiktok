@@ -9,6 +9,16 @@ Công cụ tự host để quản lý kênh TikTok của bạn:
 - **Lưu lên NotebookLM**: báo cáo + lịch sử chiến lược được đẩy thành nguồn cho notebook (3 cách, xem bên dưới).
 - **Web app** quản lý (có mật khẩu): Tổng quan · Video · Phân tích · Chiến lược · Báo cáo · Cài đặt.
 
+## Tính năng cho kênh Tiệm Trà Giải Mã
+
+- **Định vị kênh & quy tắc nội dung** (`app/defaults/`): được gửi kèm MỌI yêu cầu Gemini. Ô trong Cài đặt để trống = dùng mặc định.
+- **Tuân thủ TikTok Shop** (trang *Tuân thủ*): tự dò caption mọi video sau mỗi lần quét (web, Bio, tiểu sử, tên miền, Zalo, Shopee, Lazada, link, cả chữ không dấu và viết né như `l.i.n.k`) + lời hứa quá đà. Có ô dán thử caption / bình luận ghim / lời thoại trước khi đăng. Cảnh báo hiện ngay trên Tổng quan.
+- **KPI**: tiến độ mốc 5.000 / 10.000 follower, số cần tăng mỗi ngày, tốc độ 7 ngày, ngày dự kiến đạt; tim/view so với mốc 4%; hiệu quả các khung giờ đăng 7:00 / 12:00 / 19:30.
+- **Nhãn video**: Gói, mã sản phẩm, hành Dụng Thần, nhóm nội dung (1–6), có giỏ hàng. Gemini phân loại tự động (chạy nền, không ghi đè nhãn tay). Trang Phân tích thống kê theo nhãn.
+- **Bảng sản phẩm** (trang *Sản phẩm*): đọc bảng quản trị (Sheets API hoặc CSV xuất bản) — chỉ đọc, không bao giờ ghi.
+- **Báo cáo** ghi rõ số liệu chính xác từ TikTok API, kèm KPI, tuân thủ, nhãn — dùng cho báo cáo ca 06h của Gemini.
+- **API chỉ-đọc** `GET /api/public/summary` và `/api/public/report.md` (header `x-api-token` hoặc `?token=`, cần `API_TOKEN`) cho bảng điều hành khác hoặc Gemini đọc.
+
 ## Chạy nhanh
 
 ```bash

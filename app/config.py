@@ -13,6 +13,21 @@ def _bool(v: str | None, default: bool = False) -> bool:
     return v.strip().lower() in ("1", "true", "yes", "on")
 
 
+_DEFAULTS_DIR = os.path.join(os.path.dirname(__file__), "defaults")
+
+
+def _default_text(name: str, env: str) -> str:
+    """Giá trị từ biến môi trường, nếu trống thì đọc file mặc định trong app/defaults/."""
+    v = os.getenv(env)
+    if v:
+        return v
+    try:
+        with open(os.path.join(_DEFAULTS_DIR, name), encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
 @dataclass
 class Settings:
     app_password: str = field(default_factory=lambda: os.getenv("APP_PASSWORD", "admin"))
@@ -34,7 +49,28 @@ class Settings:
     gemini_price_input: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_INPUT", "0.30")))
     gemini_price_output: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_OUTPUT", "2.50")))
     usd_vnd_rate: float = field(default_factory=lambda: float(os.getenv("USD_VND_RATE", "26000")))
-    channel_context: str = field(default_factory=lambda: os.getenv("CHANNEL_CONTEXT", ""))
+    channel_context: str = field(default_factory=lambda: _default_text("channel_context.md", "CHANNEL_CONTEXT"))
+    content_rules: str = field(default_factory=lambda: _default_text("content_rules.md", "CONTENT_RULES"))
+
+    # KPI
+    kpi_target_1: int = field(default_factory=lambda: int(os.getenv("KPI_TARGET_1", "5000")))
+    kpi_deadline_1: str = field(default_factory=lambda: os.getenv("KPI_DEADLINE_1", "2026-12-17"))
+    kpi_target_2: int = field(default_factory=lambda: int(os.getenv("KPI_TARGET_2", "10000")))
+    kpi_deadline_2: str = field(default_factory=lambda: os.getenv("KPI_DEADLINE_2", "2027-02-17"))
+    kpi_like_view_min: float = field(default_factory=lambda: float(os.getenv("KPI_LIKE_VIEW_MIN", "4")))
+    posting_slots: str = field(default_factory=lambda: os.getenv("POSTING_SLOTS", "07:00,12:00,19:30"))
+
+    # Bảng quản trị sản phẩm (Google Sheets, chỉ đọc bằng service account)
+    product_sheet_id: str = field(default_factory=lambda: os.getenv("PRODUCT_SHEET_ID", ""))
+    product_sheet_range: str = field(
+        default_factory=lambda: os.getenv("PRODUCT_SHEET_RANGE", "San_Pham_Affiliate_5_Hanh!A10:N")
+    )
+
+    # Hoặc link CSV đã "Xuất bản lên web" (vd. tab WEB_XUAT_BAN) — không cần service account
+    product_csv_url: str = field(default_factory=lambda: os.getenv("PRODUCT_CSV_URL", ""))
+
+    # Token cho API chỉ-đọc /api/public/* (bảng điều hành khác, Gemini...). Trống = tắt.
+    api_token: str = field(default_factory=lambda: os.getenv("API_TOKEN", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
@@ -64,6 +100,16 @@ EDITABLE_KEYS = {
     "gemini_model": str,
     "channel_context": str,
     "gemini_backend": str,
+    "content_rules": str,
+    "kpi_target_1": int,
+    "kpi_deadline_1": str,
+    "kpi_target_2": int,
+    "kpi_deadline_2": str,
+    "kpi_like_view_min": float,
+    "posting_slots": str,
+    "product_sheet_id": str,
+    "product_sheet_range": str,
+    "product_csv_url": str,
     "gemini_price_input": float,
     "gemini_price_output": float,
     "usd_vnd_rate": float,
@@ -74,12 +120,21 @@ EDITABLE_KEYS = {
     "notebooklm_notebook_id": str,
 }
 
+# Ô văn bản để trống = dùng nội dung mặc định trong app/defaults/
+DEFAULT_TEXT_KEYS = {
+    "channel_context": ("channel_context.md", "CHANNEL_CONTEXT"),
+    "content_rules": ("content_rules.md", "CONTENT_RULES"),
+}
+
 settings = Settings()
 
 
 def apply_overrides(overrides: dict[str, str]) -> None:
     for key, raw in overrides.items():
         if key not in EDITABLE_KEYS or raw is None:
+            continue
+        if raw == "" and key in DEFAULT_TEXT_KEYS:
+            setattr(settings, key, _default_text(*DEFAULT_TEXT_KEYS[key]))
             continue
         if raw == "" and EDITABLE_KEYS[key] is not str:
             continue  # ô số để trống: giữ giá trị cũ

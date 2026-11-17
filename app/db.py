@@ -100,6 +100,40 @@ CREATE TABLE IF NOT EXISTS ai_usage (
     total_tokens INTEGER DEFAULT 0,
     cost_usd REAL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS video_tags (
+    video_id TEXT PRIMARY KEY,
+    goi TEXT,
+    product_code TEXT,
+    element TEXT,
+    content_group INTEGER,
+    has_cart INTEGER,
+    note TEXT,
+    source TEXT,
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS products (
+    code TEXT PRIMARY KEY,
+    element TEXT,
+    name TEXT,
+    material TEXT,
+    price TEXT,
+    commission TEXT,
+    link TEXT,
+    status TEXT,
+    note TEXT,
+    synced_at TEXT
+);
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT,
+    status TEXT,
+    message TEXT,
+    created_at TEXT,
+    finished_at TEXT,
+    total_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    notified INTEGER DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -129,6 +163,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "UPDATE strategies SET status='error', notified=0, content_md='Bị gián đoạn do ứng dụng khởi động lại. Hãy tạo lại.'"
         " WHERE status='pending'"
+    )
+    conn.execute(
+        "UPDATE jobs SET status='error', notified=0, message='Bị gián đoạn do ứng dụng khởi động lại.' WHERE status='pending'"
     )
 
 

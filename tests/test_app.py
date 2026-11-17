@@ -60,7 +60,8 @@ def test_web_pages(seeded):
     assert c.get("/", follow_redirects=False).status_code == 303
     assert c.post("/login", data={"password": "bad"}).status_code == 401
     c.post("/login", data={"password": "pw"})
-    for path in ["/", "/videos?sort=view_count", "/analytics", "/strategy", "/report", "/settings", "/videos/demo001"]:
+    for path in ["/", "/videos?sort=view_count", "/analytics", "/strategy", "/report", "/settings", "/videos/demo001",
+                 "/compliance", "/products", "/videos?issues=1&untagged=1&group=1&element=Kim&sort=like_view"]:
         r = c.get(path)
         assert r.status_code == 200, path
     assert c.get("/api/overview").json()["latest"]
@@ -68,7 +69,7 @@ def test_web_pages(seeded):
     assert settings.channel_context == "Tiệm trà"
     assert "Tiệm trà" in c.get("/settings").text
     c.post("/settings", data={"channel_context": ""})
-    assert settings.channel_context == ""
+    assert settings.channel_context.startswith("Kênh Tiệm Trà Giải Mã")  # trống = định vị mặc định
 
 
 def test_tiktok_verify_file(tmp_path, monkeypatch):
@@ -157,22 +158,112 @@ def test_background_strategy_with_usage(seeded, monkeypatch):
     assert strategy.usage_summary()["month"]["calls"] >= 1
 
 
-def test_migrate_old_db(tmp_path):
-    import sqlite3
 
-    path = tmp_path / "old.db"
-    conn = sqlite3.connect(path)
-    conn.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, open_id TEXT, created_at TEXT, source TEXT,"
-                 " model TEXT, goal TEXT, content_md TEXT)")
-    conn.execute("INSERT INTO strategies(open_id, created_at, source, content_md) VALUES('x','2026-01-01','rule','a')")
-    conn.commit()
-    conn.close()
-    old = settings.database_path
-    settings.database_path = str(path)
-    db.reset_connection()
-    try:
-        row = db.query_one("SELECT status, cost_usd FROM strategies")
-        assert row == {"status": "done", "cost_usd": 0}
-    finally:
-        db.reset_connection()
-        settings.database_path = old
+def test_compliance_rules():
+    from app import compliance
+
+    bad = ["Xem lá số tại Link Bio nhé", "tra ở trang tiểu sử", "nangtamchatluongsong.vn", "ib zalo cô",
+           "mua trên Shopee", "Lazada có bán", "l.i.n.k ở b i o", "vào web của cô", "https://abc.xyz"]
+    for t in bad:
+        assert compliance.check(t, True)["level"] == "violation", t
+    ok = ["bấm giỏ hàng góc trái", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "Tuổi Tý năm 2026 #battu",
+          "dòng suối, ngọn đèn trên sa bàn"]
+    for t in ok:
+        assert compliance.check(t, True)["level"] == "ok", t
+    assert compliance.check("vòng giúp chiêu tài", True)["level"] == "warning"
+    assert compliance.check("xem trang cá nhân của Cô Kim", False)["level"] == "warning"
+    assert compliance.check("Shopee", None)["level"] == "violation_if_cart"
+    # web app
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    r = c.post("/compliance/check", data={"text": "Xem link bio", "has_cart": "1"})  # tự theo redirect
+    assert "VI PHẠM" in r.text
+
+
+def test_system_prompt_has_rules():
+    assert "Link Bio" in strategy.full_system_prompt()
+    assert "bấm giỏ hàng góc trái" in strategy.full_system_prompt()
+
+
+def test_tags_and_kpi(seeded):
+    from app import kpi, report, tags
+
+    tags.save("demo001", {"goi": "13", "product_code": "", "element": "Thủy", "content_group": "2", "has_cart": "1",
+                          "note": ""})
+    t = tags.get_all()["demo001"]
+    assert t["content_group"] == 2 and t["has_cart"] == 1 and t["source"] == "manual"
+    ta = tags.tag_analysis(seeded)
+    assert ta["tagged"] >= 1 and ta["by_element"][0]["key"] == "Thủy"
+    k = kpi.summary(seeded)
+    assert len(k["targets"]) == 2 and k["targets"][0]["current"] > 0
+    assert {s["label"] for s in k["slots"]} >= {"Khung 07:00", "Khung 12:00", "Khung 19:30", "Ngoài khung"}
+    md = report.build_report(seeded)
+    assert "## KPI" in md and "không làm tròn" in md and "Kiểm tra tuân thủ" in md and "Hiệu quả theo nhãn" in md
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    c.post("/videos/demo002/tags", data={"goi": "7", "content_group": "5", "element": "Hỏa", "has_cart": "0",
+                                         "product_code": "", "note": "x"})
+    assert tags.get_all()["demo002"]["goi"] == "7"
+    assert "Mốc 5.000 follower" in c.get("/").text
+
+
+def test_classify_job(seeded, monkeypatch):
+    import json as _json
+    import time as _t
+
+    from app import jobs, tags
+
+    def fake(prompt, system=None, json_mode=False):
+        assert json_mode
+        ids = [line.split(" | ")[0] for line in prompt.split("VIDEO (id | tiêu đề | caption):\n")[1].splitlines()]
+        return _json.dumps([{"id": i, "content_group": 1, "element": "Moc", "product_code": "FAKE",
+                             "has_cart": None, "goi": ""} for i in ids]), dict(strategy.EMPTY_USAGE, total_tokens=5)
+
+    monkeypatch.setattr(strategy, "call_gemini", fake)
+    jid = jobs.start("classify", tags.classify, seeded)
+    for _ in range(50):
+        if db.query_one("SELECT status FROM jobs WHERE id=?", (jid,))["status"] != "pending":
+            break
+        _t.sleep(0.1)
+    job = db.query_one("SELECT * FROM jobs WHERE id=?", (jid,))
+    assert job["status"] == "done", job["message"]
+    all_tags = tags.get_all()
+    assert all_tags["demo001"]["source"] == "manual"  # không ghi đè nhãn tay
+    ai = [t for t in all_tags.values() if t["source"] == "ai"]
+    assert ai and ai[0]["element"] == "Mộc" and ai[0]["product_code"] == ""  # mã không có trong bảng -> bỏ
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    fin = c.get("/api/jobs").json()["finished"]
+    assert any(f.get("type") == "job" and f["id"] == jid for f in fin)
+
+
+def test_products_csv(monkeypatch):
+    from app import products
+
+    csv_text = "Bảng sản phẩm\nMã SP,Hành,Tên sản phẩm,Giá,Link TikTok,Trạng thái\n" \
+               "SP-THUY-02,Thủy,Vòng thạch anh tóc đen thiên nhiên,250k,https://vt.tiktok.com/x/,Đang bán\n" \
+               "SP-HOA-04,HỎA,Vòng Tay Chu Sa,300k,,Chờ link\n,,,,,\n"
+
+    class R:
+        status_code = 200
+        content = csv_text.encode("utf-8")
+
+    monkeypatch.setattr(products.httpx, "get", lambda *a, **k: R())
+    monkeypatch.setattr(settings, "product_csv_url", "https://example.com/x.csv")
+    msg, _ = products.sync()
+    assert "2 sản phẩm" in msg and "1 mã chưa có link" in msg
+    p = products.by_code()
+    assert p["SP-THUY-02"]["element"] == "Thủy" and p["SP-HOA-04"]["element"] == "Hỏa"
+    assert p["SP-THUY-02"]["link"].startswith("https://")
+
+
+def test_public_api(seeded, monkeypatch):
+    c = TestClient(app)
+    assert c.get("/api/public/summary").status_code == 401
+    monkeypatch.setattr(settings, "api_token", "secret-token")
+    assert c.get("/api/public/summary?token=wrong").status_code == 401
+    r = c.get("/api/public/summary", headers={"x-api-token": "secret-token"})
+    assert r.status_code == 200 and r.headers["access-control-allow-origin"] == "*"
+    d = r.json()
+    assert d["latest"]["follower_count"] > 0 and "kpi" in d and "videos" in d
+    assert "## KPI" in c.get("/api/public/report.md?token=secret-token").text

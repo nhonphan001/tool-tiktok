@@ -3,6 +3,17 @@
 <h1>Phân tích chuyên sâu</h1>
 {% if not an or not an.video_count %}<div class="card muted">Chưa có dữ liệu video.</div>{% else %}
 <div class="card"><h2>Nhận định</h2><ul class="ins">{% for i in an.insights %}<li>{{ i }}</li>{% endfor %}</ul></div>
+{% if ta %}<div class="card scroll" style="margin-top:16px"><h2>Hiệu quả theo nhãn <span class="muted" style="font-weight:400">({{ ta.tagged }}/{{ ta.total }} video đã gắn nhãn — <a href="/videos?untagged=1">gắn thêm</a>)</span></h2>
+  <div class="grid g2">
+  {% for title, rows in [('Nhóm nội dung', ta.by_group), ('Hành', ta.by_element), ('Sản phẩm', ta.by_product), ('Giỏ hàng', ta.by_cart)] %}
+    <div><h3 style="font-size:15px">{{ title }}</h3>{% if rows %}<table><tr><th>{{ title }}</th><th class="n">Video</th><th class="n">View TB</th><th class="n">Tim/view</th></tr>
+      {% for r in rows %}<tr><td>{{ r.label }}</td><td class="n">{{ r.count }}</td><td class="n">{{ r.avg_views|num }}</td><td class="n {{ 'down' if r.like_view < kpi_min }}">{{ r.like_view }}%</td></tr>{% endfor %}</table>
+      {% else %}<p class="muted">Chưa có dữ liệu.</p>{% endif %}</div>
+  {% endfor %}
+  </div></div>{% endif %}
+<div class="card" style="margin-top:16px"><h2>Khung giờ đăng theo lịch (±60 phút)</h2><table>
+  <tr><th>Khung</th><th class="n">Video</th><th class="n">View TB</th><th class="n">Tim/view</th></tr>
+  {% for s in slots %}<tr><td>{{ s.label }}</td><td class="n">{{ s.count }}</td><td class="n">{{ s.avg_views|num }}</td><td class="n">{{ s.like_view }}%</td></tr>{% endfor %}</table></div>
 <div class="grid g2" style="margin-top:16px">
   <div class="card"><h2>View TB theo ngày đăng</h2><canvas id="cWd"></canvas></div>
   <div class="card"><h2>View TB theo giờ đăng</h2><canvas id="cHr"></canvas></div>

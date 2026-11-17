@@ -24,7 +24,7 @@ Trả lời bằng tiếng Việt, định dạng Markdown, gồm các mục:
 2. Mô thức nội dung thắng (video nào/vì sao hiệu quả, nên lặp lại yếu tố gì)
 3. Lịch đăng đề xuất 7 ngày tới (bảng: ngày, giờ đăng, chủ đề/ý tưởng, định dạng, độ dài, hook gợi ý, hashtag)
 4. 10 ý tưởng video mới kèm hook 3 giây đầu
-5. Tối ưu caption, hashtag, CTA
+5. Tối ưu caption, hashtag, CTA (CTA chỉ dùng các câu được phép trong QUY TẮC NỘI DUNG BẮT BUỘC bên dưới)
 6. KPI mục tiêu 30 ngày (follower, view TB, tỉ lệ tương tác) và cách đo
 7. Thử nghiệm A/B nên chạy
 Không bịa số liệu không có trong dữ liệu; nếu dữ liệu còn ít, hãy nói rõ mức độ tin cậy."""
@@ -69,7 +69,15 @@ def record_usage(kind: str, ref_id: int | None, usage: dict) -> None:
         )
 
 
-def call_gemini(prompt: str, system: str = SYSTEM_PROMPT) -> tuple[str, dict]:
+def full_system_prompt(base: str = "") -> str:
+    """Lời nhắc hệ thống luôn kèm quy tắc nội dung bắt buộc của kênh."""
+    base = base or SYSTEM_PROMPT
+    if settings.content_rules:
+        base += "\n\n" + settings.content_rules
+    return base
+
+
+def call_gemini(prompt: str, system: str = SYSTEM_PROMPT, json_mode: bool = False) -> tuple[str, dict]:
     """Gọi Gemini, trả về (nội dung, thông tin token/chi phí)."""
     if not settings.gemini_api_key:
         raise StrategyError("Chưa cấu hình GEMINI_API_KEY")
@@ -77,9 +85,11 @@ def call_gemini(prompt: str, system: str = SYSTEM_PROMPT) -> tuple[str, dict]:
         GEMINI_URLS.get(settings.gemini_backend, GEMINI_URLS["aistudio"]).format(model=settings.gemini_model),
         headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
         json={
-            "systemInstruction": {"parts": [{"text": system}]},
+            "systemInstruction": {"parts": [{"text": full_system_prompt(system)}]},
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.7},
+            "generationConfig": (
+                {"temperature": 0.2, "responseMimeType": "application/json"} if json_mode else {"temperature": 0.7}
+            ),
         },
         timeout=300,
     )

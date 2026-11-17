@@ -9,6 +9,39 @@
   <div class="card stat"><div class="label">Bình luận · Chia sẻ</div><div class="value">{{ v.comment_count|num }} · {{ v.share_count|num }}</div></div>
   <div class="card stat"><div class="label">Tỉ lệ tương tác</div><div class="value">{{ v.engagement }}%</div></div>
 </div>
+<div class="grid g2" style="margin-top:16px">
+<div class="card"><h2>Nhãn video</h2>
+  <form method="post" action="/videos/{{ v.id }}/tags">
+    <div class="row" style="gap:10px">
+      <div style="flex:1;min-width:110px"><label>Gói</label><input name="goi" value="{{ v.tag.goi or '' }}" placeholder="VD: 13"></div>
+      <div style="flex:2;min-width:180px"><label>Nhóm nội dung</label><select name="content_group"><option value="">—</option>
+        {% for k,l in groups.items() %}<option value="{{ k }}" {{ 'selected' if v.tag.content_group==k }}>{{ k }}. {{ l }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row" style="gap:10px">
+      <div style="flex:2;min-width:200px"><label>Sản phẩm ghim</label>
+        {% if products %}<select name="product_code"><option value="">— không có —</option>
+          {% for p in products %}<option value="{{ p.code }}" {{ 'selected' if v.tag.product_code==p.code }}>{{ p.code }} – {{ p.name }}</option>{% endfor %}</select>
+        {% else %}<input name="product_code" value="{{ v.tag.product_code or '' }}" placeholder="SP-THUY-02 (chưa đồng bộ bảng sản phẩm)">{% endif %}</div>
+      <div style="flex:1;min-width:110px"><label>Hành Dụng Thần</label><select name="element"><option value="">—</option>
+        {% for e in elements %}<option {{ 'selected' if v.tag.element==e }}>{{ e }}</option>{% endfor %}</select></div>
+    </div>
+    <label>Có gắn giỏ hàng?</label>
+    <select name="has_cart"><option value="" {{ 'selected' if v.tag.has_cart is none }}>Chưa rõ</option>
+      <option value="1" {{ 'selected' if v.tag.has_cart==1 }}>Có giỏ hàng</option><option value="0" {{ 'selected' if v.tag.has_cart==0 }}>Không</option></select>
+    <label>Ghi chú</label><input name="note" value="{{ v.tag.note or '' }}">
+    <p class="row"><button class="btn">Lưu nhãn</button>{% if v.tag.source=='ai' %}<span class="muted">Nhãn hiện tại do Gemini gợi ý — lưu lại để xác nhận.</span>{% endif %}</p>
+  </form>
+  {% if v.product %}<p class="muted">Bảng quản trị: {{ v.product.code }} · {{ v.product.element }} · {{ v.product.name }} · {% if v.product.link %}<a href="{{ v.product.link }}" target="_blank" rel="noopener">link</a>{% else %}<b>chưa có link</b>{% endif %}</p>{% endif %}
+</div>
+<div class="card"><h2>Kiểm tra caption</h2>
+  {% set c = v.compliance %}
+  <p><span class="badge {{ 'ok' if c.level=='ok' else ('error' if c.level in ('violation','violation_if_cart') else '') }}">{{ level_labels[c.level] }}</span></p>
+  {% for x in c.offsite %}<div>• Mời ra ngoài nền tảng: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
+  {% for x in c.promise %}<div>• Hứa hẹn / hù dọa: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
+  {% if c.level=='violation_if_cart' %}<p class="muted">Gắn nhãn "Có giỏ hàng" hoặc "Không" để kết luận chính xác.</p>{% endif %}
+  <p class="muted" style="font-size:12px">Chỉ kiểm tra tiêu đề/caption lấy từ TikTok. Lời thoại và bình luận ghim: dán vào trang <a href="/compliance">Tuân thủ</a>.</p>
+</div>
+</div>
 <div class="card" style="margin-top:16px"><h2>Diễn biến theo các lần quét</h2><canvas id="cHist"></canvas></div>
 {% if v.description %}<div class="card" style="margin-top:16px"><h2>Mô tả</h2><p>{{ v.description }}</p></div>{% endif %}
 {% endblock %}

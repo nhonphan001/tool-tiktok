@@ -25,6 +25,9 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
         f"# Báo cáo kênh TikTok @{acc.get('username') or acc.get('display_name') or open_id}",
         f"_Cập nhật: {now} ({tz.key})_",
         "",
+        "> Số liệu lấy trực tiếp từ TikTok API tại thời điểm quét. Khi báo cáo, ghi ĐÚNG con số, "
+        "không làm tròn lên thành \"đã đạt mốc\".",
+        "",
     ]
     if settings.channel_context:
         lines += ["## Thông tin kênh", settings.channel_context, ""]
@@ -44,6 +47,10 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
         ]
     else:
         lines.append("Chưa có dữ liệu quét.")
+
+    lines += _kpi_section(open_id)
+    lines += _compliance_section(open_id)
+    lines += _tag_section(open_id)
 
     lines += ["", "## 2. Nhận định tự động"] + [f"- {i}" for i in an["insights"]]
 
@@ -81,6 +88,58 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
             f" {_n(v['comment_count'])} | {_n(v['share_count'])} | {v['engagement']}% | {_n(v['views_per_day'])} |"
         )
     return "\n".join(lines) + "\n"
+
+
+def _kpi_section(open_id: str) -> list[str]:
+    from . import kpi
+
+    k = kpi.summary(open_id)
+    lines = ["", "## KPI"]
+    for t in k["targets"]:
+        lines.append(
+            f"- Mốc {_n(t['target'])} follower trước {t['deadline']}: hiện {_n(t['current'])} ({t['pct']}%), "
+            f"còn {_n(t['remaining'])}; cần {t['need_per_day'] if t['need_per_day'] is not None else '—'}/ngày, "
+            f"tốc độ 7 ngày qua {t['pace']}/ngày → dự kiến đạt {t['eta']} "
+            f"({'ĐÚNG TIẾN ĐỘ' if t['on_track'] else 'CHẬM TIẾN ĐỘ'})"
+        )
+    lv = k["like_view"]
+    lines.append(
+        f"- Tỷ lệ tim/view {lv['days']} ngày: {lv['rate']}% (mục tiêu ≥ {lv['min']}%, "
+        f"{'đạt' if lv['ok'] else 'CHƯA ĐẠT'}); {lv['below']}/{lv['videos']} video dưới mốc"
+    )
+    lines += ["", "| Khung giờ đăng | Số video | View TB | Tim/view |", "|---|---|---|---|"]
+    lines += [f"| {s['label']} | {s['count']} | {_n(s['avg_views'])} | {s['like_view']}% |" for s in k["slots"]]
+    return lines
+
+
+def _compliance_section(open_id: str) -> list[str]:
+    from . import compliance, tags
+
+    issues = tags.compliance_issues(open_id)
+    lines = ["", "## Kiểm tra tuân thủ caption (quy tắc TikTok Shop)"]
+    if not issues:
+        return lines + ["- Tất cả caption đã quét đều sạch (không có lời mời ra ngoài nền tảng / hứa hẹn quá đà)."]
+    for v in issues:
+        c = v["compliance"]
+        what = ", ".join(f"{x['label']} (\"{x['match']}\")" for x in c["offsite"] + c["promise"])
+        lines.append(f"- [{compliance.LEVEL_LABELS[c['level']]}] {v['posted_str']} – {v['label'][:60]}: {what}")
+    lines.append("- Lưu ý: chỉ kiểm tra được caption/tiêu đề; lời thoại và bình luận ghim phải kiểm theo Mẫu A/B.")
+    return lines
+
+
+def _tag_section(open_id: str) -> list[str]:
+    from . import tags
+
+    t = tags.tag_analysis(open_id)
+    lines = ["", f"## Hiệu quả theo nhãn ({t['tagged']}/{t['total']} video đã gắn nhãn)"]
+    for title, rows in (("Nhóm nội dung", t["by_group"]), ("Hành", t["by_element"]),
+                        ("Sản phẩm", t["by_product"]), ("Giỏ hàng", t["by_cart"])):
+        if not rows:
+            continue
+        lines += ["", f"| {title} | Số video | View TB | Tương tác TB | Tim/view |", "|---|---|---|---|---|"]
+        lines += [f"| {r['label']} | {r['count']} | {_n(r['avg_views'])} | {r['avg_engagement']}% | {r['like_view']}% |"
+                  for r in rows]
+    return lines
 
 
 def build_strategy_doc(open_id: str, limit: int = 10) -> str:

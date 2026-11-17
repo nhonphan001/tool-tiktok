@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import analytics, db, notebooklm, report, scanner, scheduler, strategy, tiktok
+from . import analytics, compliance, db, jobs, kpi, notebooklm, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import EDITABLE_KEYS, apply_overrides, settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TikTok Channel Manager", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback", "/privacy", "/terms", "/tiktok")
+PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback", "/privacy", "/terms", "/tiktok", "/api/public/")
 
 
 @app.middleware("http")
@@ -65,7 +65,10 @@ def render(request: Request, name: str, **ctx):
             "account": db.get_active_account(),
             "flash": flash,
             "active": name.split(".")[0],
-            "pending_jobs": (db.query_one("SELECT COUNT(*) AS n FROM strategies WHERE status='pending' OR notified=0") or {}).get("n", 0),
+            "pending_jobs": (db.query_one(
+                "SELECT (SELECT COUNT(*) FROM strategies WHERE status='pending' OR notified=0)"
+                " + (SELECT COUNT(*) FROM jobs WHERE status='pending' OR notified=0) AS n"
+            ) or {}).get("n", 0),
             **ctx,
         },
     )
@@ -179,16 +182,28 @@ def dashboard(request: Request):
         an=an,
         scans=scans,
         next_run=scheduler.next_run(),
+        k=kpi.summary(oid),
+        issues=tags.compliance_issues(oid),
+        level_labels=compliance.LEVEL_LABELS,
     )
 
 
 @app.get("/videos", response_class=HTMLResponse)
-def videos_page(request: Request, sort: str = "create_time", q: str = ""):
+def videos_page(request: Request, sort: str = "create_time", q: str = "", group: str = "", element: str = "",
+                issues: str = "", untagged: str = ""):
     acc = db.get_active_account()
-    vids = analytics.get_videos(acc["open_id"]) if acc else []
+    vids = tags.videos_with_tags(acc["open_id"]) if acc else []
     if q:
         ql = q.lower()
         vids = [v for v in vids if ql in (v["label"] or "").lower() or ql in (v.get("description") or "").lower()]
+    if group:
+        vids = [v for v in vids if str(v["tag"].get("content_group") or "") == group]
+    if element:
+        vids = [v for v in vids if v["tag"].get("element") == element]
+    if issues:
+        vids = [v for v in vids if v["compliance"]["level"] != "ok"]
+    if untagged:
+        vids = [v for v in vids if not v["tag"]]
     keys = {
         "create_time": lambda v: v.get("create_time") or 0,
         "view_count": lambda v: v["view_count"] or 0,
@@ -196,26 +211,103 @@ def videos_page(request: Request, sort: str = "create_time", q: str = ""):
         "comment_count": lambda v: v["comment_count"] or 0,
         "share_count": lambda v: v["share_count"] or 0,
         "engagement": lambda v: v["engagement"],
+        "like_view": lambda v: v["like_view"],
         "views_per_day": lambda v: v["views_per_day"],
     }
     vids.sort(key=keys.get(sort, keys["create_time"]), reverse=True)
-    return render(request, "videos.html", videos=vids, sort=sort, q=q)
+    return render(
+        request, "videos.html", videos=vids, sort=sort, q=q, group=group, element=element, issues=issues,
+        untagged=untagged, groups=tags.CONTENT_GROUPS, elements=tags.ELEMENTS, level_labels=compliance.LEVEL_LABELS,
+        classify_running=jobs.running("classify"), gemini_ready=bool(settings.gemini_api_key),
+    )
+
+
+@app.post("/videos/classify")
+def videos_classify(request: Request):
+    acc = db.get_active_account()
+    if not acc:
+        flash(request, "Chưa kết nối kênh", "error")
+    elif jobs.running("classify"):
+        flash(request, "Đang phân loại, vui lòng đợi", "info")
+    else:
+        jobs.start("classify", tags.classify, acc["open_id"])
+        flash(request, "Gemini đang phân loại video ở chế độ nền, sẽ có thông báo khi xong.", "info")
+    return RedirectResponse("/videos", status_code=303)
 
 
 @app.get("/videos/{video_id}", response_class=HTMLResponse)
 def video_detail(request: Request, video_id: str):
     acc = db.get_active_account()
-    v = next((x for x in analytics.get_videos(acc["open_id"]) if x["id"] == video_id), None) if acc else None
+    v = next((x for x in tags.videos_with_tags(acc["open_id"]) if x["id"] == video_id), None) if acc else None
     if not v:
         return RedirectResponse("/videos", status_code=303)
-    return render(request, "video_detail.html", v=v, hist=analytics.video_history(video_id))
+    return render(
+        request, "video_detail.html", v=v, hist=analytics.video_history(video_id), groups=tags.CONTENT_GROUPS,
+        elements=tags.ELEMENTS, products=products.all_products(), level_labels=compliance.LEVEL_LABELS,
+    )
+
+
+@app.post("/videos/{video_id}/tags")
+async def video_tags_save(request: Request, video_id: str):
+    form = await request.form()
+    tags.save(video_id, {k: form.get(k, "") for k in tags.FIELDS})
+    flash(request, "Đã lưu nhãn video", "success")
+    return RedirectResponse(f"/videos/{video_id}", status_code=303)
 
 
 @app.get("/analytics", response_class=HTMLResponse)
 def analytics_page(request: Request):
     acc = db.get_active_account()
     an = analytics.deep_analysis(acc["open_id"]) if acc else None
-    return render(request, "analytics.html", an=an)
+    ta = tags.tag_analysis(acc["open_id"]) if acc else None
+    slots = kpi.slot_performance(acc["open_id"]) if acc else []
+    return render(request, "analytics.html", an=an, ta=ta, slots=slots, kpi_min=settings.kpi_like_view_min)
+
+
+@app.get("/compliance", response_class=HTMLResponse)
+def compliance_page(request: Request):
+    acc = db.get_active_account()
+    return render(
+        request, "compliance.html", issues=tags.compliance_issues(acc["open_id"]) if acc else [],
+        result=request.session.pop("check_result", None), level_labels=compliance.LEVEL_LABELS,
+        allowed=compliance.ALLOWED_CTA, rules=settings.content_rules,
+    )
+
+
+@app.post("/compliance/check")
+def compliance_check(request: Request, text: str = Form(""), has_cart: str = Form("1")):
+    cart = {"1": True, "0": False}.get(has_cart)
+    res = compliance.check(text, cart)
+    request.session["check_result"] = {"text": text[:5000], "has_cart": has_cart, **res}
+    return RedirectResponse("/compliance#ket-qua", status_code=303)
+
+
+@app.get("/products", response_class=HTMLResponse)
+def products_page(request: Request):
+    items = products.all_products()
+    acc = db.get_active_account()
+    usage = {}
+    if acc:
+        for v in tags.videos_with_tags(acc["open_id"]):
+            code = v["tag"].get("product_code")
+            if code:
+                u = usage.setdefault(code, {"count": 0, "views": 0})
+                u["count"] += 1
+                u["views"] += v["view_count"] or 0
+    return render(
+        request, "products.html", items=items, usage=usage, s=settings, running=jobs.running("products"),
+        synced=items[0]["synced_at"] if items else None,
+    )
+
+
+@app.post("/products/sync")
+def products_sync(request: Request):
+    if jobs.running("products"):
+        flash(request, "Đang đồng bộ, vui lòng đợi", "info")
+    else:
+        jobs.start("products", products.sync)
+        flash(request, "Đang đọc bảng sản phẩm ở chế độ nền (chỉ đọc, không sửa bảng).", "info")
+    return RedirectResponse("/products", status_code=303)
 
 
 @app.get("/strategy", response_class=HTMLResponse)
@@ -357,18 +449,88 @@ def demo_seed(request: Request):
 # ---------------- JSON API ----------------
 @app.get("/api/jobs")
 def api_jobs():
-    """Trạng thái các lần tạo chiến lược chạy ngầm; trả về job vừa xong (mỗi job thông báo 1 lần)."""
-    pending = db.query("SELECT id FROM strategies WHERE status='pending'")
+    """Trạng thái tác vụ chạy ngầm; trả về tác vụ vừa xong (mỗi tác vụ chỉ thông báo 1 lần)."""
+    pending = [p["id"] for p in db.query("SELECT id FROM strategies WHERE status='pending'")]
+    pending += [f"job{p['id']}" for p in db.query("SELECT id FROM jobs WHERE status='pending'")]
     finished = db.query(
         "SELECT id, source, status, total_tokens, cost_usd, duration_sec FROM strategies"
         " WHERE status!='pending' AND notified=0"
     )
-    if finished:
-        with db.tx() as c:
-            c.executemany("UPDATE strategies SET notified=1 WHERE id=?", [(f["id"],) for f in finished])
+    done_jobs = db.query("SELECT * FROM jobs WHERE status!='pending' AND notified=0")
+    with db.tx() as c:
+        c.executemany("UPDATE strategies SET notified=1 WHERE id=?", [(f["id"],) for f in finished])
+        c.executemany("UPDATE jobs SET notified=1 WHERE id=?", [(j["id"],) for j in done_jobs])
     for f in finished:
+        f["type"] = "strategy"
         f["cost_vnd"] = round((f["cost_usd"] or 0) * settings.usd_vnd_rate)
-    return {"pending": [p["id"] for p in pending], "finished": finished}
+    links = {"classify": "/videos", "products": "/products"}
+    for j in done_jobs:
+        finished.append({
+            "type": "job", "id": j["id"], "status": j["status"], "title": jobs.KIND_LABELS.get(j["kind"], j["kind"]),
+            "message": j["message"], "link": links.get(j["kind"], "/"), "total_tokens": j["total_tokens"],
+            "cost_vnd": round((j["cost_usd"] or 0) * settings.usd_vnd_rate),
+        })
+    return {"pending": pending, "finished": finished}
+
+
+def _check_token(request: Request) -> bool:
+    supplied = request.headers.get("x-api-token") or request.query_params.get("token") or ""
+    return bool(settings.api_token) and hmac.compare_digest(supplied.encode(), settings.api_token.encode())
+
+
+CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "x-api-token", "Cache-Control": "no-store"}
+
+
+@app.options("/api/public/{rest:path}", include_in_schema=False)
+def api_public_options(rest: str):
+    return JSONResponse({}, headers={**CORS, "Access-Control-Allow-Methods": "GET, OPTIONS"})
+
+
+@app.get("/api/public/summary")
+def api_public_summary(request: Request):
+    """Số liệu chỉ-đọc cho bảng điều hành khác (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    acc = db.get_active_account()
+    if not acc:
+        return JSONResponse({"error": "no_account"}, status_code=404, headers=CORS)
+    oid = acc["open_id"]
+    ov = analytics.overview(oid)
+    vids = tags.videos_with_tags(oid)
+    last_scan = db.query_one("SELECT started_at, status, message FROM scans ORDER BY id DESC LIMIT 1")
+    data = {
+        "channel": {"username": acc.get("username"), "display_name": acc.get("display_name")},
+        "source": "TikTok API (số chính xác, không làm tròn)",
+        "updated_at": ov.get("latest", {}).get("taken_at") if ov.get("latest") else None,
+        "latest": ov.get("latest"),
+        "deltas": ov.get("deltas"),
+        "avg_views": ov.get("avg_views"),
+        "avg_engagement": ov.get("avg_engagement"),
+        "kpi": kpi.summary(oid),
+        "compliance_issues": [
+            {"id": v["id"], "posted": v["posted_str"], "title": v["label"], "level": v["compliance"]["level"],
+             "found": [x["label"] for x in v["compliance"]["offsite"] + v["compliance"]["promise"]]}
+            for v in vids if v["compliance"]["level"] != "ok"
+        ],
+        "videos": [
+            {"id": v["id"], "posted": v["posted_str"], "title": v["label"], "share_url": v["share_url"],
+             "views": v["view_count"], "likes": v["like_count"], "comments": v["comment_count"],
+             "shares": v["share_count"], "like_view": v["like_view"], "tag": {k: v["tag"].get(k) for k in tags.FIELDS}}
+            for v in vids[:100]
+        ],
+        "last_scan": last_scan,
+    }
+    return JSONResponse(data, headers=CORS)
+
+
+@app.get("/api/public/report.md")
+def api_public_report(request: Request):
+    """Báo cáo Markdown đầy đủ cho Gemini đọc (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    acc = db.get_active_account()
+    text = report.build_report(acc["open_id"]) if acc else "Chưa kết nối kênh"
+    return HTMLResponse(text, media_type="text/markdown; charset=utf-8", headers=CORS)
 
 
 @app.get("/api/overview")
