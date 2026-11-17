@@ -69,7 +69,7 @@ def flash(request: Request, msg: str, kind: str = "info"):
 
 
 # ---------------- auth ----------------
-@app.get("/healthz")
+@app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
     return {"ok": True}
 
