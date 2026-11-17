@@ -3,7 +3,7 @@ services:
     build: .
     env_file: .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # chỉ nghe nội bộ, đi qua reverse proxy
     volumes:
       - ./data:/app/data:z          # SQLite
       - ./exports:/app/exports:z    # file Markdown cho NotebookLM
