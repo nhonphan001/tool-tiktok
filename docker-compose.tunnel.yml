@@ -1,0 +1,12 @@
+# Đưa web app ra internet qua Cloudflare Tunnel (không cần mở cổng, HTTPS do Cloudflare lo):
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --build
+# Trên Cloudflare, Public Hostname trỏ tới: HTTP  tiktok-manager:8000
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Cần đặt CLOUDFLARE_TUNNEL_TOKEN trong .env}
+    depends_on:
+      - tiktok-manager
