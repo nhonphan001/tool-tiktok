@@ -84,7 +84,7 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
 
 
 def build_strategy_doc(open_id: str, limit: int = 10) -> str:
-    rows = db.query("SELECT * FROM strategies WHERE open_id=? ORDER BY created_at DESC LIMIT ?", (open_id, limit))
+    rows = db.query("SELECT * FROM strategies WHERE open_id=? AND status='done' ORDER BY created_at DESC LIMIT ?", (open_id, limit))
     lines = ["# Lịch sử chiến lược kênh TikTok", ""]
     if not rows:
         lines.append("Chưa có chiến lược nào.")

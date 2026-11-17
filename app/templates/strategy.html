@@ -5,28 +5,51 @@
 <div class="side">
   <div>
     <div class="card">
-      <form method="post" action="/strategy/generate" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerText='Đang tạo… (có thể mất 1 phút)'">
+      <form method="post" action="/strategy/generate" onsubmit="askNotifyPermission();this.querySelector('button').disabled=true;this.querySelector('button').innerText='Đang gửi…'">
         <label>Mục tiêu (tuỳ chọn)</label>
         <textarea name="goal" rows="3" placeholder="VD: đạt 50k follower trong 2 tháng, bán khoá học nấu ăn"></textarea>
         <p><button class="btn" style="width:100%">Tạo chiến lược mới</button></p>
       </form>
     </div>
+    <div class="card" style="margin-top:16px"><h2>Chi phí Gemini</h2>
+      <div class="muted">Tháng này</div>
+      <div><b>{{ usage.month.cost_vnd|num }} ₫</b> <span class="muted">(${{ '%.4f'|format(usage.month.cost) }})</span></div>
+      <div class="muted">{{ usage.month.calls }} lần gọi · {{ usage.month.tokens|num }} token</div>
+      <div class="muted" style="margin-top:8px">Từ trước tới nay: {{ usage.total.cost_vnd|num }} ₫ · {{ usage.total.tokens|num }} token</div>
+      <div class="muted" style="margin-top:8px;font-size:12px">Ước tính theo giá cấu hình trong Cài đặt. Số tiền thực tế xem ở Google Cloud → Billing.</div>
+    </div>
     <div class="card list" style="margin-top:16px"><h2>Lịch sử</h2>
-      {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at|localtime }} <span class="badge">{{ it.source }}</span><div class="muted">{{ (it.goal or '')[:50] }}</div></a>
+      {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at|localtime }}
+        {% if it.status=='pending' %}<span class="badge">đang tạo…</span>{% elif it.status=='error' %}<span class="badge error">lỗi</span>{% else %}<span class="badge {{ 'ok' if it.source=='gemini' }}">{{ it.source }}</span>{% endif %}
+        {% if it.cost_usd %}<span class="muted" style="font-size:12px"> {{ (it.cost_usd*rate)|round|int|num }} ₫</span>{% endif %}
+        <div class="muted">{{ (it.goal or '')[:50] }}</div></a>
       {% else %}<p class="muted">Chưa có.</p>{% endfor %}
     </div>
   </div>
   <div>
     <div class="card md">
-      {% if current %}
+      {% if current and current.status=='pending' %}
+        <div class="pending"><div class="spinner"></div><div><b>Gemini đang phân tích và lập chiến lược…</b>
+        <div class="muted">Thường mất 30 giây – 2 phút. Bạn có thể chuyển sang trang khác, sẽ có thông báo khi xong.</div></div></div>
+        <script>window.WAIT_STRATEGY = {{ current.id }};</script>
+      {% elif current %}
         <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at|localtime }} · {{ current.source }} {{ current.model }}</span>
         <form method="post" action="/strategy/{{ current.id }}/delete" onsubmit="return confirm('Xoá chiến lược này?')"><button class="btn sec small">Xoá</button></form></div>
+        {% if current.total_tokens %}<div class="usage">
+          <span>Token vào: <b>{{ current.input_tokens|num }}</b></span>
+          <span>Token ra: <b>{{ current.output_tokens|num }}</b></span>
+          {% if current.thinking_tokens %}<span>Suy luận: <b>{{ current.thinking_tokens|num }}</b></span>{% endif %}
+          <span>Tổng: <b>{{ current.total_tokens|num }}</b></span>
+          <span>Chi phí ≈ <b>{{ (current.cost_usd*rate)|round|int|num }} ₫</b> (${{ '%.4f'|format(current.cost_usd) }})</span>
+          {% if current.duration_sec %}<span>Thời gian: {{ current.duration_sec }}s</span>{% endif %}
+        </div>{% endif %}
         {{ current.content_md|markdown|safe }}
       {% else %}<p class="muted">Bấm "Tạo chiến lược mới" để AI phân tích số liệu và đề xuất kế hoạch.</p>{% endif %}
     </div>
     <div class="card md" id="ask" style="margin-top:16px"><h2>Hỏi đáp về số liệu kênh (Gemini)</h2>
       <form method="post" action="/strategy/ask" class="row"><input name="question" required placeholder="VD: Vì sao tuần này view giảm?" style="flex:1"><button class="btn">Hỏi</button></form>
-      {% if answer %}<p><b>Hỏi:</b> {{ answer.q }}</p>{{ answer.a|markdown|safe }}{% endif %}
+      {% if answer %}<p><b>Hỏi:</b> {{ answer.q }}</p>{{ answer.a|markdown|safe }}
+        {% if answer.usage %}<div class="usage"><span>Tổng: <b>{{ answer.usage.total_tokens|num }}</b> token</span><span>Chi phí ≈ <b>{{ (answer.usage.cost_usd*rate)|round|int|num }} ₫</b></span></div>{% endif %}{% endif %}
     </div>
   </div>
 </div>

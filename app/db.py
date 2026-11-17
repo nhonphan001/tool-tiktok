@@ -87,11 +87,49 @@ CREATE TABLE IF NOT EXISTS sync_log (
     status TEXT,
     message TEXT
 );
+CREATE TABLE IF NOT EXISTS ai_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT,
+    kind TEXT,
+    ref_id INTEGER,
+    backend TEXT,
+    model TEXT,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    thinking_tokens INTEGER DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT
 );
 """
+
+
+# Cột bổ sung cho DB cũ (ALTER TABLE nếu chưa có)
+MIGRATIONS = [
+    ("strategies", "status", "TEXT DEFAULT 'done'"),
+    ("strategies", "notified", "INTEGER DEFAULT 1"),
+    ("strategies", "input_tokens", "INTEGER DEFAULT 0"),
+    ("strategies", "output_tokens", "INTEGER DEFAULT 0"),
+    ("strategies", "thinking_tokens", "INTEGER DEFAULT 0"),
+    ("strategies", "total_tokens", "INTEGER DEFAULT 0"),
+    ("strategies", "cost_usd", "REAL DEFAULT 0"),
+    ("strategies", "duration_sec", "REAL DEFAULT 0"),
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, col, decl in MIGRATIONS:
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if col not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    # Job đang chạy dở khi app khởi động lại -> đánh dấu lỗi
+    conn.execute(
+        "UPDATE strategies SET status='error', notified=0, content_md='Bị gián đoạn do ứng dụng khởi động lại. Hãy tạo lại.'"
+        " WHERE status='pending'"
+    )
 
 
 def now_iso() -> str:
@@ -116,6 +154,7 @@ def get_conn() -> sqlite3.Connection:
     if _conn is None:
         _conn = _connect()
         _conn.executescript(SCHEMA)
+        _migrate(_conn)
         _conn.commit()
     return _conn
 

@@ -30,6 +30,10 @@ class Settings:
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
     gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.8-flash"))
     gemini_backend: str = field(default_factory=lambda: os.getenv("GEMINI_BACKEND", "aistudio"))
+    # Giá Gemini (USD / 1 triệu token) để ước tính chi phí — kiểm tra lại theo bảng giá hiện hành
+    gemini_price_input: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_INPUT", "0.30")))
+    gemini_price_output: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_OUTPUT", "2.50")))
+    usd_vnd_rate: float = field(default_factory=lambda: float(os.getenv("USD_VND_RATE", "26000")))
     channel_context: str = field(default_factory=lambda: os.getenv("CHANNEL_CONTEXT", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
 
@@ -60,6 +64,9 @@ EDITABLE_KEYS = {
     "gemini_model": str,
     "channel_context": str,
     "gemini_backend": str,
+    "gemini_price_input": float,
+    "gemini_price_output": float,
+    "usd_vnd_rate": float,
     "auto_strategy": lambda v: _bool(str(v)),
     "notebooklm_mode": str,
     "google_doc_id_report": str,

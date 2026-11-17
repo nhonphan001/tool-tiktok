@@ -61,7 +61,13 @@ def render(request: Request, name: str, **ctx):
     return templates.TemplateResponse(
         request,
         name,
-        {"account": db.get_active_account(), "flash": flash, "active": name.split(".")[0], **ctx},
+        {
+            "account": db.get_active_account(),
+            "flash": flash,
+            "active": name.split(".")[0],
+            "pending_jobs": (db.query_one("SELECT COUNT(*) AS n FROM strategies WHERE status='pending' OR notified=0") or {}).get("n", 0),
+            **ctx,
+        },
     )
 
 
@@ -215,14 +221,21 @@ def analytics_page(request: Request):
 @app.get("/strategy", response_class=HTMLResponse)
 def strategy_page(request: Request, id: int | None = None):
     acc = db.get_active_account()
-    items = db.query("SELECT id, created_at, source, goal FROM strategies WHERE open_id=? ORDER BY id DESC", (acc["open_id"],)) if acc else []
+    items = (
+        db.query(
+            "SELECT id, created_at, source, goal, status, cost_usd FROM strategies WHERE open_id=? ORDER BY id DESC",
+            (acc["open_id"],),
+        )
+        if acc
+        else []
+    )
     current = None
     if items:
         sid = id or items[0]["id"]
         current = db.query_one("SELECT * FROM strategies WHERE id=? AND open_id=?", (sid, acc["open_id"]))
     return render(
         request, "strategy.html", items=items, current=current, gemini_ready=bool(settings.gemini_api_key),
-        answer=request.session.pop("answer", None),
+        answer=request.session.pop("answer", None), usage=strategy.usage_summary(), rate=settings.usd_vnd_rate,
     )
 
 
@@ -232,20 +245,22 @@ def strategy_generate(request: Request, goal: str = Form("")):
     if not acc:
         flash(request, "Chưa kết nối kênh", "error")
         return RedirectResponse("/strategy", status_code=303)
-    res = strategy.generate(acc["open_id"], goal.strip())
-    threading.Thread(target=notebooklm.sync_all, args=(acc["open_id"],), daemon=True).start()
-    flash(request, "Đã tạo chiến lược mới" + (" bằng Gemini" if res["source"] == "gemini" else " (dự phòng, không dùng AI)"), "success")
-    return RedirectResponse(f"/strategy?id={res['id']}", status_code=303)
+    sid = strategy.start_background(acc["open_id"], goal.strip(), on_done=notebooklm.sync_all)
+    flash(request, "Đang tạo chiến lược ở chế độ nền. Bạn có thể chuyển sang trang khác, sẽ có thông báo khi xong.", "info")
+    return RedirectResponse(f"/strategy?id={sid}", status_code=303)
 
 
 @app.post("/strategy/ask")
 def strategy_ask(request: Request, question: str = Form(...)):
     acc = db.get_active_account()
     try:
-        answer = strategy.ask(acc["open_id"], question.strip()) if acc else "Chưa kết nối kênh"
+        if acc:
+            answer, usage = strategy.ask(acc["open_id"], question.strip())
+        else:
+            answer, usage = "Chưa kết nối kênh", None
     except strategy.StrategyError as e:
-        answer = f"Lỗi: {e}"
-    request.session["answer"] = {"q": question, "a": answer}
+        answer, usage = f"Lỗi: {e}", None
+    request.session["answer"] = {"q": question, "a": answer, "usage": usage}
     return RedirectResponse("/strategy#ask", status_code=303)
 
 
@@ -340,6 +355,22 @@ def demo_seed(request: Request):
 
 
 # ---------------- JSON API ----------------
+@app.get("/api/jobs")
+def api_jobs():
+    """Trạng thái các lần tạo chiến lược chạy ngầm; trả về job vừa xong (mỗi job thông báo 1 lần)."""
+    pending = db.query("SELECT id FROM strategies WHERE status='pending'")
+    finished = db.query(
+        "SELECT id, source, status, total_tokens, cost_usd, duration_sec FROM strategies"
+        " WHERE status!='pending' AND notified=0"
+    )
+    if finished:
+        with db.tx() as c:
+            c.executemany("UPDATE strategies SET notified=1 WHERE id=?", [(f["id"],) for f in finished])
+    for f in finished:
+        f["cost_vnd"] = round((f["cost_usd"] or 0) * settings.usd_vnd_rate)
+    return {"pending": [p["id"] for p in pending], "finished": finished}
+
+
 @app.get("/api/overview")
 def api_overview():
     acc = db.get_active_account()

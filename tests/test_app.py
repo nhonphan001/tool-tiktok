@@ -107,9 +107,72 @@ def test_gemini_backend_url(monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "AQ.test")
     monkeypatch.setattr(settings, "gemini_model", "gemini-x-flash")
     monkeypatch.setattr(settings, "gemini_backend", "vertex")
-    assert strategy.call_gemini("hi") == "ok"
+    assert strategy.call_gemini("hi")[0] == "ok"
     assert calls["url"] == "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-x-flash:generateContent"
     assert calls["headers"]["x-goog-api-key"] == "AQ.test"
     monkeypatch.setattr(settings, "gemini_backend", "aistudio")
     strategy.call_gemini("hi")
     assert calls["url"].startswith("https://generativelanguage.googleapis.com/")
+
+
+class _FakeResp:
+    status_code = 200
+
+    def json(self):
+        return {
+            "candidates": [{"content": {"parts": [{"text": "suy nghĩ", "thought": True}, {"text": "## Chiến lược AI"}]}}],
+            "usageMetadata": {"promptTokenCount": 10000, "candidatesTokenCount": 2000, "thoughtsTokenCount": 1000,
+                              "totalTokenCount": 13000},
+        }
+
+
+def test_background_strategy_with_usage(seeded, monkeypatch):
+    import time as _t
+
+    monkeypatch.setattr(strategy.httpx, "post", lambda url, **kw: _FakeResp())
+    monkeypatch.setattr(settings, "gemini_api_key", "k")
+    monkeypatch.setattr(settings, "gemini_price_input", 0.30)
+    monkeypatch.setattr(settings, "gemini_price_output", 2.50)
+    monkeypatch.setattr(settings, "usd_vnd_rate", 26000)
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    r = c.post("/strategy/generate", data={"goal": "test nền"}, follow_redirects=False)
+    assert r.status_code == 303
+    sid = int(r.headers["location"].split("id=")[1])
+    for _ in range(50):
+        row = db.query_one("SELECT * FROM strategies WHERE id=?", (sid,))
+        if row["status"] != "pending":
+            break
+        _t.sleep(0.1)
+    assert row["status"] == "done" and row["source"] == "gemini"
+    assert row["content_md"] == "## Chiến lược AI"  # bỏ phần "thought"
+    assert row["total_tokens"] == 13000
+    # 10000*0.30/1e6 + 3000*2.50/1e6 = 0.003 + 0.0075
+    assert abs(row["cost_usd"] - 0.0105) < 1e-9
+    jobs = c.get("/api/jobs").json()
+    assert any(f["id"] == sid and f["cost_vnd"] == 273 for f in jobs["finished"])
+    assert not any(f["id"] == sid for f in c.get("/api/jobs").json()["finished"])  # chỉ báo 1 lần
+    page = c.get(f"/strategy?id={sid}").text
+    assert "13.000" in page and "273 ₫" in page
+    assert strategy.usage_summary()["month"]["calls"] >= 1
+
+
+def test_migrate_old_db(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, open_id TEXT, created_at TEXT, source TEXT,"
+                 " model TEXT, goal TEXT, content_md TEXT)")
+    conn.execute("INSERT INTO strategies(open_id, created_at, source, content_md) VALUES('x','2026-01-01','rule','a')")
+    conn.commit()
+    conn.close()
+    old = settings.database_path
+    settings.database_path = str(path)
+    db.reset_connection()
+    try:
+        row = db.query_one("SELECT status, cost_usd FROM strategies")
+        assert row == {"status": "done", "cost_usd": 0}
+    finally:
+        db.reset_connection()
+        settings.database_path = old

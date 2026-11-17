@@ -28,6 +28,12 @@
         <option value="aistudio" {{ 'selected' if s.gemini_backend=='aistudio' }}>AI Studio (generativelanguage)</option>
         <option value="vertex" {{ 'selected' if s.gemini_backend=='vertex' }}>Vertex AI (tính tiền qua Google Cloud Billing)</option>
       </select>
+      <div class="row" style="gap:10px;align-items:flex-end">
+        <div style="flex:1;min-width:120px"><label>Giá input (USD/1 triệu token)</label><input type="number" step="0.001" min="0" name="gemini_price_input" value="{{ s.gemini_price_input }}"></div>
+        <div style="flex:1;min-width:120px"><label>Giá output (USD/1 triệu token)</label><input type="number" step="0.001" min="0" name="gemini_price_output" value="{{ s.gemini_price_output }}"></div>
+        <div style="flex:1;min-width:120px"><label>Tỉ giá USD → VND</label><input type="number" step="1" min="0" name="usd_vnd_rate" value="{{ s.usd_vnd_rate|int }}"></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Dùng để ước tính chi phí. Token suy luận được tính theo giá output. Kiểm tra giá của model đang dùng tại trang bảng giá Gemini.</p>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="auto_strategy" value="1" style="width:auto" {{ 'checked' if s.auto_strategy }}> Tự tạo chiến lược sau mỗi lần quét</label>
       <h2 style="margin-top:20px">NotebookLM</h2>
       <label>Chế độ đồng bộ (local, drive, enterprise, off — phân tách bằng dấu phẩy)</label><input name="notebooklm_mode" value="{{ s.notebooklm_mode }}">

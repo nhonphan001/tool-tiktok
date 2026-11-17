@@ -40,6 +40,38 @@ function barChart(id, labels, data, label, color){
     options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
 }
 </script>
+<div id="toasts"></div>
+<script>
+function askNotifyPermission(){ try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+(function(){
+  let polling=false; const baseTitle=document.title;
+  function money(n){ return (n||0).toLocaleString('vi-VN'); }
+  function toast(html, kind){
+    const el=document.createElement('div'); el.className='toast '+(kind||''); el.innerHTML=html+'<button onclick="this.parentNode.remove()">×</button>';
+    document.getElementById('toasts').appendChild(el); setTimeout(()=>el.remove(), 20000);
+  }
+  function notify(j){
+    const ok=j.status==='done' && j.source==='gemini';
+    const msg = j.status==='error' ? 'Tạo chiến lược bị lỗi' : (ok ? 'Chiến lược mới đã sẵn sàng' : 'Đã tạo chiến lược (dự phòng, Gemini lỗi)');
+    const detail = ok ? (money(j.total_tokens)+' token · ≈ '+money(j.cost_vnd)+' ₫ · '+j.duration_sec+'s') : '';
+    toast('<b>'+msg+'</b>'+(detail?'<div>'+detail+'</div>':'')+'<a href="/strategy?id='+j.id+'">Xem</a>', ok?'ok':'warn');
+    document.title='✅ '+baseTitle;
+    try{ if('Notification' in window && Notification.permission==='granted' && document.hidden){
+      const n=new Notification(msg,{body:detail||'Bấm để xem',icon:'/static/favicon.png'}); n.onclick=()=>{window.focus(); location.href='/strategy?id='+j.id;};
+    }}catch(e){}
+    if(window.WAIT_STRATEGY===j.id){ location.href='/strategy?id='+j.id; }
+  }
+  async function tick(){
+    try{
+      const r=await fetch('/api/jobs',{cache:'no-store'}); const d=await r.json();
+      (d.finished||[]).forEach(notify);
+      if((d.pending||[]).length){ setTimeout(tick,4000); } else { polling=false; }
+    }catch(e){ setTimeout(tick,10000); }
+  }
+  window.startJobPolling=function(){ if(!polling){ polling=true; tick(); } };
+  {% if pending_jobs %}window.startJobPolling();{% endif %}
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
