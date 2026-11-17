@@ -12,7 +12,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?Cần đặt DOMAIN trong .env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,z
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

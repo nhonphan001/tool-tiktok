@@ -5,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data          # SQLite
-      - ./exports:/app/exports    # file Markdown cho NotebookLM
-      - ./secrets:/app/secrets:ro # service-account.json
+      - ./data:/app/data:z          # SQLite
+      - ./exports:/app/exports:z    # file Markdown cho NotebookLM
+      - ./secrets:/app/secrets:ro,z # service-account.json
     restart: unless-stopped
