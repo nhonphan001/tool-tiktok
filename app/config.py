@@ -29,6 +29,7 @@ class Settings:
 
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
     gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.8-flash"))
+    gemini_backend: str = field(default_factory=lambda: os.getenv("GEMINI_BACKEND", "aistudio"))
     channel_context: str = field(default_factory=lambda: os.getenv("CHANNEL_CONTEXT", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
 
@@ -58,6 +59,7 @@ EDITABLE_KEYS = {
     "max_videos_per_scan": int,
     "gemini_model": str,
     "channel_context": str,
+    "gemini_backend": str,
     "auto_strategy": lambda v: _bool(str(v)),
     "notebooklm_mode": str,
     "google_doc_id_report": str,

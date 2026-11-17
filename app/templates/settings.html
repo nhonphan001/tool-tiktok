@@ -23,6 +23,11 @@
       <label>Chu kỳ quét (giờ)</label><input type="number" step="0.25" min="0.25" name="scan_interval_hours" value="{{ s.scan_interval_hours }}">
       <label>Số video tối đa mỗi lần quét</label><input type="number" min="1" name="max_videos_per_scan" value="{{ s.max_videos_per_scan }}">
       <label>Model Gemini</label><input name="gemini_model" value="{{ s.gemini_model }}">
+      <label>Cổng gọi Gemini</label>
+      <select name="gemini_backend">
+        <option value="aistudio" {{ 'selected' if s.gemini_backend=='aistudio' }}>AI Studio (generativelanguage)</option>
+        <option value="vertex" {{ 'selected' if s.gemini_backend=='vertex' }}>Vertex AI (tính tiền qua Google Cloud Billing)</option>
+      </select>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="auto_strategy" value="1" style="width:auto" {{ 'checked' if s.auto_strategy }}> Tự tạo chiến lược sau mỗi lần quét</label>
       <h2 style="margin-top:20px">NotebookLM</h2>
       <label>Chế độ đồng bộ (local, drive, enterprise, off — phân tách bằng dấu phẩy)</label><input name="notebooklm_mode" value="{{ s.notebooklm_mode }}">

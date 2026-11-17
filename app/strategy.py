@@ -7,7 +7,12 @@ from . import analytics, db, report
 from .config import settings
 
 log = logging.getLogger(__name__)
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_URLS = {
+    # Gemini API qua AI Studio (generativelanguage.googleapis.com)
+    "aistudio": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    # Gemini qua Vertex AI / Agent Platform, tính tiền theo Google Cloud Billing (dùng được tín dụng Cloud)
+    "vertex": "https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent",
+}
 
 SYSTEM_PROMPT = """Bạn là chuyên gia tăng trưởng kênh TikTok tại Việt Nam.
 Dựa HOÀN TOÀN trên số liệu được cung cấp, hãy phân tích và lập chiến lược cụ thể, có thể hành động ngay.
@@ -30,7 +35,7 @@ def call_gemini(prompt: str, system: str = SYSTEM_PROMPT) -> str:
     if not settings.gemini_api_key:
         raise StrategyError("Chưa cấu hình GEMINI_API_KEY")
     r = httpx.post(
-        GEMINI_URL.format(model=settings.gemini_model),
+        GEMINI_URLS.get(settings.gemini_backend, GEMINI_URLS["aistudio"]).format(model=settings.gemini_model),
         headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
         json={
             "systemInstruction": {"parts": [{"text": system}]},
@@ -44,7 +49,10 @@ def call_gemini(prompt: str, system: str = SYSTEM_PROMPT) -> str:
     except ValueError:
         raise StrategyError(f"Gemini trả về lỗi HTTP {r.status_code}")
     if r.status_code != 200:
-        raise StrategyError(f"Gemini lỗi: {body.get('error', {}).get('message', body)}")
+        if isinstance(body, list) and body:
+            body = body[0]
+        err = body.get("error", {}) if isinstance(body, dict) else {}
+        raise StrategyError(f"Gemini ({settings.gemini_backend}) lỗi: {err.get('message', body)}")
     try:
         parts = body["candidates"][0]["content"]["parts"]
         return "".join(p.get("text", "") for p in parts).strip()

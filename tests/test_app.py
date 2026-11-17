@@ -87,3 +87,29 @@ def test_localtime_vietnam():
     settings.timezone = "Asia/Ho_Chi_Minh"
     assert analytics.localtime("2026-11-17T07:30:20+00:00") == "17/11/2026 14:30"
     assert analytics.localtime(None) == "—"
+
+
+def test_gemini_backend_url(monkeypatch):
+    calls = {}
+
+    class R:
+        status_code = 200
+
+        def json(self):
+            return {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}
+
+    def fake_post(url, **kw):
+        calls["url"] = url
+        calls["headers"] = kw["headers"]
+        return R()
+
+    monkeypatch.setattr(strategy.httpx, "post", fake_post)
+    monkeypatch.setattr(settings, "gemini_api_key", "AQ.test")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-x-flash")
+    monkeypatch.setattr(settings, "gemini_backend", "vertex")
+    assert strategy.call_gemini("hi") == "ok"
+    assert calls["url"] == "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-x-flash:generateContent"
+    assert calls["headers"]["x-goog-api-key"] == "AQ.test"
+    monkeypatch.setattr(settings, "gemini_backend", "aistudio")
+    strategy.call_gemini("hi")
+    assert calls["url"].startswith("https://generativelanguage.googleapis.com/")
