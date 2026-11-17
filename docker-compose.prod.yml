@@ -1,0 +1,22 @@
+# Chạy trên VPS kèm HTTPS:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  tiktok-manager:
+    ports: !reset []   # không mở cổng 8000 ra ngoài, chỉ đi qua Caddy
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Cần đặt DOMAIN trong .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - tiktok-manager
+volumes:
+  caddy_data:
+  caddy_config:

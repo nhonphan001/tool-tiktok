@@ -1,0 +1,5 @@
+# Caddy tự xin chứng chỉ HTTPS (Let's Encrypt) cho DOMAIN
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy tiktok-manager:8000
+}
