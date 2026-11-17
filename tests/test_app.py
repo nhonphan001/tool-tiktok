@@ -61,3 +61,15 @@ def test_web_pages(seeded):
         r = c.get(path)
         assert r.status_code == 200, path
     assert c.get("/api/overview").json()["latest"]
+
+
+def test_tiktok_verify_file(tmp_path, monkeypatch):
+    from app import main
+
+    monkeypatch.setattr(main, "VERIFY_DIR", str(tmp_path))
+    (tmp_path / "tiktokAbC123.txt").write_text("tiktok-developers-site-verification=xyz")
+    c = TestClient(app)
+    r = c.get("/tiktokAbC123.txt")
+    assert r.status_code == 200 and "verification=xyz" in r.text
+    assert c.get("/tiktokMissing.txt").status_code == 404
+    assert c.get("/tiktok..%2Fsecret.txt").status_code == 404

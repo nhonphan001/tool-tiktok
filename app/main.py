@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TikTok Channel Manager", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback", "/privacy", "/terms")
+PUBLIC_PATHS = ("/login", "/static", "/healthz", "/auth/tiktok/callback", "/privacy", "/terms", "/tiktok")
 
 
 @app.middleware("http")
@@ -351,3 +351,23 @@ def api_videos():
     if not acc:
         return []
     return [{k: v for k, v in x.items() if k != "posted_local"} for x in analytics.get_videos(acc["open_id"])]
+
+
+# Đặt cuối cùng để không che các route khác
+VERIFY_DIR = os.path.join(os.path.dirname(os.path.abspath(settings.database_path)), "verify")
+
+
+@app.get("/{filename}", include_in_schema=False)
+def tiktok_verify_file(filename: str):
+    """Phục vụ file xác minh URL prefix của TikTok (đặt file vào data/verify/)."""
+    import re
+
+    from fastapi.responses import PlainTextResponse
+
+    if not re.fullmatch(r"tiktok[A-Za-z0-9_-]+\.txt", filename):
+        return PlainTextResponse("Not found", status_code=404)
+    path = os.path.join(VERIFY_DIR, filename)
+    if not os.path.isfile(path):
+        return PlainTextResponse("Not found", status_code=404)
+    with open(path, encoding="utf-8") as f:
+        return PlainTextResponse(f.read())
