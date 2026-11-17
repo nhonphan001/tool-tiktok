@@ -22,6 +22,7 @@ templates.env.filters["num"] = lambda x: f"{x:,}".replace(",", ".") if isinstanc
 templates.env.filters["delta"] = (
     lambda x: "—" if x is None else (("+" if x >= 0 else "") + f"{x:,}".replace(",", "."))
 )
+templates.env.filters["localtime"] = analytics.localtime
 templates.env.filters["markdown"] = lambda t: md.markdown(t or "", extensions=["tables", "fenced_code"])
 
 

@@ -40,7 +40,7 @@ Mở `http://localhost:8000`, đăng nhập bằng `APP_PASSWORD`. Chưa có Tik
 
 ## 2. Gemini (lên chiến lược)
 
-Lấy API key tại <https://aistudio.google.com/apikey> → `GEMINI_API_KEY`. Model mặc định `gemini-2.5-flash` (đổi được trên web). Bật **"Tự tạo chiến lược sau mỗi lần quét"** nếu muốn chiến lược luôn mới.
+Lấy API key tại <https://aistudio.google.com/apikey> → `GEMINI_API_KEY`. Model mặc định `gemini-3.8-flash` (đổi được trên web). Bật **"Tự tạo chiến lược sau mỗi lần quét"** nếu muốn chiến lược luôn mới.
 
 ## 3. Lưu dữ liệu lên NotebookLM
 

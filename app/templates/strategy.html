@@ -12,14 +12,14 @@
       </form>
     </div>
     <div class="card list" style="margin-top:16px"><h2>Lịch sử</h2>
-      {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at[:16].replace('T',' ') }} <span class="badge">{{ it.source }}</span><div class="muted">{{ (it.goal or '')[:50] }}</div></a>
+      {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at|localtime }} <span class="badge">{{ it.source }}</span><div class="muted">{{ (it.goal or '')[:50] }}</div></a>
       {% else %}<p class="muted">Chưa có.</p>{% endfor %}
     </div>
   </div>
   <div>
     <div class="card md">
       {% if current %}
-        <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at }} · {{ current.source }} {{ current.model }}</span>
+        <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at|localtime }} · {{ current.source }} {{ current.model }}</span>
         <form method="post" action="/strategy/{{ current.id }}/delete" onsubmit="return confirm('Xoá chiến lược này?')"><button class="btn sec small">Xoá</button></form></div>
         {{ current.content_md|markdown|safe }}
       {% else %}<p class="muted">Bấm "Tạo chiến lược mới" để AI phân tích số liệu và đề xuất kế hoạch.</p>{% endif %}

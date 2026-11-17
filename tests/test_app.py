@@ -81,3 +81,9 @@ def test_tiktok_verify_file(tmp_path, monkeypatch):
     assert r.status_code == 200 and "verification=xyz" in r.text
     assert c.get("/tiktokMissing.txt").status_code == 404
     assert c.get("/tiktok..%2Fsecret.txt").status_code == 404
+
+
+def test_localtime_vietnam():
+    settings.timezone = "Asia/Ho_Chi_Minh"
+    assert analytics.localtime("2026-11-17T07:30:20+00:00") == "17/11/2026 14:30"
+    assert analytics.localtime(None) == "—"

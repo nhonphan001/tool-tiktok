@@ -28,7 +28,7 @@ class Settings:
     max_videos_per_scan: int = field(default_factory=lambda: int(os.getenv("MAX_VIDEOS_PER_SCAN", "200")))
 
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.8-flash"))
     channel_context: str = field(default_factory=lambda: os.getenv("CHANNEL_CONTEXT", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
 

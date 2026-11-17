@@ -40,7 +40,7 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
             f"- Tổng lượt xem các video theo dõi: {_n(ov['total_views'])}",
             f"- Lượt xem trung bình / trung vị mỗi video: {_n(ov['avg_views'])} / {_n(ov['median_views'])}",
             f"- Tỉ lệ tương tác trung bình (like+comment+share / view): {ov['avg_engagement']}%",
-            f"- Dữ liệu theo dõi từ: {ov['first_snapshot']} ({ov['snapshot_count']} lần quét)",
+            f"- Dữ liệu theo dõi từ: {analytics.localtime(ov['first_snapshot'])} ({ov['snapshot_count']} lần quét)",
         ]
     else:
         lines.append("Chưa có dữ liệu quét.")
@@ -90,7 +90,7 @@ def build_strategy_doc(open_id: str, limit: int = 10) -> str:
         lines.append("Chưa có chiến lược nào.")
     for r in rows:
         lines += [
-            f"---\n\n## Chiến lược ngày {r['created_at']} ({r['source']}{' · ' + r['model'] if r['model'] else ''})",
+            f"---\n\n## Chiến lược ngày {analytics.localtime(r['created_at'])} ({r['source']}{' · ' + r['model'] if r['model'] else ''})",
             f"**Mục tiêu:** {r['goal'] or '—'}",
             "",
             r["content_md"] or "",

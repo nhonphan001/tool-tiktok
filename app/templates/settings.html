@@ -33,13 +33,13 @@
       <p class="row"><button class="btn">Lưu cài đặt</button></p>
     </form>
     <form method="post" action="/sync"><button class="btn sec">Đồng bộ NotebookLM ngay</button></form>
-    <p class="muted">Lần quét tự động tiếp theo: {{ next_run.strftime('%d/%m/%Y %H:%M UTC') if next_run else '—' }}</p>
+    <p class="muted">Lần quét tự động tiếp theo: {{ next_run|localtime }}</p>
   </div>
 </div>
 <div class="grid g2" style="margin-top:16px">
   <div class="card scroll"><h2>Nhật ký quét</h2><table>
-    {% for x in scans %}<tr><td>{{ x.started_at }}</td><td><span class="badge {{ x.status }}">{{ x.status }}</span></td><td class="muted">{{ x.message }}</td></tr>{% else %}<tr><td class="muted">Trống</td></tr>{% endfor %}</table></div>
+    {% for x in scans %}<tr><td>{{ x.started_at|localtime }}</td><td><span class="badge {{ x.status }}">{{ x.status }}</span></td><td class="muted">{{ x.message }}</td></tr>{% else %}<tr><td class="muted">Trống</td></tr>{% endfor %}</table></div>
   <div class="card scroll"><h2>Nhật ký đồng bộ NotebookLM</h2><table>
-    {% for x in syncs %}<tr><td>{{ x.created_at }}</td><td>{{ x.target }}</td><td><span class="badge {{ x.status }}">{{ x.status }}</span></td><td class="muted">{{ x.message }}</td></tr>{% else %}<tr><td class="muted">Trống</td></tr>{% endfor %}</table></div>
+    {% for x in syncs %}<tr><td>{{ x.created_at|localtime }}</td><td>{{ x.target }}</td><td><span class="badge {{ x.status }}">{{ x.status }}</span></td><td class="muted">{{ x.message }}</td></tr>{% else %}<tr><td class="muted">Trống</td></tr>{% endfor %}</table></div>
 </div>
 {% endblock %}

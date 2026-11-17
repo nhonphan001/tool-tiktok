@@ -42,8 +42,8 @@
     {% for v in an.top %}<tr><td><a href="/videos/{{ v.id }}">{{ v.label }}</a><div class="muted">{{ v.posted_str }}</div></td><td class="n">{{ v.view_count|num }}</td><td class="n">{{ v.engagement }}%</td></tr>{% endfor %}
   </table></div>
   <div class="card"><h2>Lịch sử quét</h2>
-    <p class="muted">Lần quét tự động tiếp theo: {{ next_run.strftime('%d/%m %H:%M UTC') if next_run else '—' }}</p>
-    <table>{% for s in scans %}<tr><td>{{ s.started_at }}</td><td><span class="badge {{ s.status }}">{{ s.status }}</span></td><td class="muted">{{ s.message }}</td></tr>{% else %}<tr><td class="muted">Chưa có lần quét nào.</td></tr>{% endfor %}</table></div>
+    <p class="muted">Lần quét tự động tiếp theo: {{ next_run|localtime }}</p>
+    <table>{% for s in scans %}<tr><td>{{ s.started_at|localtime }}</td><td><span class="badge {{ s.status }}">{{ s.status }}</span></td><td class="muted">{{ s.message }}</td></tr>{% else %}<tr><td class="muted">Chưa có lần quét nào.</td></tr>{% endfor %}</table></div>
 </div>
 {% endif %}
 {% endblock %}

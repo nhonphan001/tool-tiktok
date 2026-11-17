@@ -56,8 +56,7 @@ def rule_based(open_id: str, goal: str) -> str:
     an = analytics.deep_analysis(open_id)
     lines = [
         "## Chiến lược tự động (dựa trên quy tắc)",
-        "_Cấu hình GEMINI_API_KEY để nhận chiến lược chi tiết bằng AI._",
-        "",
+        *([] if settings.gemini_api_key else ["_Cấu hình GEMINI_API_KEY để nhận chiến lược chi tiết bằng AI._", ""]),
         f"**Mục tiêu:** {goal or 'Tăng trưởng follower và lượt xem'}",
         "",
         "### Nhận định",
@@ -101,7 +100,7 @@ def generate(open_id: str, goal: str = "") -> dict:
     prompt += f"Mục tiêu của chủ kênh: {goal or 'Tăng trưởng follower, lượt xem và tương tác bền vững'}\n\n"
     prompt += "=== SỐ LIỆU KÊNH ===\n" + data_md
     if prev:
-        prompt += f"\n=== CHIẾN LƯỢC TRƯỚC ĐÓ ({prev['created_at']}) — đánh giá xem đã hiệu quả chưa ===\n"
+        prompt += f"\n=== CHIẾN LƯỢC TRƯỚC ĐÓ ({analytics.localtime(prev['created_at'])}) — đánh giá xem đã hiệu quả chưa ===\n"
         prompt += (prev["content_md"] or "")[:6000]
     try:
         content, source, model = call_gemini(prompt), "gemini", settings.gemini_model

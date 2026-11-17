@@ -24,6 +24,19 @@ def _tz() -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+def localtime(value, fmt: str = "%d/%m/%Y %H:%M") -> str:
+    """Đổi thời điểm (ISO UTC hoặc datetime) sang giờ địa phương theo TIMEZONE."""
+    if not value:
+        return "—"
+    try:
+        dt = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+    except ValueError:
+        return str(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_tz()).strftime(fmt)
+
+
 def _parse(ts: str) -> datetime:
     return datetime.fromisoformat(ts)
 
