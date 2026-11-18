@@ -212,7 +212,9 @@ def create(brief: str, title: str, opts: dict) -> int:
     goi = str(next_goi())
     now = datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
     vn = now + timedelta(hours=7)
-    title = (title or "").strip() or brief.strip().split("\n")[0][:60]
+    title = (title or "").strip() or (
+        f"{packages.LOAI_SHORT.get(int(opts.get('loai') or 3), '')} – {GOALS.get(opts.get('goal'), '')}".strip(" –")
+        if opts.get("loai") == 3 or opts.get("goal") else brief.strip().split("\n")[0][:60])
     code = f"SANXUAT-{vn:%d%m}-GOI-{goi}-{_slug(title)}"
     req = {"goi": goi, "code": code, "title": title, "brief": brief, "opts": opts, "created_at": now.isoformat()}
     letter = build_letter(req)

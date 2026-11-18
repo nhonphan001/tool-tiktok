@@ -32,3 +32,16 @@ def test_parse_gemini_gdoc_and_merge():
                        {**g, "source": {"id": "b", "name": "XONG", "modified": "2"}}])
     assert set(m["fields"]) == {"title", "sku", "scene1", "scene2", "scene3", "scene4", "on_screen", "caption", "pinned"}
     assert m["note"].startswith("Ảnh Gemini: C1 1VQuQL9") and len(m["sources"]) == 2
+
+
+def test_parse_gemini_bold_h1_headings_goi17():
+    from app import packages
+    p = mailbox.parse((FX / "goi17_xong_gdoc.md").read_text(), "SANXUAT-1911-GOI-17-TOI-MUON-CO-MOT__XONG.md")
+    assert p["goi"] == "17" and p["loai"] == 3 and p["title"] == "Trà sáng chữa lành những ngày cuối năm"
+    assert p["on_screen"].startswith("Sáng cuối năm") and p["caption"].endswith("#CuoiNam")
+    assert p["pinned"].startswith("Sáng nay cả nhà") and "7 ngày" in p["ads_plan"] and len(p["images"]) == 4
+    m = mailbox.merge([p])
+    pk = {k: m.get(k, "") for k in packages.FIELDS}
+    pk["loai"] = 3
+    chk = packages.check(pk)
+    assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]

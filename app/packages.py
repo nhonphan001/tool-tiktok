@@ -180,9 +180,6 @@ def check(p: dict) -> dict:
             fortune_any = True
             add("error", "Quảng cáo", f"Video chạy quảng cáo không được xem lá số / bói toán / mời để lại ngày sinh "
                                       f"(“{m.group(0)}”) — TikTok cấm quảng cáo dịch vụ bói toán tại VN.")
-        m = ITEM_ADVICE.search(norm)
-        if m:
-            add("warn", "B.4.1", f"Video tăng follow đang nhắc dùng vật phẩm (“{m.group(0)}”): không gắn sản phẩm thì bỏ câu này.")
     if loai == 2:
         if not sku:
             add("error", "B.4.3", "Video sản phẩm cần chọn SKU.")

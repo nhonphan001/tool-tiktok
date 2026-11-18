@@ -30,7 +30,7 @@ def _clean(s: str) -> str:
 
 def _section(text: str, heading: str) -> str:
     """Nội dung ngay sau một tiêu đề markdown (## / ### Heading) tới tiêu đề kế tiếp."""
-    m = re.search(rf"^#{{2,4}}\s*{heading}\s*$\n+(.*?)(?=^#{{1,4}}\s|\Z)", text, re.M | re.S | re.I)
+    m = re.search(rf"^#{{1,4}}\s*{heading}\s*:?\s*$\n+(.*?)(?=^#{{1,4}}\s|^nhan_video:|\Z)", text, re.M | re.S | re.I)
     if not m:
         return ""
     lines = [ln for ln in m.group(1).strip().splitlines() if ln.strip() and not ln.strip().startswith("```")]
@@ -40,6 +40,9 @@ def _section(text: str, heading: str) -> str:
 def parse(text: str, name: str = "") -> dict:
     """Tách các trường phiếu gói từ 1 file (Markdown gốc hoặc Google Doc xuất Markdown)."""
     t = _unescape(text)
+    # Tiêu đề Google Docs hay bị in đậm / sai cấp: "# **Caption**" -> "## Caption"
+    t = re.sub(r"^(#{1,4})\s*\*{2,}\s*(.*?)\s*\*{0,}\s*$", lambda m: "## " + m.group(2).replace("**", "").strip(), t, flags=re.M)
+    t = re.sub(r"^#\s+(?=\S)", "## ", t, flags=re.M)
     out: dict = {}
     m = re.search(r"GOI[-_ ]?(\d+)", name, re.I) or re.search(r"Phiếu gói\s*(\d+)", t) \
         or re.search(r"^\s*goi:\s*(\d+)", t, re.M) or re.search(r"Gói\s+(\d+)\s*[—–-]", t)
@@ -48,7 +51,7 @@ def parse(text: str, name: str = "") -> dict:
     m = re.search(r"^#+\s*(?:\d+\.\s*)?Phiếu gói\s*\d+\s*[—–-]\s*(.+)$", t, re.M) \
         or re.search(r"^#+\s*Yêu cầu sản xuất Gói\s*\d+\s*[—–-]\s*(.+)$", t, re.M)
     if m:
-        out["title"] = _clean(re.sub(r"\s*\((Loại|loại)[^)]*\)\s*$", "", m.group(1)))
+        out["title"] = _clean(re.sub(r"\s*\([^()]*\)\s*\**\s*$", "", m.group(1).replace("**", "")))
     m = re.search(r"^\s*loai(?:_video)?:\s*([123])\b", t, re.M)
     if m:
         out["loai"] = int(m.group(1))
