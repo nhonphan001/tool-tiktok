@@ -395,7 +395,8 @@ def requests_send(request: Request, rid: int):
 def requests_check(request: Request):
     try:
         done = gemini_requests.check_replies()
-        flash(request, ("Gemini đã trả lời: " + ", ".join(f"Gói {d['goi']}" for d in done)) if done
+        flash(request, ("Thư mới / cập nhật từ Gemini: " + ", ".join(
+            f"Gói {d['goi']}" + (" (đã sửa)" if d.get("updated") else "") for d in done)) if done
               else "Chưa có thư trả lời mới.", "success" if done else "info")
     except Exception as e:  # noqa: BLE001
         flash(request, f"Không kiểm tra được hộp thư: {e}", "error")

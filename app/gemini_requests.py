@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS gemini_requests (
 );
 """
 STATUS = {"draft": "Nháp", "sent": "Đã gửi – chờ Gemini", "answered": "Gemini đã trả lời", "imported": "Đã nhập Gói SX",
-          "error": "Lỗi gửi"}
+          "updated": "Gemini đã cập nhật – nhập lại", "error": "Lỗi gửi"}
 GOALS = {"follow": "Tăng người theo dõi", "view": "Tăng lượt xem", "sale": "Bán hàng (giỏ hàng)",
          "comment": "Tăng bình luận"}
 UPLOAD = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name"
@@ -39,6 +39,9 @@ UPLOAD = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&
 def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
+        cols = {r[1] for r in c.execute("PRAGMA table_info(gemini_requests)").fetchall()}
+        if "answer_modified" not in cols:
+            c.execute("ALTER TABLE gemini_requests ADD COLUMN answer_modified TEXT DEFAULT ''")
 
 
 def _slug(text: str, n: int = 4) -> str:
@@ -307,7 +310,7 @@ def send(rid: int) -> str:
 def check_replies() -> list[dict]:
     """Tìm thư trả lời …GOI-<n>…__XONG mới hơn thư gửi. Trả về các yêu cầu vừa được trả lời."""
     init()
-    pend = db.query("SELECT * FROM gemini_requests WHERE status='sent'")
+    pend = db.query("SELECT * FROM gemini_requests WHERE status IN ('sent','answered','imported','updated')")
     if not pend or not mailbox.folder_ids():
         return []
     token = _token("https://www.googleapis.com/auth/drive.readonly")
@@ -326,9 +329,24 @@ def check_replies() -> list[dict]:
         if not hits:
             continue
         f = max(hits, key=lambda x: x.get("modifiedTime") or "")
+        mod = f.get("modifiedTime") or ""
+        if r["status"] != "sent":
+            # Thư đã trả lời trước đó: chỉ báo khi Gemini SỬA file sau lần ghi nhận trước
+            seen = r.get("answer_modified") or r.get("answered_at") or ""
+            if not mod or mod[:19] <= seen[:19]:
+                continue
+            with db.tx() as c:
+                c.execute("UPDATE gemini_requests SET status='updated', answer_modified=?, answer_file_id=?, answer_name=?"
+                          " WHERE id=?", (mod, f["id"], f["name"], r["id"]))
+                c.execute("INSERT INTO jobs(kind, status, message, created_at, finished_at, notified, link)"
+                          " VALUES('mailbox','done',?,?,?,0,?)",
+                          (f"Gemini đã cập nhật thư Gói {r['goi']} ({f['name']}). Bấm để nhập lại và kiểm tra.",
+                           db.now_iso(), db.now_iso(), f"/packages/import/{r['goi']}"))
+            done.append({**r, "answer_name": f["name"], "updated": True})
+            continue
         with db.tx() as c:
-            c.execute("UPDATE gemini_requests SET status='answered', answered_at=?, answer_file_id=?, answer_name=?"
-                      " WHERE id=?", (db.now_iso(), f["id"], f["name"], r["id"]))
+            c.execute("UPDATE gemini_requests SET status='answered', answered_at=?, answer_file_id=?, answer_name=?,"
+                      " answer_modified=? WHERE id=?", (db.now_iso(), f["id"], f["name"], mod, r["id"]))
             c.execute("INSERT INTO jobs(kind, status, message, created_at, finished_at, notified, link)"
                       " VALUES('mailbox','done',?,?,?,0,?)",
                       (f"Gemini đã trả lời Gói {r['goi']} ({f['name']}). Bấm để nhập vào Gói SX và kiểm tra.",
@@ -347,4 +365,5 @@ def check_replies() -> list[dict]:
 def mark_imported(goi: str) -> None:
     init()
     with db.tx() as c:
-        c.execute("UPDATE gemini_requests SET status='imported' WHERE goi=? AND status IN ('answered','sent')", (str(goi),))
+        c.execute("UPDATE gemini_requests SET status='imported' WHERE goi=? AND status IN ('answered','sent','updated')",
+                  (str(goi),))

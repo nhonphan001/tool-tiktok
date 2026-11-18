@@ -27,13 +27,13 @@
 {% for r in reqs %}<div id="r{{ r.id }}" style="border-top:1px solid var(--border);padding:10px 0">
   <div class="row" style="justify-content:space-between">
     <b>Gói {{ r.goi }} · {{ r.title }}</b>
-    <span class="badge {{ 'ok' if r.status in ('answered','imported') else ('error' if r.status=='error' else '') }}">{{ status[r.status] }}</span></div>
+    <span class="badge {{ 'ok' if r.status in ('answered','imported','updated') else ('error' if r.status=='error' else '') }}">{{ status[r.status] }}</span></div>
   <div class="small muted" style="margin-top:4px">{{ r.created_at|localtime }} · {{ loai[r.opts.loai] if r.opts.loai in loai else '' }}{% if r.opts.ads %} · QC {{ r.opts.ads_days }} ngày{% endif %}{% if r.opts.publish %} · đăng {{ r.opts.publish }}{% endif %}</div>
   <div class="small" style="margin-top:4px">{{ r.brief[:220] }}</div>
   {% if r.answer_name %}<div class="small" style="margin-top:4px">Trả lời: <a href="https://drive.google.com/open?id={{ r.answer_file_id }}" target="_blank" rel="noopener">{{ r.answer_name }}</a></div>{% endif %}
   {% if r.error and r.status=='error' %}<div class="small" style="color:var(--err);margin-top:4px">{{ r.error[:240] }}</div>{% endif %}
   <div class="row" style="margin-top:8px;gap:8px">
-    {% if r.status=='answered' %}<a class="btn small" href="/packages/import/{{ r.goi }}">Nhập vào Gói SX</a>{% endif %}
+    {% if r.status in ('answered','updated') %}<a class="btn small" href="/packages/import/{{ r.goi }}">{{ 'Nhập lại vào Gói SX' if r.status=='updated' else 'Nhập vào Gói SX' }}</a>{% endif %}
     {% if r.status in ('draft','error') %}<form method="post" action="/requests/{{ r.id }}/send" style="margin:0"><button class="btn sec small">Gửi lại</button></form>{% endif %}
     <a class="btn sec small" href="/requests/{{ r.id }}.md">Tải thư .md</a>
     {% if r.drive_file_id %}<a class="btn sec small" href="https://drive.google.com/open?id={{ r.drive_file_id }}" target="_blank" rel="noopener">Mở trên Drive</a>{% endif %}

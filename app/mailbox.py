@@ -109,6 +109,7 @@ def _video_prompts(t: str) -> dict:
         tail = head.split("**:", 1)[1] if "**:" in head else (head.split("):", 1)[1] if "):" in head else "")
         text = _clean((tail + " " + chunk).replace("\n", " "))
         text = re.sub(r"^\d+\.\s*", "", text).strip(" :")
+        text = re.sub(r"\s+[^\W\d_]$", "", text)  # bỏ ký tự lạc cuối đoạn (vd. "… soundtrack. l")
         if len(text) > 40:
             out[int(mk.group(1))] = text
     return out

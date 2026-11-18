@@ -84,3 +84,36 @@ def test_loai3_package_rules():
     assert bad["errors"] and not bad["ads_ok"] and any(i["rule"] == "Quảng cáo" for i in bad["items"])
     assert not packages.check({**base, "sku": "SP-TET-01"})["ads_ok"]
     assert not packages.check({**base, "caption": "Xem thêm ở link bio nha. Bấm theo dõi Cô Kim"})["ads_ok"]
+
+
+def test_check_replies_detects_updated_answer(monkeypatch):
+    _reset()
+    rid = gr.create(BRIEF, "", OPTS)
+    with db.tx() as c:
+        c.execute("UPDATE gemini_requests SET status='imported', sent_at='2026-11-18T17:00:00+00:00',"
+                  " answered_at='2026-11-18T17:54:59+00:00', answer_modified='' WHERE id=?", (rid,))
+    f = {"id": "x", "name": "SANXUAT-1911-GOI-17-TOI__XONG.md", "modifiedTime": "2026-11-18T17:53:58Z"}
+    monkeypatch.setattr(gr, "_token", lambda *a: "t")
+    monkeypatch.setattr(mailbox, "folder_ids", lambda: ["A"])
+    monkeypatch.setattr(mailbox, "_list_files", lambda token, folder: [f])
+    monkeypatch.setattr(settings, "mailbox_outbox_doc_id", "")
+    assert gr.check_replies() == []          # chưa sửa sau lần nhận
+    f["modifiedTime"] = "2026-11-18T23:35:27.568Z"
+    done = gr.check_replies()
+    assert done and done[0]["updated"] and gr.get(rid)["status"] == "updated"
+    assert db.query_one("SELECT * FROM jobs WHERE kind='mailbox' AND message LIKE '%cập nhật%'")
+    assert gr.check_replies() == []          # không báo lại cùng một lần sửa
+    gr.mark_imported("17")
+    assert gr.get(rid)["status"] == "imported"
+
+
+def test_real_goi17_v33_prompts():
+    from pathlib import Path
+    from app import mailbox as mb
+    t = (Path(__file__).parent / "fixtures" / "goi17_v33_real.md").read_text()
+    m = mb.merge([mb.parse(t, "SANXUAT-1911-GOI-17-TOI-MUON-CO-MOT__XONG.md")])
+    assert m["image1"] == "1R-eg5lKwn_8rHbMNXGPnmf3na-4K0njV" and m["prompt4"].endswith("NO soundtrack.")
+    d = {k: m.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES)}
+    d["loai"] = 3
+    chk = packages.check(packages.get(packages.save(d)))
+    assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]
