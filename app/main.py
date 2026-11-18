@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
+from . import sku_lookup
 from . import analytics, battu, comments, compliance, db, jobs, kpi, notebooklm, packages, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
@@ -443,6 +444,25 @@ def products_page(request: Request):
         new=request.session.get("new_sku") or {}, elements=tags.ELEMENTS,
         synced=items[0]["synced_at"] if items else None,
     )
+
+
+@app.post("/products/autofill")
+def products_autofill(request: Request, link: str = Form(""), name: str = Form("")):
+    """Dán link sản phẩm -> tự điền form Thêm SKU (CHƯA ghi vào bảng; người dùng duyệt rồi bấm Thêm)."""
+    try:
+        data = sku_lookup.suggest(link=link, title=name.strip())
+        request.session["new_sku"] = data
+        _, errors, warns = products.validate_new(data)
+        msg = f"Đã tự điền {data['code']} ({data['_auto']}). Kiểm tra lại các ô, điền GIÁ, rồi bấm “Thêm vào bảng”."
+        if errors:
+            msg += " Cần sửa: " + " · ".join(errors)
+        elif warns:
+            msg += " Lưu ý: " + " · ".join(warns)
+        flash(request, msg, "error" if errors else "success")
+    except Exception as e:  # noqa: BLE001
+        request.session["new_sku"] = {"link": link, "name": name}
+        flash(request, f"Không tự điền được: {e}", "error")
+    return RedirectResponse("/products#add", status_code=303)
 
 
 @app.post("/products/add")

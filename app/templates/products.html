@@ -21,6 +21,16 @@
   {% if s.product_csv_url or not s.product_sheet_id %}<p class="muted">Cần nguồn là <b>ID Google Sheet</b> (Cài đặt) và chia sẻ bảng cho service account với quyền <b>Người chỉnh sửa</b>.</p>{% else %}
   <p class="muted small">Ghi 1 dòng vào cuối vùng <code>{{ s.product_sheet_range }}</code>. Trước khi ghi, tool kiểm tra: mã chưa tồn tại, đủ tên, và
     “Tên dùng trong video”, “Công năng”, “Lời thoại gợi ý” sạch B.4 (có từ cấm là không ghi). Ghi dạng chữ thô, không chạy công thức.</p>
+  <form method="post" action="/products/autofill" onsubmit="this.querySelector('button').textContent='Đang đọc link & viết nội dung…';this.querySelector('button').disabled=true">
+    <label><b>1. Dán link sản phẩm TikTok Shop</b> — tool tự điền các ô bên dưới (chưa ghi vào bảng)</label>
+    <div class="row" style="gap:8px"><input name="link" value="{{ new.link or '' }}" placeholder="https://vt.tiktok.com/..." style="flex:1 1 220px">
+      <button class="btn">Tự điền</button></div>
+    {% if new._image or new._note %}<div class="row" style="margin-top:10px;align-items:flex-start">
+      {% if new._image %}<img src="{{ new._image }}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" style="width:72px;height:72px;object-fit:cover;border-radius:8px">{% endif %}
+      <div class="muted small">{{ new._note }}<br>Tên, ảnh lấy từ link; các ô còn lại do {{ new._auto or 'bạn' }} viết — <b>hãy đọc lại</b>. Giá không đọc được từ link, cần tự điền.</div></div>{% endif %}
+  </form>
+  <hr style="border:0;border-top:1px solid var(--border);margin:16px 0 4px">
+  <label><b>2. Duyệt và sửa</b> rồi bấm “Thêm vào bảng”</label>
   <form method="post" action="/products/add">
     <div class="row" style="gap:8px">
       <div style="flex:1;min-width:130px"><label>A · Mã *</label><input name="code" value="{{ new.code or '' }}" placeholder="SP-TET-01" required></div>
@@ -34,7 +44,7 @@
     <label>F · Công năng (mô tả, không hứa tâm linh)</label><textarea name="benefit" rows="2">{{ new.benefit or '' }}</textarea>
     <label>G · Lời thoại gợi ý (kết bằng “bấm giỏ hàng góc trái”)</label><textarea name="cta" rows="2">{{ new.cta or '' }}</textarea>
     <div class="row" style="gap:8px">
-      <div style="flex:1;min-width:120px"><label>H · Giá</label><input name="price" value="{{ new.price or '' }}"></div>
+      <div style="flex:1;min-width:120px"><label>H · Giá <span style="color:var(--err)">(tự điền)</span></label><input name="price" value="{{ new.price or '' }}"></div>
       <div style="flex:1;min-width:120px"><label>I · Hoa hồng</label><input name="commission" value="{{ new.commission or '' }}"></div>
     </div>
     <label>J · Link TikTok Shop</label><input name="link" value="{{ new.link or '' }}" placeholder="https://vt.tiktok.com/...">
