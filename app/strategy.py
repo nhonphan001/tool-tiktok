@@ -15,7 +15,24 @@ GEMINI_URLS = {
     "aistudio": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
     # Gemini qua Vertex AI / Agent Platform, tính tiền theo Google Cloud Billing (dùng được tín dụng Cloud)
     "vertex": "https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent",
+    # Vertex endpoint global (cần mã project): rẻ hơn ~9%, ít lỗi 429, không chọn được nơi xử lý
+    "vertex_global": "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google/"
+                     "models/{model}:generateContent",
 }
+ENDPOINT_LABELS = {
+    "aistudio": "AI Studio (Gemini API)",
+    "vertex": "Vertex AI · theo vùng (Google chọn vùng, thường là đa vùng EU)",
+    "vertex_global": "Vertex AI · global",
+}
+
+
+def planned_endpoint() -> str:
+    """Endpoint sẽ dùng theo Cài đặt: aistudio | vertex | vertex_global."""
+    if settings.gemini_backend != "vertex":
+        return "aistudio"
+    if settings.gemini_vertex_location == "global" and settings.gemini_vertex_project:
+        return "vertex_global"
+    return "vertex"
 
 SYSTEM_PROMPT = """Bạn là chuyên gia tăng trưởng kênh TikTok tại Việt Nam.
 Dựa HOÀN TOÀN trên số liệu được cung cấp, hãy phân tích và lập chiến lược cụ thể, có thể hành động ngay.
@@ -55,18 +72,18 @@ def recompute_costs() -> int:
                 backend_by_strategy[r["ref_id"]] = r["backend"]
             n += 1
         srows = c.execute(
-            "SELECT id, model, created_at, input_tokens, output_tokens, thinking_tokens FROM strategies"
+            "SELECT id, model, created_at, input_tokens, output_tokens, thinking_tokens, endpoint FROM strategies"
             " WHERE total_tokens > 0"
         ).fetchall()
         for st in srows:
             cst = estimate_cost(st["input_tokens"], st["output_tokens"], st["thinking_tokens"], st["model"],
-                                backend_by_strategy.get(st["id"]), st["created_at"])
+                                backend_by_strategy.get(st["id"]) or st["endpoint"] or None, st["created_at"])
             c.execute("UPDATE strategies SET cost_usd=? WHERE id=?", (cst, st["id"]))
             n += 1
     return n
 
 
-def _usage(body: dict) -> dict:
+def _usage(body: dict, endpoint: str | None = None) -> dict:
     um = body.get("usageMetadata") or {}
     inp = int(um.get("promptTokenCount") or 0)
     out = int(um.get("candidatesTokenCount") or 0)
@@ -77,7 +94,8 @@ def _usage(body: dict) -> dict:
         "output_tokens": out,
         "thinking_tokens": think,
         "total_tokens": total,
-        "cost_usd": estimate_cost(inp, out, think),
+        "cost_usd": estimate_cost(inp, out, think, backend=endpoint),
+        "endpoint": endpoint or planned_endpoint(),
     }
 
 
@@ -87,7 +105,7 @@ def record_usage(kind: str, ref_id: int | None, usage: dict) -> None:
             "INSERT INTO ai_usage(created_at, kind, ref_id, backend, model, input_tokens, output_tokens,"
             " thinking_tokens, total_tokens, cost_usd) VALUES(?,?,?,?,?,?,?,?,?,?)",
             (
-                db.now_iso(), kind, ref_id, settings.gemini_backend, settings.gemini_model,
+                db.now_iso(), kind, ref_id, usage.get("endpoint") or planned_endpoint(), settings.gemini_model,
                 usage["input_tokens"], usage["output_tokens"], usage["thinking_tokens"],
                 usage["total_tokens"], usage["cost_usd"],
             ),
@@ -102,37 +120,59 @@ def full_system_prompt(base: str = "") -> str:
     return base
 
 
-def call_gemini(prompt: str, system: str = SYSTEM_PROMPT, json_mode: bool = False) -> tuple[str, dict]:
-    """Gọi Gemini, trả về (nội dung, thông tin token/chi phí)."""
-    if not settings.gemini_api_key:
-        raise StrategyError("Chưa cấu hình GEMINI_API_KEY")
+def _post(endpoint: str, payload: dict) -> tuple[int, dict]:
+    url = GEMINI_URLS[endpoint].format(model=settings.gemini_model, project=settings.gemini_vertex_project)
     r = httpx.post(
-        GEMINI_URLS.get(settings.gemini_backend, GEMINI_URLS["aistudio"]).format(model=settings.gemini_model),
+        url,
         headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
-        json={
-            "systemInstruction": {"parts": [{"text": full_system_prompt(system)}]},
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": (
-                {"temperature": 0.2, "responseMimeType": "application/json"} if json_mode else {"temperature": 0.7}
-            ),
-        },
+        json=payload,
         timeout=300,
     )
     try:
         body = r.json()
     except ValueError:
-        raise StrategyError(f"Gemini trả về lỗi HTTP {r.status_code}")
+        body = {"error": {"message": f"HTTP {r.status_code}, phản hồi không phải JSON"}}
     if isinstance(body, list) and body:
         body = body[0]
-    if r.status_code != 200:
-        err = body.get("error", {}) if isinstance(body, dict) else {}
-        raise StrategyError(f"Gemini ({settings.gemini_backend}) lỗi: {err.get('message', body)}")
+    return r.status_code, body if isinstance(body, dict) else {"error": {"message": str(body)}}
+
+
+def _err(body: dict) -> str:
+    return str((body.get("error") or {}).get("message") or body)[:500]
+
+
+def call_gemini(prompt: str, system: str = SYSTEM_PROMPT, json_mode: bool = False) -> tuple[str, dict]:
+    """Gọi Gemini, trả về (nội dung, thông tin token/chi phí/endpoint).
+
+    Nếu bật Vertex global mà lỗi, tự gọi lại endpoint theo vùng và ghi chú lý do trong usage["endpoint_note"].
+    """
+    if not settings.gemini_api_key:
+        raise StrategyError("Chưa cấu hình GEMINI_API_KEY")
+    payload = {
+        "systemInstruction": {"parts": [{"text": full_system_prompt(system)}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": (
+            {"temperature": 0.2, "responseMimeType": "application/json"} if json_mode else {"temperature": 0.7}
+        ),
+    }
+    endpoint = planned_endpoint()
+    note = ""
+    status, body = _post(endpoint, payload)
+    if status != 200 and endpoint == "vertex_global":
+        log.warning("Vertex global failed (%s), falling back to regional: %s", status, _err(body))
+        note = f"global lỗi (HTTP {status}: {_err(body)[:160]}) → đã tự chuyển sang theo vùng"
+        endpoint = "vertex"
+        status, body = _post(endpoint, payload)
+    if status != 200:
+        raise StrategyError(f"Gemini ({ENDPOINT_LABELS[endpoint]}) lỗi: {_err(body)}" + (f" [{note}]" if note else ""))
     try:
         parts = body["candidates"][0]["content"]["parts"]
         text = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
     except (KeyError, IndexError):
         raise StrategyError(f"Gemini không trả về nội dung: {body.get('promptFeedback') or body}")
-    return text, _usage(body)
+    usage = _usage(body, endpoint)
+    usage["endpoint_note"] = note
+    return text, usage
 
 
 def rule_based(open_id: str, goal: str) -> str:
@@ -172,7 +212,8 @@ def rule_based(open_id: str, goal: str) -> str:
     return "\n".join(lines)
 
 
-EMPTY_USAGE = {"input_tokens": 0, "output_tokens": 0, "thinking_tokens": 0, "total_tokens": 0, "cost_usd": 0.0}
+EMPTY_USAGE = {"input_tokens": 0, "output_tokens": 0, "thinking_tokens": 0, "total_tokens": 0, "cost_usd": 0.0,
+               "endpoint": "", "endpoint_note": ""}
 
 
 def _build_prompt(open_id: str, goal: str) -> str:
@@ -197,9 +238,9 @@ def start(open_id: str, goal: str = "") -> int:
     """Tạo bản ghi chiến lược ở trạng thái 'pending' (đang tạo)."""
     with db.tx() as c:
         cur = c.execute(
-            "INSERT INTO strategies(open_id, created_at, source, model, goal, content_md, status, notified)"
-            " VALUES(?,?,?,?,?,?,?,?)",
-            (open_id, db.now_iso(), "pending", settings.gemini_model, goal, "", "pending", 0),
+            "INSERT INTO strategies(open_id, created_at, source, model, goal, content_md, status, notified, endpoint)"
+            " VALUES(?,?,?,?,?,?,?,?,?)",
+            (open_id, db.now_iso(), "pending", settings.gemini_model, goal, "", "pending", 0, planned_endpoint()),
         )
         return cur.lastrowid
 
@@ -219,19 +260,21 @@ def run(sid: int) -> dict:
         except StrategyError as e:
             log.warning("Gemini unavailable, fallback rule-based: %s", e)
             content = rule_based(row["open_id"], row["goal"] or "") + f"\n\n> Ghi chú: {e}"
-            source, model, usage = "rule", "", EMPTY_USAGE
+            source, model, usage = "rule", "", dict(EMPTY_USAGE, endpoint=planned_endpoint())
         status = "done"
     except Exception as e:  # noqa: BLE001
         log.exception("Strategy generation failed")
-        content, source, model, usage, status = f"Lỗi khi tạo chiến lược: {e}", "error", "", EMPTY_USAGE, "error"
+        content, source, model, status = f"Lỗi khi tạo chiến lược: {e}", "error", "", "error"
+        usage = dict(EMPTY_USAGE, endpoint=planned_endpoint())
     with db.tx() as c:
         c.execute(
             "UPDATE strategies SET content_md=?, source=?, model=?, status=?, notified=0, input_tokens=?,"
-            " output_tokens=?, thinking_tokens=?, total_tokens=?, cost_usd=?, duration_sec=? WHERE id=?",
+            " output_tokens=?, thinking_tokens=?, total_tokens=?, cost_usd=?, duration_sec=?, endpoint=?,"
+            " endpoint_note=? WHERE id=?",
             (
                 content, source, model, status, usage["input_tokens"], usage["output_tokens"],
                 usage["thinking_tokens"], usage["total_tokens"], usage["cost_usd"],
-                round(time.monotonic() - t0, 1), sid,
+                round(time.monotonic() - t0, 1), usage.get("endpoint") or "", usage.get("endpoint_note") or "", sid,
             ),
         )
     return {"id": sid, "source": source, "status": status, "content_md": content, **usage}

@@ -331,6 +331,7 @@ def strategy_page(request: Request, id: int | None = None):
     return render(
         request, "strategy.html", items=items, current=current, gemini_ready=bool(settings.gemini_api_key),
         answer=request.session.pop("answer", None), usage=strategy.usage_summary(), rate=settings.usd_vnd_rate,
+        endpoint_labels=strategy.ENDPOINT_LABELS, endpoint_now=strategy.ENDPOINT_LABELS[strategy.planned_endpoint()],
     )
 
 
@@ -393,7 +394,8 @@ def settings_page(request: Request):
         scans=db.query("SELECT * FROM scans ORDER BY id DESC LIMIT 20"),
         syncs=db.query("SELECT * FROM sync_log ORDER BY id DESC LIMIT 20"),
         sa_email=notebooklm.service_account_email(),
-        price_now=pricing.price_for(settings.gemini_model, settings.gemini_backend),
+        price_now=pricing.price_for(settings.gemini_model, strategy.planned_endpoint()),
+        endpoint_now=strategy.ENDPOINT_LABELS[strategy.planned_endpoint()],
         tiktok_ready=bool(settings.tiktok_client_key and settings.tiktok_client_secret),
     )
 
@@ -466,7 +468,7 @@ def api_jobs():
     pending = [p["id"] for p in db.query("SELECT id FROM strategies WHERE status='pending'")]
     pending += [f"job{p['id']}" for p in db.query("SELECT id FROM jobs WHERE status='pending'")]
     finished = db.query(
-        "SELECT id, source, status, total_tokens, cost_usd, duration_sec FROM strategies"
+        "SELECT id, source, status, total_tokens, cost_usd, duration_sec, endpoint, endpoint_note FROM strategies"
         " WHERE status!='pending' AND notified=0"
     )
     done_jobs = db.query("SELECT * FROM jobs WHERE status!='pending' AND notified=0")
@@ -475,6 +477,7 @@ def api_jobs():
         c.executemany("UPDATE jobs SET notified=1 WHERE id=?", [(j["id"],) for j in done_jobs])
     for f in finished:
         f["type"] = "strategy"
+        f["endpoint_label"] = strategy.ENDPOINT_LABELS.get(f["endpoint"] or "", f["endpoint"] or "")
         f["cost_vnd"] = round((f["cost_usd"] or 0) * settings.usd_vnd_rate)
     links = {"classify": "/videos", "products": "/products"}
     for j in done_jobs:

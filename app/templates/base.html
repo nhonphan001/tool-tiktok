@@ -63,7 +63,7 @@ function askNotifyPermission(){ try{ if('Notification' in window && Notification
     }
     const ok=j.status==='done' && j.source==='gemini';
     const msg = j.status==='error' ? 'Tạo chiến lược bị lỗi' : (ok ? 'Chiến lược mới đã sẵn sàng' : 'Đã tạo chiến lược (dự phòng, Gemini lỗi)');
-    const detail = ok ? (money(j.total_tokens)+' token · ≈ '+money(j.cost_vnd)+' ₫ · '+j.duration_sec+'s') : '';
+    const detail = ok ? (money(j.total_tokens)+' token · ≈ '+money(j.cost_vnd)+' ₫ · '+j.duration_sec+'s · '+(j.endpoint_label||'')+(j.endpoint_note?' ⚠ đã chuyển vùng':'')) : '';
     toast('<b>'+msg+'</b>'+(detail?'<div>'+detail+'</div>':'')+'<a href="/strategy?id='+j.id+'">Xem</a>', ok?'ok':'warn');
     document.title='✅ '+baseTitle;
     try{ if('Notification' in window && Notification.permission==='granted' && document.hidden){

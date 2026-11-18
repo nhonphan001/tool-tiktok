@@ -336,3 +336,66 @@ def test_recompute_costs(seeded, monkeypatch):
     want = (10000 * 0.825 + 3000 * 4.125) / 1e6
     assert abs(db.query_one("SELECT cost_usd FROM strategies WHERE id=?", (sid,))["cost_usd"] - want) < 1e-12
     assert abs(db.query_one("SELECT cost_usd FROM ai_usage WHERE ref_id=?", (sid,))["cost_usd"] - want) < 1e-12
+
+
+def test_vertex_global_option_and_fallback(seeded, monkeypatch):
+    import time as _t
+
+    monkeypatch.setattr(settings, "gemini_api_key", "AQ.k")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.8-flash")
+    monkeypatch.setattr(settings, "gemini_backend", "vertex")
+    monkeypatch.setattr(settings, "gemini_price_input", 0)
+    monkeypatch.setattr(settings, "gemini_price_output", 0)
+    ok_body = {"candidates": [{"content": {"parts": [{"text": "## KQ"}]}}],
+               "usageMetadata": {"promptTokenCount": 10000, "candidatesTokenCount": 2000, "thoughtsTokenCount": 0}}
+    calls = []
+
+    class R:
+        def __init__(self, code, body):
+            self.status_code, self._b = code, body
+
+        def json(self):
+            return self._b
+
+    def fake_ok(url, **kw):
+        calls.append(url)
+        return R(200, ok_body)
+
+    # global tắt (mặc định) hoặc thiếu mã project -> theo vùng
+    monkeypatch.setattr(settings, "gemini_vertex_location", "global")
+    monkeypatch.setattr(settings, "gemini_vertex_project", "")
+    assert strategy.planned_endpoint() == "vertex"
+    # global bật -> URL global, giá global
+    monkeypatch.setattr(settings, "gemini_vertex_project", "nangtam-gemini")
+    monkeypatch.setattr(strategy.httpx, "post", fake_ok)
+    text, usage = strategy.call_gemini("hi")
+    assert calls[-1] == ("https://aiplatform.googleapis.com/v1/projects/nangtam-gemini/locations/global/"
+                         "publishers/google/models/gemini-3.8-flash:generateContent")
+    assert usage["endpoint"] == "vertex_global" and usage["endpoint_note"] == ""
+    assert abs(usage["cost_usd"] - (10000 * 0.75 + 2000 * 3.75) / 1e6) < 1e-12
+
+    # global lỗi -> tự gọi lại theo vùng, có ghi chú, giá theo vùng
+    def fake_fallback(url, **kw):
+        calls.append(url)
+        if "/locations/global/" in url:
+            return R(403, {"error": {"message": "Permission denied on global"}})
+        return R(200, ok_body)
+
+    monkeypatch.setattr(strategy.httpx, "post", fake_fallback)
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    r = c.post("/strategy/generate", data={"goal": "vùng"}, follow_redirects=False)
+    sid = int(r.headers["location"].split("id=")[1])
+    for _ in range(50):
+        row = db.query_one("SELECT * FROM strategies WHERE id=?", (sid,))
+        if row["status"] != "pending":
+            break
+        _t.sleep(0.1)
+    assert row["source"] == "gemini" and row["endpoint"] == "vertex"
+    assert "global lỗi (HTTP 403" in row["endpoint_note"]
+    assert abs(row["cost_usd"] - (10000 * 0.825 + 2000 * 4.125) / 1e6) < 1e-12
+    page = c.get(f"/strategy?id={sid}").text
+    assert "Vertex AI · theo vùng" in page and "global lỗi" in page
+    fin = [f for f in c.get("/api/jobs").json()["finished"] if f.get("type") == "strategy" and f["id"] == sid]
+    assert fin and fin[0]["endpoint_label"].startswith("Vertex AI · theo vùng")
+    assert "Sẽ gọi: Vertex AI · global" in c.get("/strategy").text

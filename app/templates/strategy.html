@@ -9,6 +9,7 @@
         <label>Mục tiêu (tuỳ chọn)</label>
         <textarea name="goal" rows="3" placeholder="VD: đạt 50k follower trong 2 tháng, bán khoá học nấu ăn"></textarea>
         <p><button class="btn" style="width:100%">Tạo chiến lược mới</button></p>
+        <p class="muted" style="font-size:12px;margin:0">Sẽ gọi: {{ endpoint_now }}</p>
       </form>
     </div>
     <div class="card" style="margin-top:16px"><h2>Chi phí Gemini</h2>
@@ -30,10 +31,11 @@
     <div class="card md">
       {% if current and current.status=='pending' %}
         <div class="pending"><div class="spinner"></div><div><b>Gemini đang phân tích và lập chiến lược…</b>
+        <div class="muted">Đang gọi: <b>{{ endpoint_labels.get(current.endpoint, current.endpoint) or endpoint_now }}</b> · model {{ current.model }}</div>
         <div class="muted">Thường mất 30 giây – 2 phút. Bạn có thể chuyển sang trang khác, sẽ có thông báo khi xong.</div></div></div>
         <script>window.WAIT_STRATEGY = {{ current.id }};</script>
       {% elif current %}
-        <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at|localtime }} · {{ current.source }} {{ current.model }}</span>
+        <div class="row" style="justify-content:space-between"><span class="muted">{{ current.created_at|localtime }} · {{ current.source }} {{ current.model }}{% if current.endpoint %} · <b>{{ endpoint_labels.get(current.endpoint, current.endpoint) }}</b>{% endif %}</span>
         <form method="post" action="/strategy/{{ current.id }}/delete" onsubmit="return confirm('Xoá chiến lược này?')"><button class="btn sec small">Xoá</button></form></div>
         {% if current.total_tokens %}<div class="usage">
           <span>Token vào: <b>{{ current.input_tokens|num }}</b></span>
@@ -43,13 +45,14 @@
           <span>Chi phí ≈ <b>{{ (current.cost_usd*rate)|round|int|num }} ₫</b> (${{ '%.4f'|format(current.cost_usd) }})</span>
           {% if current.duration_sec %}<span>Thời gian: {{ current.duration_sec }}s</span>{% endif %}
         </div>{% endif %}
+        {% if current.endpoint_note %}<div class="flash" style="font-size:13px">⚠ {{ current.endpoint_note }}</div>{% endif %}
         {{ current.content_md|markdown|safe }}
       {% else %}<p class="muted">Bấm "Tạo chiến lược mới" để AI phân tích số liệu và đề xuất kế hoạch.</p>{% endif %}
     </div>
     <div class="card md" id="ask" style="margin-top:16px"><h2>Hỏi đáp về số liệu kênh (Gemini)</h2>
       <form method="post" action="/strategy/ask" class="row"><input name="question" required placeholder="VD: Vì sao tuần này view giảm?" style="flex:1"><button class="btn">Hỏi</button></form>
       {% if answer %}<p><b>Hỏi:</b> {{ answer.q }}</p>{{ answer.a|markdown|safe }}
-        {% if answer.usage %}<div class="usage"><span>Tổng: <b>{{ answer.usage.total_tokens|num }}</b> token</span><span>Chi phí ≈ <b>{{ (answer.usage.cost_usd*rate)|round|int|num }} ₫</b></span></div>{% endif %}{% endif %}
+        {% if answer.usage %}<div class="usage"><span>{{ endpoint_labels.get(answer.usage.endpoint, answer.usage.endpoint) }}</span><span>Tổng: <b>{{ answer.usage.total_tokens|num }}</b> token</span><span>Chi phí ≈ <b>{{ (answer.usage.cost_usd*rate)|round|int|num }} ₫</b></span></div>{% endif %}{% endif %}
     </div>
   </div>
 </div>

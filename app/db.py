@@ -151,6 +151,8 @@ MIGRATIONS = [
     ("strategies", "total_tokens", "INTEGER DEFAULT 0"),
     ("strategies", "cost_usd", "REAL DEFAULT 0"),
     ("strategies", "duration_sec", "REAL DEFAULT 0"),
+    ("strategies", "endpoint", "TEXT DEFAULT ''"),
+    ("strategies", "endpoint_note", "TEXT DEFAULT ''"),
 ]
 
 

@@ -45,6 +45,9 @@ class Settings:
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
     gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.8-flash"))
     gemini_backend: str = field(default_factory=lambda: os.getenv("GEMINI_BACKEND", "aistudio"))
+    # Vertex: "" = endpoint theo vùng (mặc định), "global" = endpoint global (cần mã project)
+    gemini_vertex_location: str = field(default_factory=lambda: os.getenv("GEMINI_VERTEX_LOCATION", ""))
+    gemini_vertex_project: str = field(default_factory=lambda: os.getenv("GEMINI_VERTEX_PROJECT", ""))
     # 0 = tự động theo bảng giá trong app/pricing.py; > 0 = giá nhập tay (USD / 1 triệu token)
     gemini_price_input: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_INPUT") or 0))
     gemini_price_output: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_OUTPUT") or 0))
@@ -100,6 +103,8 @@ EDITABLE_KEYS = {
     "gemini_model": str,
     "channel_context": str,
     "gemini_backend": str,
+    "gemini_vertex_location": str,
+    "gemini_vertex_project": str,
     "content_rules": str,
     "kpi_target_1": int,
     "kpi_deadline_1": str,
