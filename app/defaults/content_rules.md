@@ -15,7 +15,7 @@ B. TỬ VI, BÓI TOÁN VÀ VẬT PHẨM (Chính sách quảng cáo TikTok, mục
    - Không khẳng định chắc chắn: "chắc chắn sẽ", "đảm bảo", "100%", "dự đoán chính xác", "sẽ gặp/sẽ giàu/sẽ hết".
 6. Quảng cáo trả phí (Quảng bá, GMV Max…): chỉ chạy cho video sản phẩm thuần (mục 5, gạch đầu dòng 3). Hình ảnh hù dọa/siêu nhiên chỉ được xuất hiện sau 6 giây đầu.
 
-C. HÌNH ẢNH (chuẩn v3.1, áp dụng mọi video, bắt buộc với video có giỏ hàng)
+C. HÌNH ẢNH (chuẩn Cô Kim v3.3, áp dụng mọi video, bắt buộc với video có giỏ hàng)
 7. Không lửa cháy, tia sáng phép thuật, linh vật/tượng vàng phát sáng (ngựa, chim, cóc…), hào quang quanh vật phẩm hay nhân vật.
 8. Không cảnh chắp tay khấn vái, lễ bái trước vật phẩm; không thắp nhang, không mâm cúng, không bàn thờ làm phông nền trong video có giỏ hàng.
    Ngoại lệ — sản phẩm vệ sinh/dọn dẹp bàn thờ (khăn lau, chổi, dung dịch lau): được quay cảnh LAU DỌN mặt bàn thờ như việc nhà bình thường (tay lau mặt gỗ, chân đèn, bình hoa), nhang chưa thắp, không ai khấn vái; không nói sản phẩm giúp "rước lộc, đón tài lộc, giữ bình an, ông bà phù hộ"; chỉ nói công dụng làm sạch, mùi hương, quy cách. Không quay cận ảnh thờ/di ảnh, tượng Phật.
