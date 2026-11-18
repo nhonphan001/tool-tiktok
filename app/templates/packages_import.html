@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/packages">← Gói sản xuất</a></p>
+<h1>Nhập phiếu gói từ hộp thư Drive</h1>
+<p class="muted">Tool đọc các file <code>SANXUAT-…</code> trong GUI_GEMINI và GUI_CLAUDE, gộp theo số gói (file mới hơn ghi đè). Chọn một gói để mở form đã điền sẵn — <b>chưa lưu gì</b> cho tới khi bạn bấm “Lưu &amp; kiểm tra”.</p>
+{% if error %}<div class="flash error">{{ error }}{% if sa %}<br><span class="small">Chia sẻ thư mục <b>05_HOP_THU_CLAUDE_GEMINI</b> cho <code>{{ sa }}</code> với quyền <b>Người xem</b>.</span>{% endif %}</div>{% endif %}
+<div class="card scroll"><table>
+<tr><th>Gói</th><th>Tiêu đề</th><th>SKU</th><th>Đã có</th><th>Ảnh</th><th>Nguồn</th></tr>
+{% for g in found %}<tr>
+  <td><b>Gói {{ g.goi }}</b><div style="margin-top:6px"><a class="btn small nw" href="/packages/import/{{ g.goi }}">{{ 'Cập nhật gói đã có' if g.existing_id else 'Dùng gói này' }}</a></div></td>
+  <td>{{ g.title or '—' }}</td>
+  <td class="nw">{{ g.sku or '—' }}</td>
+  <td class="small">{% for f in ['scene1','scene2','scene3','scene4','on_screen','caption','pinned'] %}<span class="badge {{ 'ok' if f in g.fields }}">{{ {'scene1':'C1','scene2':'C2','scene3':'C3','scene4':'C4','on_screen':'Chữ','caption':'Caption','pinned':'Ghim'}[f] }}</span> {% endfor %}</td>
+  <td>{{ (g.images or {})|length }}/4</td>
+  <td class="small">{% for s in g.sources %}<div><a href="https://drive.google.com/open?id={{ s.id }}" target="_blank" rel="noopener">{{ s.name }}</a></div>{% endfor %}</td>
+</tr>{% else %}{% if not error %}<tr><td colspan="6" class="muted">Không tìm thấy file SANXUAT-… nào có số gói.</td></tr>{% endif %}{% endfor %}
+</table></div>
+{% endblock %}

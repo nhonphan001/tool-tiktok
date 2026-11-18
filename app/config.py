@@ -73,6 +73,9 @@ class Settings:
 
     # Hoặc link CSV đã "Xuất bản lên web" (vd. tab WEB_XUAT_BAN) — không cần service account
     product_csv_url: str = field(default_factory=lambda: os.getenv("PRODUCT_CSV_URL", ""))
+    # Hộp thư Drive Claude <-> Gemini: GUI_GEMINI, GUI_CLAUDE (đọc phiếu gói SANXUAT-*)
+    mailbox_folder_ids: str = field(default_factory=lambda: os.getenv(
+        "MAILBOX_FOLDER_IDS", "16C0ZEvMyfdRZ_lcgXdxlN7JhuruaXy9l,1oFj8HZVoIY0CYQkkkyza9d2GCToaQUVC"))
 
     # Token cho API chỉ-đọc /api/public/* (bảng điều hành khác, Gemini...). Trống = tắt.
     api_token: str = field(default_factory=lambda: os.getenv("API_TOKEN", ""))
@@ -118,6 +121,7 @@ EDITABLE_KEYS = {
     "product_sheet_id": str,
     "product_sheet_range": str,
     "product_csv_url": str,
+    "mailbox_folder_ids": str,
     "gemini_price_input": float,
     "gemini_price_output": float,
     "usd_vnd_rate": float,

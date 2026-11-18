@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row" style="justify-content:space-between"><h1>Gói sản xuất ({{ items|length }})</h1><a class="btn" href="/packages/new">+ Gói mới</a></div>
+<div class="row" style="justify-content:space-between"><h1>Gói sản xuất ({{ items|length }})</h1><div class="row"><a class="btn sec" href="/packages/import">Nhập từ hộp thư Drive</a><a class="btn" href="/packages/new">+ Gói mới</a></div></div>
 <p class="muted">Soạn lời thoại, caption, bình luận ghim, lá số và SKU trước khi dựng video. Tool kiểm tra B.1/B.2/B.3/B.4 (0 token), sinh khối <code>nhan_video</code> và tự gắn gói vào video sau khi đăng (khi caption khớp).</p>
 <div class="card scroll"><table>
 <tr><th>Gói</th><th>Tiêu đề</th><th>Loại</th><th>SKU</th><th>Kiểm tra</th><th>Quảng cáo</th><th>Trạng thái</th><th>Video</th></tr>

@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import sku_lookup
+from . import mailbox, sku_lookup
 from . import analytics, battu, comments, compliance, db, jobs, kpi, notebooklm, packages, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
@@ -353,6 +353,43 @@ def _package_ctx(p: dict) -> dict:
     return {"p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
+
+
+@app.get("/packages/import", response_class=HTMLResponse)
+def packages_import(request: Request):
+    """Liệt kê phiếu gói tìm thấy trong hộp thư Drive (chỉ đọc)."""
+    try:
+        found, error = mailbox.scan(), None
+    except Exception as e:  # noqa: BLE001
+        found, error = [], str(e)
+    existing = {p["goi"]: p["id"] for p in packages.all_packages() if p.get("goi")}
+    for g in found:
+        g["existing_id"] = existing.get(g.get("goi"))
+    return render(request, "packages_import.html", found=found, error=error, sa=notebooklm.service_account_email())
+
+
+@app.get("/packages/import/{goi}", response_class=HTMLResponse)
+def packages_import_one(request: Request, goi: str):
+    """Mở form Gói SX điền sẵn từ hộp thư — CHƯA lưu; người dùng xem lại rồi bấm Lưu & kiểm tra."""
+    try:
+        g = mailbox.get(goi)
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Không đọc được hộp thư: {e}", "error")
+        return RedirectResponse("/packages/import", status_code=303)
+    if not g:
+        flash(request, f"Không tìm thấy Gói {goi} trong hộp thư", "error")
+        return RedirectResponse("/packages/import", status_code=303)
+    existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
+    p = {k: g.get(k, "") for k in packages.FIELDS}
+    p["loai"] = g.get("loai") or 2
+    p["birth"] = {}
+    if existing:
+        p["id"] = existing["id"]
+        p["status"] = existing.get("status")
+    ctx = _package_ctx({**p, "id": None})
+    ctx["p"] = p
+    ctx["imported"] = g
+    return render(request, "package.html", **ctx)
 
 
 @app.get("/packages/new", response_class=HTMLResponse)

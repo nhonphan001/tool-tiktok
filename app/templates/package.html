@@ -3,6 +3,9 @@
 {% block content %}
 <p><a href="/packages">← Gói sản xuất</a></p>
 <h1>{{ ('Gói ' ~ p.goi) if p.goi else 'Gói mới' }}{% if p.title %} — {{ p.title }}{% endif %}</h1>
+{% if imported %}<div class="flash success">Đã điền sẵn từ hộp thư Drive: {% for s in imported.sources %}<a href="https://drive.google.com/open?id={{ s.id }}" target="_blank" rel="noopener">{{ s.name }}</a>{{ ', ' if not loop.last }}{% endfor %}.
+  <b>Chưa lưu</b> — xem lại các ô rồi bấm “Lưu &amp; kiểm tra”.{% if p.id %} Gói {{ p.goi }} đã có trong tool: lưu sẽ <b>cập nhật</b> gói cũ.{% endif %}
+  {% if imported.images %}<div class="small" style="margin-top:6px">Ảnh cảnh: {% for i, fid in imported.images|dictsort %}<a href="https://drive.google.com/file/d/{{ fid }}/view" target="_blank" rel="noopener">Cảnh {{ i }}</a>{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}</div>{% endif %}
 <div class="side pkg">
 <div class="card">
   <form method="post" action="/packages/save">
@@ -29,7 +32,7 @@
     <h2 style="margin-top:16px">Sản phẩm (video loại 2)</h2>
     <div class="row" style="gap:8px">
       <div style="flex:1;min-width:180px"><label>SKU</label>
-        {% if products %}<select name="sku"><option value="">— không gắn —</option>{% for x in products %}<option value="{{ x.code }}" {{ 'selected' if p.sku==x.code }}>{{ x.code }} · {{ x.element }} · {{ x.name }}</option>{% endfor %}</select>
+        {% if products %}<select name="sku"><option value="">— không gắn —</option>{% for x in products %}<option value="{{ x.code }}" {{ 'selected' if p.sku==x.code }}>{{ x.code }}{{ (' · ' ~ x.element) if x.element }} · {{ x.video_name or x.name }}</option>{% endfor %}</select>
         {% else %}<input name="sku" value="{{ p.sku or '' }}" placeholder="SP-THUY-02 (chưa đồng bộ bảng sản phẩm)">{% endif %}</div>
       <div style="flex:2;min-width:200px"><label>Tên sản phẩm dùng trong kịch bản</label><input name="product_name" value="{{ p.product_name or '' }}" placeholder="chép đúng tên trong bảng quản trị"></div>
     </div>
