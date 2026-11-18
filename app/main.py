@@ -525,6 +525,24 @@ async def settings_save(request: Request):
     return RedirectResponse("/settings", status_code=303)
 
 
+@app.post("/settings/test-drive")
+def settings_test_drive(request: Request):
+    res = notebooklm.check_drive()
+    ok = all(r["ok"] for r in res)
+    msg = " · ".join(("✓ " if r["ok"] else "✗ ") + r["msg"] for r in res)
+    acc = db.get_active_account()
+    if ok and acc:
+        synced = notebooklm.sync_all(acc["open_id"])
+        drive = [x for x in synced if x["target"].startswith("drive:")]
+        if not drive:
+            msg += " · Chế độ đồng bộ chưa có “drive” nên chưa ghi thử."
+        else:
+            msg += " · Ghi thử: " + ", ".join(f"{x['target']} {x['status']}" for x in drive)
+            ok = all(x["status"] == "ok" for x in drive)
+    flash(request, msg, "success" if ok else "error")
+    return RedirectResponse("/settings", status_code=303)
+
+
 @app.post("/settings/recompute-costs")
 def settings_recompute_costs(request: Request):
     n = strategy.recompute_costs()
@@ -608,19 +626,15 @@ def api_public_options(rest: str):
     return JSONResponse({}, headers={**CORS, "Access-Control-Allow-Methods": "GET, OPTIONS"})
 
 
-@app.get("/api/public/summary")
-def api_public_summary(request: Request):
-    """Số liệu chỉ-đọc cho bảng điều hành khác (cần API_TOKEN)."""
-    if not _check_token(request):
-        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+def _public_summary() -> dict | None:
     acc = db.get_active_account()
     if not acc:
-        return JSONResponse({"error": "no_account"}, status_code=404, headers=CORS)
+        return None
     oid = acc["open_id"]
     ov = analytics.overview(oid)
     vids = tags.videos_with_tags(oid)
     last_scan = db.query_one("SELECT started_at, status, message FROM scans ORDER BY id DESC LIMIT 1")
-    data = {
+    return {
         "channel": {"username": acc.get("username"), "display_name": acc.get("display_name")},
         "source": "TikTok API (số chính xác, không làm tròn)",
         "updated_at": ov.get("latest", {}).get("taken_at") if ov.get("latest") else None,
@@ -642,7 +656,32 @@ def api_public_summary(request: Request):
         ],
         "last_scan": last_scan,
     }
+
+
+@app.get("/api/public/summary")
+def api_public_summary(request: Request):
+    """Số liệu chỉ-đọc cho bảng điều hành khác (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    data = _public_summary()
+    if data is None:
+        return JSONResponse({"error": "no_account"}, status_code=404, headers=CORS)
     return JSONResponse(data, headers=CORS)
+
+
+@app.get("/api/public/dashboard/{name}.json")
+def api_public_dashboard_file(request: Request, name: str):
+    """Tệp số liệu {rows, meta} dựng sẵn cho Bảng điều hành kênh (cần API_TOKEN)."""
+    from . import dashboard_export
+
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    if name not in dashboard_export.NAMES:
+        return JSONResponse({"error": "unknown", "names": list(dashboard_export.NAMES)}, status_code=404, headers=CORS)
+    data = _public_summary()
+    if data is None:
+        return JSONResponse({"error": "no_account"}, status_code=404, headers=CORS)
+    return JSONResponse(dashboard_export.build(data)[name], headers=CORS)
 
 
 @app.get("/api/public/laso")

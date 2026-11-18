@@ -519,3 +519,74 @@ def test_khuyet_hanh_rule():
 
     assert compliance.check("Lá số khuyết Kim nên đeo vòng bạc", True)["level"] == "fortune_risk"
     assert compliance.check("khuyết hành Hỏa", True)["level"] == "fortune_risk"
+
+
+def test_check_drive_without_key(monkeypatch, tmp_path):
+    from app import notebooklm
+
+    monkeypatch.setattr(settings, "google_service_account_file", str(tmp_path / "none.json"))
+    res = notebooklm.check_drive()
+    assert not res[0]["ok"] and "service account" in res[0]["msg"]
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    r = c.post("/settings/test-drive")
+    assert r.status_code == 200 and "Không đọc được file service account" in r.text
+
+
+def test_drive_check_and_push_mocked(seeded, monkeypatch, tmp_path):
+    import json as _json
+
+    from app import notebooklm
+
+    keyf = tmp_path / "sa.json"
+    keyf.write_text(_json.dumps({"client_email": "gemini-caller-229@nangtam-gemini.iam.gserviceaccount.com"}))
+    monkeypatch.setattr(settings, "google_service_account_file", str(keyf))
+    monkeypatch.setattr(settings, "google_doc_id_report", "DOC_R")
+    monkeypatch.setattr(settings, "google_doc_id_strategy", "DOC_S")
+
+    class Creds:
+        token = "tok"
+
+    monkeypatch.setattr(notebooklm, "_credentials", lambda scopes: Creds())
+
+    class R:
+        def __init__(self, code, body):
+            self.status_code, self._b, self.text = code, body, _json.dumps(body)
+
+        def json(self):
+            return self._b
+
+    def fake_get(url, **kw):
+        if url.endswith("DOC_R"):
+            return R(200, {"name": "BAO_CAO_TIKTOK_MANAGER", "capabilities": {"canEdit": True}})
+        return R(200, {"name": "CHIEN_LUOC_TIKTOK_MANAGER", "capabilities": {"canEdit": False}})
+
+    monkeypatch.setattr(notebooklm.httpx, "get", fake_get)
+    res = notebooklm.check_drive()
+    assert res[1]["ok"] and "có quyền sửa" in res[1]["msg"]
+    assert not res[2]["ok"] and "CHỈ XEM" in res[2]["msg"]
+
+    sent = []
+
+    def fake_patch(url, content=None, headers=None, timeout=None):
+        sent.append((url, headers, content))
+        return R(200, {})
+
+    monkeypatch.setattr(notebooklm.httpx, "patch", fake_patch)
+    monkeypatch.setattr(settings, "notebooklm_mode", "drive")
+    out = notebooklm.sync_all(seeded)
+    assert [o["status"] for o in out] == ["ok", "ok"]
+    assert sent[0][0].startswith("https://www.googleapis.com/upload/drive/v3/files/DOC_R?uploadType=media")
+    assert sent[0][1]["Content-Type"].startswith("text/html")
+    assert "<table>" in sent[0][2].decode("utf-8") and "## KPI" not in sent[0][2].decode("utf-8")
+
+
+def test_public_dashboard_files(seeded, monkeypatch):
+    c = TestClient(app)
+    monkeypatch.setattr(settings, "api_token", "tk")
+    assert c.get("/api/public/dashboard/tiktok_kenh.json").status_code == 401
+    assert c.get("/api/public/dashboard/x.json?token=tk").status_code == 404
+    for n in ("tiktok_kenh", "tiktok_kpi", "tiktok_khung_gio", "tiktok_video", "tiktok_tuan_thu"):
+        j = c.get(f"/api/public/dashboard/{n}.json", headers={"x-api-token": "tk"}).json()
+        assert "rows" in j and "meta" in j, n
+    assert c.get("/api/public/dashboard/tiktok_kenh.json?token=tk").json()["rows"][0]["follower"] > 0

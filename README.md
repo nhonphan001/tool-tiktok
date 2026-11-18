@@ -19,6 +19,19 @@ Công cụ tự host để quản lý kênh TikTok của bạn:
 - **Báo cáo** ghi rõ số liệu chính xác từ TikTok API, kèm KPI, tuân thủ, nhãn — dùng cho báo cáo ca 06h của Gemini.
 - **API chỉ-đọc** `GET /api/public/summary` và `/api/public/report.md` (header `x-api-token` hoặc `?token=`, cần `API_TOKEN`) cho bảng điều hành khác hoặc Gemini đọc.
 
+- **Lá số** (trang *Lá số*): lõi tính Bát Tự giống web tra lá số (đã so khớp 0 sai lệch trên 5.240 ca). Dán bình luận xin xem lá số → tool tự tách ngày giờ sinh (dương/âm lịch, giờ can chi, giới tính) và lập lá số; bình luận không được lưu. API `GET /api/public/laso?dd=&mm=&yy=&t=&lich=&gioi=`.
+- **Gói sản xuất** (trang *Gói SX*): lời thoại 4 cảnh, chữ trên hình, caption, bình luận ghim, lá số, SKU → kiểm tra B.1/B.2/B.3/B.4 + 2 loại video + âm tiết + CTA, sinh khối `nhan_video` và phiếu `.md` cho Gemini; tự gắn gói vào video sau khi đăng (khớp caption) và ghi nhãn.
+- **Lịch quét giờ cố định** (mặc định 05:00, 11:00, 17:00, 23:00 giờ Việt Nam).
+- **Tệp dựng sẵn cho Bảng điều hành**: `GET /api/public/dashboard/<tiktok_kenh|tiktok_kpi|tiktok_khung_gio|tiktok_video|tiktok_tuan_thu>.json`.
+
+## Ghi báo cáo vào Google Drive (thư mục 06_SO_LIEU_TU_DONG)
+
+1. Google Cloud → project của service account (vd. `nangtam-gemini`) → **APIs & Services → Library**: bật **Google Drive API** (và **Google Sheets API** nếu đọc bảng sản phẩm bằng ID).
+2. **IAM & Admin → Service Accounts** → chọn service account → **Keys → Add key → Create new key → JSON** → tải file về, đổi tên `service-account.json`, chép lên VPS vào `~/tool-tiktok/secrets/`.
+3. Trên Google Drive: mở 2 Doc `BAO_CAO_TIKTOK_MANAGER` và `CHIEN_LUOC_TIKTOK_MANAGER` → **Chia sẻ** → thêm email service account với quyền **Người chỉnh sửa**.
+4. Web app → **Cài đặt**: chế độ đồng bộ `drive,local`, điền 2 Google Doc ID → **Lưu** → bấm **Kiểm tra kết nối Google Drive & ghi thử**.
+Sau đó tool tự ghi đè 2 Doc sau mỗi lần quét.
+
 ## Chạy nhanh
 
 ```bash

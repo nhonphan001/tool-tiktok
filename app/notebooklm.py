@@ -88,6 +88,39 @@ def push_enterprise(source_name: str, content: str) -> None:
         raise RuntimeError(f"NotebookLM API lỗi {r.status_code}: {r.text[:300]}")
 
 
+def check_drive() -> list[dict]:
+    """Kiểm tra kết nối Google Drive cho chế độ drive: file khóa, quyền sửa từng Doc. Không ghi gì."""
+    out = []
+    path = settings.google_service_account_file
+    email = service_account_email()
+    if not email:
+        return [{"ok": False, "msg": f"Không đọc được file service account tại {path} (đặt file JSON vào thư mục secrets/ trên VPS)."}]
+    out.append({"ok": True, "msg": f"Service account: {email}"})
+    try:
+        creds = _credentials(["https://www.googleapis.com/auth/drive"])
+    except Exception as e:  # noqa: BLE001
+        return out + [{"ok": False, "msg": f"Không lấy được quyền truy cập Google: {e}"}]
+    for label, doc_id in (("Báo cáo", settings.google_doc_id_report), ("Chiến lược", settings.google_doc_id_strategy)):
+        if not doc_id:
+            out.append({"ok": False, "msg": f"Chưa điền Google Doc ID — {label}."})
+            continue
+        r = httpx.get(f"https://www.googleapis.com/drive/v3/files/{doc_id}",
+                      params={"fields": "name,mimeType,capabilities(canEdit)", "supportsAllDrives": "true"},
+                      headers={"Authorization": f"Bearer {creds.token}"}, timeout=30)
+        if r.status_code == 404:
+            out.append({"ok": False, "msg": f"{label}: không thấy Doc {doc_id} — chưa chia sẻ cho {email} hoặc sai ID."})
+        elif r.status_code == 403 and "accessNotConfigured" in r.text:
+            out.append({"ok": False, "msg": "Google Drive API chưa bật trong project Google Cloud của service account."})
+        elif r.status_code != 200:
+            out.append({"ok": False, "msg": f"{label}: lỗi {r.status_code} {r.text[:200]}"})
+        else:
+            j = r.json()
+            can = (j.get("capabilities") or {}).get("canEdit")
+            out.append({"ok": bool(can), "msg": f"{label}: “{j.get('name')}” — " + (
+                "có quyền sửa." if can else f"CHỈ XEM được, cần chia sẻ quyền Người chỉnh sửa cho {email}.")})
+    return out
+
+
 def sync_all(open_id: str) -> list[dict]:
     modes = settings.notebooklm_modes
     if not modes:

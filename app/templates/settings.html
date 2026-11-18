@@ -68,12 +68,14 @@
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="auto_strategy" value="1" style="width:auto" {{ 'checked' if s.auto_strategy }}> Tự tạo chiến lược sau mỗi lần quét</label>
       <h2 style="margin-top:20px">NotebookLM</h2>
       <label>Chế độ đồng bộ (local, drive, enterprise, off — phân tách bằng dấu phẩy)</label><input name="notebooklm_mode" value="{{ s.notebooklm_mode }}">
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Để tool tự ghi vào thư mục 06_SO_LIEU_TU_DONG sau mỗi lần quét: đặt chế độ <code>drive,local</code>, điền ID 2 Doc dưới đây và chia sẻ quyền <b>Người chỉnh sửa</b> 2 Doc cho email service account.</p>
       <label>Google Doc ID — Báo cáo</label><input name="google_doc_id_report" value="{{ s.google_doc_id_report }}">
       <label>Google Doc ID — Chiến lược</label><input name="google_doc_id_strategy" value="{{ s.google_doc_id_strategy }}">
       <label>NotebookLM Enterprise — Notebook ID</label><input name="notebooklm_notebook_id" value="{{ s.notebooklm_notebook_id }}">
       <p class="muted">Service account: {{ sa_email or 'chưa có file' }}{% if sa_email %} — chia sẻ quyền <b>Editor</b> 2 Google Docs cho email này.{% endif %}</p>
       <p class="row"><button class="btn">Lưu cài đặt</button></p>
     </form>
+    <form method="post" action="/settings/test-drive" style="margin-bottom:8px"><button class="btn sec">Kiểm tra kết nối Google Drive &amp; ghi thử</button></form>
     <form method="post" action="/sync"><button class="btn sec">Đồng bộ NotebookLM ngay</button></form>
     <form method="post" action="/settings/recompute-costs" style="margin-top:8px"><button class="btn sec">Tính lại chi phí Gemini theo giá hiện tại</button></form>
     <p class="muted">Lần quét tự động tiếp theo: {{ next_run|localtime }}</p>
