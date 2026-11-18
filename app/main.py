@@ -37,7 +37,26 @@ templates.env.filters["delta"] = (
     lambda x: "—" if x is None else (("+" if x >= 0 else "") + f"{x:,}".replace(",", "."))
 )
 templates.env.filters["localtime"] = analytics.localtime
-templates.env.filters["markdown"] = lambda t: md.markdown(t or "", extensions=["tables", "fenced_code"])
+_LATEX = {r"\ge": "≥", r"\geq": "≥", r"\le": "≤", r"\leq": "≤", r"\times": "×", r"\approx": "≈",
+          r"\rightarrow": "→", r"\to": "→", r"\Rightarrow": "⇒", r"\pm": "±", r"\neq": "≠",
+          r"\%": "%", r"\cdot": "·", r"\sim": "~", r"\,": " ", r"\;": " "}
+
+
+def _strip_latex(text: str) -> str:
+    """Gemini hay viết công thức kiểu $\\ge 4.0\\%$: đổi sang ký tự thường để hiển thị đúng."""
+    import re
+
+    def repl(m):
+        inner = m.group(1)
+        for k in sorted(_LATEX, key=len, reverse=True):
+            inner = inner.replace(k, _LATEX[k])
+        inner = re.sub(r"\\text\{([^}]*)\}", r"\1", inner)
+        return inner.replace("{", "").replace("}", "").strip()
+
+    return re.sub(r"\$([^$\n]*\\[^$\n]*)\$", repl, text or "")
+
+
+templates.env.filters["markdown"] = lambda t: md.markdown(_strip_latex(t), extensions=["tables", "fenced_code"])
 
 
 @asynccontextmanager

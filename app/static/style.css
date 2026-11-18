@@ -39,8 +39,8 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 ul.ins{padding-left:18px;line-height:1.7;margin:0}
 .heat td{text-align:center;font-size:12px;border:1px solid var(--border)}
 .thumb{width:44px;height:58px;object-fit:cover;border-radius:6px;background:var(--bg)}
-.side{display:grid;grid-template-columns:260px 1fr;gap:16px}
-@media (max-width:800px){.side{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+.side{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px}
+@media (max-width:800px){.side,.side.pkg{grid-template-columns:minmax(0,1fr)}.g2{grid-template-columns:minmax(0,1fr)}}
 .list a{display:block;padding:8px;border-radius:8px;color:var(--text);font-size:14px}
 .list a.on,.list a:hover{background:var(--bg)}
 .login{max-width:360px;margin:12vh auto}
@@ -68,6 +68,7 @@ nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
 .side.pkg{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
 code{overflow-wrap:anywhere}
 .menu-btn,.only-m{display:none}
+.md{overflow-wrap:break-word}.md pre{overflow-x:auto;white-space:pre-wrap}
 .md table{display:block;overflow-x:auto;max-width:100%}
 /* ---------- Mobile ---------- */
 @media (max-width:800px){
