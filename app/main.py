@@ -18,6 +18,20 @@ from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overr
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 BASE_DIR = os.path.dirname(__file__)
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+def _static_version() -> str:
+    """Mã phiên bản file tĩnh: đổi mỗi lần cập nhật để Cloudflare/trình duyệt không dùng CSS cũ."""
+    import hashlib
+    h = hashlib.md5()
+    for name in ("style.css",):
+        try:
+            with open(os.path.join(BASE_DIR, "static", name), "rb") as f:
+                h.update(f.read())
+        except OSError:
+            pass
+    return h.hexdigest()[:8]
+
+
+templates.env.globals["static_v"] = _static_version()
 templates.env.filters["num"] = lambda x: f"{x:,}".replace(",", ".") if isinstance(x, (int, float)) else "—"
 templates.env.filters["delta"] = (
     lambda x: "—" if x is None else (("+" if x >= 0 else "") + f"{x:,}".replace(",", "."))

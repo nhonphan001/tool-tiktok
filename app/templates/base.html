@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}TikTok Manager{% endblock %}</title>
-<link rel="icon" type="image/png" href="/static/favicon.png"><link rel="stylesheet" href="/static/style.css">
+<link rel="icon" type="image/png" href="/static/favicon.png"><link rel="stylesheet" href="/static/style.css?v={{ static_v }}">
 <script src="/static/chart.umd.min.js"></script>
 </head>
 <body>
 <nav>
   <a class="brand" href="/">Tik<span>Tok</span> Manager</a>
-  <div class="tabs">
+  <div class="tabs" id="navtabs">
   <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan</a>
   <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
   <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
@@ -20,11 +20,14 @@
   <a class="tab {{ 'on' if active=='products' }}" href="/products">Sản phẩm</a>
   <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo</a>
   <a class="tab {{ 'on' if active=='settings' }}" href="/settings">Cài đặt</a>
+  <a class="tab only-m" href="/logout">Đăng xuất</a>
   </div>
   <div class="right">
     {% if account %}<span class="acc">@{{ account.username or account.display_name or 'kênh' }}</span>{% endif %}
     <form method="post" action="/scan" style="margin:0"><button class="btn small">Quét ngay</button></form>
-    <a href="/logout">Đăng xuất</a>
+    <a href="/logout" class="no-m">Đăng xuất</a>
+    <button type="button" class="menu-btn" aria-label="Mở menu" aria-expanded="false" aria-controls="navtabs"
+      onclick="const n=this.closest('nav');const o=n.classList.toggle('open');this.setAttribute('aria-expanded',o);this.textContent=o?'✕':'☰'">☰</button>
   </div>
 </nav>
 <main>
@@ -33,7 +36,6 @@
 {% block content %}{% endblock %}
 </main>
 <script>
-document.querySelector("nav .tab.on")?.scrollIntoView({inline:"center",block:"nearest"});
 Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
 Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
 Chart.defaults.font.family = 'system-ui, sans-serif';
