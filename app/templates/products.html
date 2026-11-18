@@ -4,7 +4,7 @@
   <form method="post" action="/products/sync" style="margin:0"><button class="btn" {{ 'disabled' if running }}>{{ 'Đang đọc bảng…' if running else 'Đọc lại bảng quản trị' }}</button></form></div>
 <p class="muted">Cột <b>“Tên dùng trong video”</b> (cột O trong bảng quản trị) là tên ngắn, sạch quy tắc B.4 để đọc trong lời thoại và caption; Gói SX đối chiếu theo cột này. Cột “Rà B.4” liệt kê từ cấm trong tên, công năng và lời thoại gợi ý của bảng — cần sửa trong bảng để Gemini không viết lại các câu này.</p>
 <p class="muted">Nguồn: {% if s.product_csv_url %}link CSV xuất bản{% elif s.product_sheet_id %}Google Sheets (<code>{{ s.product_sheet_range }}</code>){% else %}<b>chưa cấu hình</b> — vào Cài đặt điền ID bảng hoặc link CSV{% endif %}.
-  Chỉ đọc, không bao giờ ghi vào bảng. {% if synced %}Lần đọc gần nhất: {{ synced|localtime }}.{% endif %}</p>
+  Tool chỉ <b>thêm dòng mới</b> vào bảng (form bên dưới), không sửa hay xoá dòng có sẵn. {% if synced %}Lần đọc gần nhất: {{ synced|localtime }}.{% endif %}</p>
 <div class="card scroll"><table>
 <tr><th>Mã</th><th>Hành</th><th>Tên trong bảng</th><th>Tên dùng trong video</th><th>Rà B.4</th><th>Giá</th><th>Link TikTok Shop</th><th class="n">Video dùng</th><th class="n">Tổng view</th></tr>
 {% for p in items %}<tr>
@@ -16,4 +16,30 @@
   <td class="n">{{ usage[p.code].count if p.code in usage else 0 }}</td><td class="n">{{ (usage[p.code].views if p.code in usage else 0)|num }}</td>
 </tr>{% else %}<tr><td colspan="9" class="muted">Chưa có dữ liệu. Cấu hình nguồn trong Cài đặt rồi bấm "Đọc lại bảng quản trị".</td></tr>{% endfor %}
 </table></div>
+
+<div class="card" id="add" style="margin-top:16px"><h2>Thêm SKU mới vào bảng quản trị</h2>
+  {% if s.product_csv_url or not s.product_sheet_id %}<p class="muted">Cần nguồn là <b>ID Google Sheet</b> (Cài đặt) và chia sẻ bảng cho service account với quyền <b>Người chỉnh sửa</b>.</p>{% else %}
+  <p class="muted small">Ghi 1 dòng vào cuối vùng <code>{{ s.product_sheet_range }}</code>. Trước khi ghi, tool kiểm tra: mã chưa tồn tại, đủ tên, và
+    “Tên dùng trong video”, “Công năng”, “Lời thoại gợi ý” sạch B.4 (có từ cấm là không ghi). Ghi dạng chữ thô, không chạy công thức.</p>
+  <form method="post" action="/products/add">
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:130px"><label>A · Mã *</label><input name="code" value="{{ new.code or '' }}" placeholder="SP-TET-01" required></div>
+      <div style="flex:1;min-width:120px"><label>B · Hành</label><select name="element"><option value="">— không gắn —</option>{% for e in elements %}<option {{ 'selected' if new.element==e }}>{{ e }}</option>{% endfor %}</select></div>
+      <div style="flex:1;min-width:130px"><label>M · Trạng thái</label><input name="status" value="{{ new.status or 'Đang Bật' }}"></div>
+    </div>
+    <label>C · Tên trong bảng (tên đầy đủ như trên TikTok Shop) *</label><input name="name" value="{{ new.name or '' }}" required>
+    <label>O · Tên dùng trong video (ngắn, sạch B.4) *</label><input name="video_name" value="{{ new.video_name or '' }}" placeholder="Khăn lau bàn thờ Thiên Phúc" required>
+    <label>D · Phân loại (mô tả đúng bản chất hàng)</label><input name="category" value="{{ new.category or '' }}">
+    <label>E · Chất liệu / quy cách</label><input name="material" value="{{ new.material or '' }}">
+    <label>F · Công năng (mô tả, không hứa tâm linh)</label><textarea name="benefit" rows="2">{{ new.benefit or '' }}</textarea>
+    <label>G · Lời thoại gợi ý (kết bằng “bấm giỏ hàng góc trái”)</label><textarea name="cta" rows="2">{{ new.cta or '' }}</textarea>
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:120px"><label>H · Giá</label><input name="price" value="{{ new.price or '' }}"></div>
+      <div style="flex:1;min-width:120px"><label>I · Hoa hồng</label><input name="commission" value="{{ new.commission or '' }}"></div>
+    </div>
+    <label>J · Link TikTok Shop</label><input name="link" value="{{ new.link or '' }}" placeholder="https://vt.tiktok.com/...">
+    <label>N · Ghi chú</label><input name="note" value="{{ new.note or '' }}">
+    <p class="row"><button class="btn sec" name="preview" value="1">Kiểm tra trước</button><button class="btn" onclick="return confirm('Ghi dòng này vào bảng quản trị?')">Thêm vào bảng</button></p>
+  </form>{% endif %}
+</div>
 {% endblock %}

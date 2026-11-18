@@ -440,8 +440,29 @@ def products_page(request: Request):
         it["real_link"] = products.real_link(it.get("link") or "")
     return render(
         request, "products.html", items=items, usage=usage, s=settings, running=jobs.running("products"),
+        new=request.session.get("new_sku") or {}, elements=tags.ELEMENTS,
         synced=items[0]["synced_at"] if items else None,
     )
+
+
+@app.post("/products/add")
+async def products_add(request: Request):
+    form = dict(await request.form())
+    if form.get("preview"):
+        d, errors, warns = products.validate_new(form)
+        request.session["new_sku"] = form
+        flash(request, ("Chưa ghi. " + " · ".join(errors)) if errors else
+              ("Kiểm tra đạt" + (" (cảnh báo: " + " · ".join(warns) + ")" if warns else "") + ". Bấm “Thêm vào bảng” để ghi."),
+              "error" if errors else "success")
+        return RedirectResponse("/products#add", status_code=303)
+    try:
+        msg = products.append_row(form)
+        request.session.pop("new_sku", None)
+        flash(request, msg, "success")
+    except Exception as e:  # noqa: BLE001
+        request.session["new_sku"] = form
+        flash(request, f"Chưa ghi vào bảng: {e}", "error")
+    return RedirectResponse("/products#add", status_code=303)
 
 
 @app.post("/products/sync")

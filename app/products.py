@@ -149,3 +149,80 @@ def all_products() -> list[dict]:
 
 def by_code() -> dict[str, dict]:
     return {p["code"]: p for p in all_products()}
+
+
+# ---------- Ghi bảng: CHỈ THÊM DÒNG MỚI (không sửa, không xoá dòng có sẵn) ----------
+APPEND_URL = ("https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}:append"
+              "?valueInputOption=RAW&insertDataOption=INSERT_ROWS")
+NEW_FIELDS = ("code", "element", "name", "category", "material", "benefit", "cta", "price", "commission",
+              "link", "status", "note", "video_name")
+# Ô được kiểm tra B.4 trước khi ghi: có từ cấm là KHÔNG ghi (Phân loại chỉ cảnh báo — phải mô tả đúng bản chất hàng)
+BLOCK_FIELDS = {"video_name": "Tên dùng trong video", "benefit": "Công năng", "cta": "Lời thoại gợi ý"}
+
+
+def validate_new(data: dict) -> tuple[dict, list[str], list[str]]:
+    """Chuẩn hoá + kiểm tra 1 SKU mới. Trả về (dữ liệu, lỗi chặn ghi, cảnh báo)."""
+    from . import compliance
+
+    d = {k: re.sub(r"\s+", " ", (data.get(k) or "")).strip() for k in NEW_FIELDS}
+    d["code"] = d["code"].upper()
+    d["element"] = normalize_element(d["element"]) if d["element"] else ""
+    d["status"] = d["status"] or "Đang Bật"
+    errors, warns = [], []
+    if not re.fullmatch(r"SP-[A-Z]+-\d+", d["code"]):
+        errors.append("Mã phải có dạng SP-NHOM-01 (vd. SP-TET-01)")
+    elif d["code"] in by_code():
+        errors.append(f"Mã {d['code']} đã có trong bảng — tool chỉ thêm dòng mới, không sửa dòng cũ")
+    for k, label in (("name", "Tên"), ("video_name", "Tên dùng trong video")):
+        if not d[k]:
+            errors.append(f"Thiếu {label}")
+    if d["link"] and not d["link"].startswith("http"):
+        errors.append("Link phải bắt đầu bằng http")
+    for k, v in d.items():
+        if v.startswith(("=", "+", "@")):
+            errors.append(f"Ô {k} không được bắt đầu bằng ký tự công thức (= + - @)")
+    for k, label in BLOCK_FIELDS.items():
+        if d[k]:
+            r = compliance.check(d[k], True)
+            found = r["offsite"] + r["promise"]
+            if found:
+                errors.append(f"{label} có từ cấm: " + ", ".join(f"“{x['match']}”" for x in found))
+    for k, label in (("name", "Tên"), ("category", "Phân loại")):
+        r = compliance.check(d[k], True)
+        if r["fortune"]:
+            warns.append(f"{label} mang tính tâm linh ({', '.join(x['label'] for x in r['fortune'])}) "
+                         "→ SKU sẽ bị gắn cờ không chạy quảng cáo")
+    if not real_link(d["link"]):
+        warns.append("Chưa có link TikTok Shop thật (sẽ báo 'link tạm')")
+    return d, errors, warns
+
+
+def append_row(data: dict) -> str:
+    """Thêm 1 dòng SKU vào cuối bảng quản trị (Google Sheets API, service account cần quyền Chỉnh sửa)."""
+    if settings.product_csv_url or not settings.product_sheet_id:
+        raise RuntimeError("Chỉ thêm được khi nguồn là ID Google Sheet (không áp dụng cho link CSV)")
+    d, errors, _ = validate_new(data)
+    if errors:
+        raise ValueError("; ".join(errors))
+    # Đọc lại bảng ngay trước khi ghi để chắc chắn mã chưa có (bảng có thể vừa được sửa tay)
+    if any((r.get("code") or "").strip().upper() == d["code"] for r in _rows_from_sheets_api()):
+        raise ValueError(f"Mã {d['code']} đã có trong bảng")
+    row = [""] * 15
+    for k, i in SHEET_COLUMNS.items():
+        row[i] = d.get(k, "")
+    from .notebooklm import _credentials
+
+    creds = _credentials(["https://www.googleapis.com/auth/spreadsheets"])
+    r = httpx.post(
+        APPEND_URL.format(id=settings.product_sheet_id, range=settings.product_sheet_range),
+        headers={"Authorization": f"Bearer {creds.token}"},
+        json={"values": [row]}, timeout=60,
+    )
+    if r.status_code == 403:
+        raise RuntimeError("Google từ chối ghi (403): chia sẻ bảng cho service account với quyền Người chỉnh sửa")
+    if r.status_code != 200:
+        raise RuntimeError(f"Google Sheets lỗi {r.status_code}: {r.text[:300]}")
+    where = (r.json().get("updates") or {}).get("updatedRange", "")
+    db.log_sync("product_sheet", "ok", f"Thêm {d['code']} vào {where}")
+    msg, _ = sync()
+    return f"Đã thêm {d['code']} vào bảng ({where}). {msg}"
