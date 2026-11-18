@@ -157,6 +157,7 @@ MIGRATIONS = [
     ("products", "benefit", "TEXT DEFAULT ''"),
     ("products", "cta", "TEXT DEFAULT ''"),
     ("products", "category", "TEXT DEFAULT ''"),
+    ("jobs", "link", "TEXT DEFAULT ''"),
 ]
 
 

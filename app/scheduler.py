@@ -58,6 +58,18 @@ def reschedule() -> None:
     _scheduler.add_job(lambda: scanner.run_scan("schedule"), trigger, id=JOB_ID, replace_existing=True,
                        max_instances=1, coalesce=True, misfire_grace_time=1800)
     log.info("Scheduled scan: %s", label)
+    from . import gemini_requests
+
+    def _mail():
+        try:
+            done = gemini_requests.check_replies()
+            if done:
+                log.info("Gemini replied: %s", [d["code"] for d in done])
+        except Exception:  # noqa: BLE001
+            log.exception("check_replies")
+
+    _scheduler.add_job(_mail, IntervalTrigger(minutes=10), id="mailbox_check", replace_existing=True,
+                       max_instances=1, coalesce=True)
 
 
 def next_run():

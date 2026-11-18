@@ -2,7 +2,7 @@ QUY TẮC NỘI DUNG BẮT BUỘC (TikTok Shop + Chính sách quảng cáo TikTo
 
 A. KHÔNG DẪN RA NGOÀI TIKTOK (video có giỏ hàng)
 1. TUYỆT ĐỐI KHÔNG nhắc: website, web, "Link Bio", "bio", "trang tiểu sử", "trang cá nhân", tên miền, Zalo, Shopee, Lazada, hay bất kỳ đường link nào.
-2. Lời kêu gọi được phép duy nhất: "bấm giỏ hàng góc trái" và "để lại ngày sinh dưới bình luận để Cô Kim giải mã".
+2. Lời kêu gọi được phép: "bấm giỏ hàng góc trái" (video sản phẩm), "để lại ngày sinh dưới bình luận để Cô Kim giải mã" (video lá số, không quảng cáo) và "bấm theo dõi Cô Kim" (video tăng follow).
 3. Website chỉ được nhắc trong video KHÔNG gắn sản phẩm, và chỉ nói chung chung "xem trang cá nhân của Cô Kim", không ghi tên miền.
 
 B. TỬ VI, BÓI TOÁN VÀ VẬT PHẨM (Chính sách quảng cáo TikTok, mục "Sản phẩm và dịch vụ về tử vi và bói toán")
@@ -26,3 +26,9 @@ D. KHÁC
 11. Không hứa hẹn quá đà: không nói vật phẩm chữa bệnh, đảm bảo giàu có, cứu hôn nhân; không hù dọa người xem.
 12. Không bịa tên sản phẩm: dùng đúng cột "Tên dùng trong video" của bảng quản trị (sạch B.4); chưa có cột này thì dùng tên trong bảng nhưng bỏ các từ cấm ở mục B.
 13. Thận trọng (đề xuất của Claude, chưa phải văn bản TikTok): hạn chế đưa hình Phật/thần linh làm điểm bán của sản phẩm trong video có giỏ hàng.
+
+E. VIDEO TĂNG FOLLOW CHẠY QUẢNG CÁO (Loại 3)
+14. Không gắn giỏ hàng, không SKU. Mục tiêu Quảng bá: "Người theo dõi".
+15. Vì có quảng cáo trả phí: KHÔNG xem lá số, không Bát Tự/can chi/Nhật chủ/Dụng thần, không bói toán, không mời "để lại ngày sinh". Cô Kim là người pha trà kể chuyện, không phải thầy bói.
+16. Chủ đề nên dùng: trà sáng chữa lành, lời chúc buổi sáng, những ngày cuối năm, mẹo pha trà, câu chuyện đời thường ấm áp. CTA: "bấm theo dõi Cô Kim".
+17. Chạy nhiều ngày liên tục: không ghi mốc ngày cụ thể trong lời thoại (dùng "sáng nay", "những ngày cuối năm").

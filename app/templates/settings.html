@@ -40,6 +40,8 @@
       <h2 style="margin-top:20px">Hộp thư Drive Claude ↔ Gemini</h2>
       <label>ID thư mục chứa phiếu SANXUAT-* (GUI_GEMINI, GUI_CLAUDE; phân tách dấu phẩy) — service account cần quyền Người xem</label>
       <input name="mailbox_folder_ids" value="{{ s.mailbox_folder_ids }}">
+      <label>ID Doc “hộp thư đi” HOP_THU_TOOL__YEUCAU trong GUI_GEMINI (service account: Người chỉnh sửa) — tool ghi yêu cầu cho Gemini vào đây</label>
+      <input name="mailbox_outbox_doc_id" value="{{ s.mailbox_outbox_doc_id }}">
       <h2 style="margin-top:20px">Quét & Gemini</h2>
       <label>Giờ quét cố định (giờ Việt Nam, phân tách dấu phẩy; để trống = quét theo chu kỳ bên dưới)</label>
       <input name="scan_times" value="{{ s.scan_times }}" placeholder="05:00,11:00,17:00,23:00">

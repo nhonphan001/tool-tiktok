@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row" style="justify-content:space-between"><h1>Yêu cầu Gemini</h1>
+  <form method="post" action="/requests/check" style="margin:0"><button class="btn sec">Kiểm tra thư trả lời ngay</button></form></div>
+<p class="muted">Nhập yêu cầu → tool giữ số gói, soạn thư kèm quy tắc bắt buộc + số liệu kênh + mẫu trả lời, rồi gửi vào hộp thư
+  <b>GUI_GEMINI</b>. Gemini làm xong trả lời vào <b>GUI_CLAUDE</b>; tool tự kiểm tra <b>mỗi 10 phút</b> và báo để bạn nhập vào Gói SX. Không tốn token.</p>
+<div class="card" style="margin-bottom:16px"><h2>Yêu cầu mới · Gói {{ next_goi }}</h2>
+  <form method="post" action="/requests/new">
+    <label>Nội dung yêu cầu *</label>
+    <textarea name="brief" rows="3" required placeholder="Tôi muốn có một kịch bản cho sáng ngày mai, không gắn sản phẩm, mục tiêu tăng follow, chạy quảng cáo liên tục 7 ngày"></textarea>
+    <label>Tiêu đề ngắn (tuỳ chọn)</label><input name="title" placeholder="Trà sáng – tăng follow">
+    <div class="row" style="gap:8px">
+      <div style="flex:2;min-width:220px"><label>Loại video</label><select name="loai">{% for k, v in loai.items() %}<option value="{{ k }}" {{ 'selected' if k==3 }}>{{ v }}</option>{% endfor %}</select></div>
+      <div style="flex:1;min-width:150px"><label>Mục tiêu</label><select name="goal">{% for k, v in goals.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row" style="gap:8px;align-items:flex-end">
+      <label style="display:flex;gap:6px;align-items:center;margin:0 0 10px"><input type="checkbox" name="ads" value="1" checked style="width:auto"> Chạy quảng cáo</label>
+      <div style="flex:1;min-width:110px"><label>Số ngày quảng cáo</label><input type="number" name="ads_days" value="7" min="1" max="60"></div>
+      <div style="flex:1;min-width:150px"><label>Ngày / giờ đăng</label><input name="publish" placeholder="Sáng 19/11, 07:00"></div>
+    </div>
+    <p class="muted small">Video chạy quảng cáo: tool tự thêm điều kiện <b>không xem lá số / bói toán</b> (TikTok cấm quảng cáo bói toán tại VN) — chọn Loại 3 cho video tăng follow không gắn sản phẩm.</p>
+    <p><button class="btn">Tạo &amp; gửi cho Gemini</button></p>
+  </form>
+  {% if not s.mailbox_outbox_doc_id %}<p class="muted small">Nếu tool báo không tạo được file: tạo Google Doc <b>HOP_THU_TOOL__YEUCAU</b> trong GUI_GEMINI, chia sẻ <b>Người chỉnh sửa</b> cho <code>{{ sa }}</code>, dán ID vào Cài đặt → “Doc hộp thư đi”.</p>{% endif %}
+</div>
+<div class="card"><h2>Đã gửi ({{ reqs|length }})</h2>
+{% for r in reqs %}<div id="r{{ r.id }}" style="border-top:1px solid var(--border);padding:10px 0">
+  <div class="row" style="justify-content:space-between">
+    <b>Gói {{ r.goi }} · {{ r.title }}</b>
+    <span class="badge {{ 'ok' if r.status in ('answered','imported') else ('error' if r.status=='error' else '') }}">{{ status[r.status] }}</span></div>
+  <div class="small muted" style="margin-top:4px">{{ r.created_at|localtime }} · {{ loai[r.opts.loai] if r.opts.loai in loai else '' }}{% if r.opts.ads %} · QC {{ r.opts.ads_days }} ngày{% endif %}{% if r.opts.publish %} · đăng {{ r.opts.publish }}{% endif %}</div>
+  <div class="small" style="margin-top:4px">{{ r.brief[:220] }}</div>
+  {% if r.answer_name %}<div class="small" style="margin-top:4px">Trả lời: <a href="https://drive.google.com/open?id={{ r.answer_file_id }}" target="_blank" rel="noopener">{{ r.answer_name }}</a></div>{% endif %}
+  {% if r.error and r.status=='error' %}<div class="small" style="color:var(--err);margin-top:4px">{{ r.error[:240] }}</div>{% endif %}
+  <div class="row" style="margin-top:8px;gap:8px">
+    {% if r.status=='answered' %}<a class="btn small" href="/packages/import/{{ r.goi }}">Nhập vào Gói SX</a>{% endif %}
+    {% if r.status in ('draft','error') %}<form method="post" action="/requests/{{ r.id }}/send" style="margin:0"><button class="btn sec small">Gửi lại</button></form>{% endif %}
+    <a class="btn sec small" href="/requests/{{ r.id }}.md">Tải thư .md</a>
+    {% if r.drive_file_id %}<a class="btn sec small" href="https://drive.google.com/open?id={{ r.drive_file_id }}" target="_blank" rel="noopener">Mở trên Drive</a>{% endif %}
+  </div>
+</div>{% else %}<p class="muted">Chưa có yêu cầu nào.</p>{% endfor %}
+</div>
+{% endblock %}

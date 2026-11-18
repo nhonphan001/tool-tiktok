@@ -49,7 +49,7 @@ def parse(text: str, name: str = "") -> dict:
         or re.search(r"^#+\s*Yêu cầu sản xuất Gói\s*\d+\s*[—–-]\s*(.+)$", t, re.M)
     if m:
         out["title"] = _clean(re.sub(r"\s*\((Loại|loại)[^)]*\)\s*$", "", m.group(1)))
-    m = re.search(r"^\s*loai:\s*([12])\b", t, re.M)
+    m = re.search(r"^\s*loai(?:_video)?:\s*([123])\b", t, re.M)
     if m:
         out["loai"] = int(m.group(1))
     elif re.search(r"Loại\s*2|Video sản phẩm", t):
@@ -71,6 +71,9 @@ def parse(text: str, name: str = "") -> dict:
         v = _section(t, head)
         if v:
             out[key] = v
+    plan = _section(t, r"Kế hoạch quảng cáo(?: 7 ngày)?")
+    if plan:
+        out["ads_plan"] = plan
     if "caption" not in out:
         m = re.search(r'caption_de_xuat:\s*"(.+?)"\s*$', t, re.M)
         if m:
@@ -95,9 +98,13 @@ def merge(parts: list[dict]) -> dict:
         if p.get("source"):
             out["sources"].append(p["source"])
     imgs = out.get("images") or {}
+    notes = []
     if imgs:
-        note = "Ảnh Gemini: " + " · ".join(f"C{i} {imgs[i]}" for i in sorted(imgs))
-        out["note"] = note
+        notes.append("Ảnh Gemini: " + " · ".join(f"C{i} {imgs[i]}" for i in sorted(imgs)))
+    if out.get("ads_plan"):
+        notes.append("QC: " + out["ads_plan"][:300])
+    if notes:
+        out["note"] = " | ".join(notes)
     out["fields"] = [k for k in ("title", "sku", "scene1", "scene2", "scene3", "scene4", "on_screen", "caption", "pinned")
                      if out.get(k)]
     return out

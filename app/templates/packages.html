@@ -7,7 +7,7 @@
 {% for p in items %}<tr>
   <td><a href="/packages/{{ p.id }}">{{ p.goi or ('#' ~ p.id) }}</a></td>
   <td>{{ p.title }}</td>
-  <td>{{ 'Lá số' if p.loai==1 else 'Sản phẩm' }}</td>
+  <td>{{ loai_short.get(p.loai, p.loai) }}</td>
   <td>{{ p.sku or '—' }}</td>
   <td>{% if p.chk.errors %}<span class="badge error">{{ p.chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %}{% if p.chk.warns %} <span class="badge">{{ p.chk.warns }} cảnh báo</span>{% endif %}</td>
   <td>{{ 'Được' if p.chk.ads_ok else 'Không' }}</td>

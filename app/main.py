@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import mailbox, sku_lookup
+from . import gemini_requests, mailbox, sku_lookup
 from . import analytics, battu, comments, compliance, db, jobs, kpi, notebooklm, packages, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
@@ -343,7 +343,7 @@ def packages_page(request: Request):
     items = packages.all_packages()
     for p in items:
         p["chk"] = packages.check(p)
-    return render(request, "packages.html", items=items, status=packages.STATUS)
+    return render(request, "packages.html", items=items, status=packages.STATUS, loai_short=packages.LOAI_SHORT)
 
 
 def _package_ctx(p: dict) -> dict:
@@ -353,6 +353,62 @@ def _package_ctx(p: dict) -> dict:
     return {"p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
+
+
+@app.get("/requests", response_class=HTMLResponse)
+def requests_page(request: Request):
+    reqs = gemini_requests.all_requests()
+    return render(request, "requests.html", reqs=reqs, status=gemini_requests.STATUS, goals=gemini_requests.GOALS,
+                  loai=packages.LOAI, next_goi=gemini_requests.next_goi(), s=settings,
+                  sa=notebooklm.service_account_email())
+
+
+@app.post("/requests/new")
+async def requests_new(request: Request):
+    f = await request.form()
+    brief = (f.get("brief") or "").strip()
+    if not brief:
+        flash(request, "Hãy nhập nội dung yêu cầu", "error")
+        return RedirectResponse("/requests", status_code=303)
+    opts = {"loai": int(f.get("loai") or 3), "goal": f.get("goal") or "follow", "ads": bool(f.get("ads")),
+            "ads_days": int(f.get("ads_days") or 7), "publish": (f.get("publish") or "").strip()}
+    rid = gemini_requests.create(brief, f.get("title") or "", opts)
+    r = gemini_requests.get(rid)
+    try:
+        msg = gemini_requests.send(rid)
+        flash(request, f"Gói {r['goi']}: {msg}", "success")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Đã soạn thư Gói {r['goi']} nhưng chưa gửi được: {e}", "error")
+    return RedirectResponse(f"/requests#r{rid}", status_code=303)
+
+
+@app.post("/requests/{rid}/send")
+def requests_send(request: Request, rid: int):
+    try:
+        flash(request, gemini_requests.send(rid), "success")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Chưa gửi được: {e}", "error")
+    return RedirectResponse(f"/requests#r{rid}", status_code=303)
+
+
+@app.post("/requests/check")
+def requests_check(request: Request):
+    try:
+        done = gemini_requests.check_replies()
+        flash(request, ("Gemini đã trả lời: " + ", ".join(f"Gói {d['goi']}" for d in done)) if done
+              else "Chưa có thư trả lời mới.", "success" if done else "info")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Không kiểm tra được hộp thư: {e}", "error")
+    return RedirectResponse("/requests", status_code=303)
+
+
+@app.get("/requests/{rid}.md")
+def requests_md(rid: int):
+    r = gemini_requests.get(rid)
+    if not r:
+        return RedirectResponse("/requests", status_code=303)
+    return HTMLResponse(r["letter_md"], media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f"attachment; filename={r['code']}__YEUCAU.md"})
 
 
 @app.get("/packages/import", response_class=HTMLResponse)
@@ -423,6 +479,8 @@ async def package_save(request: Request):
     form = await request.form()
     data = {k: form.get(k, "") for k in (*packages.FIELDS, "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
     pid = packages.save(data, int(form["id"]) if form.get("id") else None)
+    if data.get("goi"):
+        gemini_requests.mark_imported(data["goi"])
     chk = packages.check(packages.get(pid))
     flash(request, f"Đã lưu gói. Kiểm tra: {chk['errors']} lỗi, {chk['warns']} cảnh báo.",
           "success" if not chk["errors"] else "error")
@@ -721,7 +779,7 @@ def api_jobs():
     for j in done_jobs:
         finished.append({
             "type": "job", "id": j["id"], "status": j["status"], "title": jobs.KIND_LABELS.get(j["kind"], j["kind"]),
-            "message": j["message"], "link": links.get(j["kind"], "/"), "total_tokens": j["total_tokens"],
+            "message": j["message"], "link": j.get("link") or links.get(j["kind"], "/"), "total_tokens": j["total_tokens"],
             "cost_vnd": round((j["cost_usd"] or 0) * settings.usd_vnd_rate),
         })
     return {"pending": pending, "finished": finished}

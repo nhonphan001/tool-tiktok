@@ -16,7 +16,9 @@ from .products import real_link
 SCENES = ("scene1", "scene2", "scene3", "scene4")
 FIELDS = ("goi", "title", "loai", "content_group", "sku", "product_name", "on_screen", "caption", "pinned", "note",
           *SCENES)
-LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)"}
+LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
+        3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
+LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
 STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "da_dang": "Đã đăng"}
 SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # 24–28 âm tiết / cảnh 8 giây (chuẩn của quy trình v2.5)
 
@@ -144,6 +146,8 @@ def check(p: dict) -> dict:
             elif x["code"] in ("domain", "url"):
                 add("error", "B.1", f"{label}: không ghi tên miền/đường link, chỉ nói chung “xem trang cá nhân của Cô Kim”"
                                     f" (“{x['match']}”).")
+            elif loai == 3:
+                add("error", "B.1", f"{label}: video chạy quảng cáo không mời ra ngoài TikTok (“{x['match']}”).")
             elif x["code"] != "trang_ca_nhan":
                 add("warn", "B.1", f"{label}: nên thay “{x['match']}” bằng “xem trang cá nhân của Cô Kim”.")
         fortune_codes = {f["code"] for f in r["fortune"]}
@@ -155,8 +159,8 @@ def check(p: dict) -> dict:
             if loai == 1 and x["code"] == "bu_khuyet_la_so":
                 continue  # nói lá số thiếu hành là nội dung bình thường của video lá số
             fortune_any = True
-            add("error" if has_cart else "warn", "B.4", f"{label}: {x['label']} (“{x['match']}”)"
-                + ("" if has_cart else " — video lá số vẫn nên tránh, và không chạy quảng cáo."))
+            add("error" if loai in (2, 3) else "warn", "B.4", f"{label}: {x['label']} (“{x['match']}”)"
+                + ("" if loai in (2, 3) else " — video lá số vẫn nên tránh, và không chạy quảng cáo."))
 
     # Quy tắc 2 loại video
     if loai == 1:
@@ -168,6 +172,17 @@ def check(p: dict) -> dict:
     sku = (p.get("sku") or "").strip().upper()
     if loai == 1 and sku:
         add("error", "B.4.3", "Video giải mã lá số không gắn giỏ hàng / SKU.")
+    if loai == 3:
+        if sku:
+            add("error", "B.4.3", "Video tăng follow không gắn giỏ hàng / SKU.")
+        m = LA_SO_TERMS.search(norm) or re.search(r"de\s*lai\s*ngay\s*(gio\s*)?sinh|giai\s*ma\s*(la\s*so|van\s*menh)|xem\s*(tuoi|menh|boi)", norm)
+        if m:
+            fortune_any = True
+            add("error", "Quảng cáo", f"Video chạy quảng cáo không được xem lá số / bói toán / mời để lại ngày sinh "
+                                      f"(“{m.group(0)}”) — TikTok cấm quảng cáo dịch vụ bói toán tại VN.")
+        m = ITEM_ADVICE.search(norm)
+        if m:
+            add("warn", "B.4.1", f"Video tăng follow đang nhắc dùng vật phẩm (“{m.group(0)}”): không gắn sản phẩm thì bỏ câu này.")
     if loai == 2:
         if not sku:
             add("error", "B.4.3", "Video sản phẩm cần chọn SKU.")
@@ -255,6 +270,8 @@ def check(p: dict) -> dict:
     cap_norm = compliance.normalize((p.get("caption") or "") + " " + (p.get("pinned") or "") + " " + (p.get("scene4") or ""))
     if loai == 2 and "gio hang" not in cap_norm:
         add("warn", "CTA", "Thêm CTA được phép: “bấm giỏ hàng góc trái”.")
+    if loai == 3 and "theo doi" not in cap_norm and "follow" not in cap_norm:
+        add("warn", "CTA", "Thêm CTA tăng follow: “bấm theo dõi Cô Kim”.")
     if loai == 1 and "ngay sinh" not in cap_norm and "ngay gio sinh" not in cap_norm:
         add("warn", "CTA", "Gợi ý CTA: “để lại ngày sinh dưới bình luận để Cô Kim giải mã”.")
 
@@ -263,7 +280,7 @@ def check(p: dict) -> dict:
     if not items:
         add("ok", "Tổng", "Không phát hiện vấn đề.")
     hanh = chart["dung_than"] if (loai == 1 and chart) else (product["element"] if product else "")
-    return {"items": items, "errors": errors, "warns": warns, "ads_ok": loai == 2 and errors == 0 and not fortune_any and not product_no_ads,
+    return {"items": items, "errors": errors, "warns": warns, "ads_ok": loai in (2, 3) and errors == 0 and not fortune_any and not product_no_ads,
             "chart": chart, "hanh": hanh, "product": product}
 
 
