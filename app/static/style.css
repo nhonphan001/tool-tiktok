@@ -110,3 +110,10 @@ code{overflow-wrap:anywhere}
 table.prods td:nth-child(3){min-width:200px;max-width:320px}
 .clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 .clamp.open{display:block}
+.kit-item{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--bg)}
+.kit-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.kit-text{white-space:pre-wrap;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.kit-text.big{font-size:12.5px;max-height:9.5em;overflow:auto}
+.kit-scene{border-top:1px dashed var(--border);margin-top:10px;padding-top:8px}
+.btn.done{background:var(--ok);color:#fff;border-color:var(--ok)}
+details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}

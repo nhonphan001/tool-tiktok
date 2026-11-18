@@ -15,7 +15,9 @@ from .products import real_link
 
 SCENES = ("scene1", "scene2", "scene3", "scene4")
 FIELDS = ("goi", "title", "loai", "content_group", "sku", "product_name", "on_screen", "caption", "pinned", "note",
-          *SCENES)
+          *SCENES, "ads_plan")
+PROMPTS = ("prompt1", "prompt2", "prompt3", "prompt4")   # prompt video 8 giây (Veo / Flow) từng cảnh
+IMAGES = ("image1", "image2", "image3", "image4")        # ID ảnh Drive từng cảnh
 LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
@@ -47,6 +49,20 @@ DUNG_THAN_CLAIM = re.compile(r"[Dd]ụng\s+thần\s+(?:là\s+)?(Mộc|Hỏa|Th�
 def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
+        cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
+        for col in ("ads_plan", "prompts_json", "images_json"):
+            if col not in cols:
+                c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
+
+
+def _expand(p: dict) -> dict:
+    """prompts_json / images_json -> prompt1..4 / image1..4 để form và kiểm tra dùng chung."""
+    pr = json.loads(p.get("prompts_json") or "{}")
+    im = json.loads(p.get("images_json") or "{}")
+    for i in range(1, 5):
+        p[f"prompt{i}"] = pr.get(str(i), "")
+        p[f"image{i}"] = im.get(str(i), "")
+    return p
 
 
 # --------------------------------------------------------------------------- lưu / đọc
@@ -55,6 +71,7 @@ def get(pid: int) -> dict | None:
     p = db.query_one("SELECT * FROM packages WHERE id=?", (pid,))
     if p:
         p["birth"] = json.loads(p["birth_json"] or "{}")
+        _expand(p)
     return p
 
 
@@ -63,6 +80,7 @@ def all_packages() -> list[dict]:
     rows = db.query("SELECT * FROM packages ORDER BY id DESC")
     for p in rows:
         p["birth"] = json.loads(p["birth_json"] or "{}")
+        _expand(p)
     return rows
 
 
@@ -74,6 +92,10 @@ def save(data: dict, pid: int | None = None) -> int:
     row["sku"] = row["sku"].upper()
     birth = {k: str(data.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "nhuan", "gioi")}
     row["birth_json"] = json.dumps(birth if birth["dd"] and birth["mm"] and birth["yy"] else {}, ensure_ascii=False)
+    row["prompts_json"] = json.dumps({str(i): str(data.get(f"prompt{i}") or "").strip() for i in range(1, 5)
+                                      if str(data.get(f"prompt{i}") or "").strip()}, ensure_ascii=False)
+    row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, 5)
+                                     if str(data.get(f"image{i}") or "").strip()}, ensure_ascii=False)
     status = data.get("status") or None
     now = db.now_iso()
     with db.tx() as c:
@@ -85,6 +107,13 @@ def save(data: dict, pid: int | None = None) -> int:
         cols = ", ".join(row) + ", status, created_at, updated_at"
         return c.execute(f"INSERT INTO packages({cols}) VALUES({','.join('?' * (len(row) + 3))})",
                          (*row.values(), status or "nhap", now, now)).lastrowid
+
+
+def _drive_id(v: str) -> str:
+    """Nhận ID hoặc link Drive, trả về ID."""
+    v = v.strip()
+    m = re.search(r"/d/([A-Za-z0-9_-]{20,})|[?&]id=([A-Za-z0-9_-]{20,})", v)
+    return (m.group(1) or m.group(2)) if m else v
 
 
 def delete(pid: int) -> None:
@@ -253,6 +282,18 @@ def check(p: dict) -> dict:
                                    "(Dụng thần mang tính luận giải — Claude xác nhận).")
         for cb in chart["canh_bao"]:
             add("warn", "B.2", "Lá số: " + cb)
+
+    # Prompt video phải chứa đúng lời thoại của cảnh (Veo đọc theo câu trong prompt)
+    for i, s in enumerate(SCENES, 1):
+        scene, prompt = (p.get(s) or "").strip(), (p.get(f"prompt{i}") or "").strip()
+        if not scene or not prompt:
+            continue
+        ns = re.sub(r"[^a-z0-9]+", " ", compliance.normalize(scene)).strip()
+        np_ = re.sub(r"[^a-z0-9]+", " ", compliance.normalize(prompt))
+        if ns and ns not in np_:
+            add("warn", "Prompt", f"Prompt video cảnh {i} không chứa đúng lời thoại cảnh {i} — sửa cho khớp để giọng đọc đúng kịch bản.")
+        if re.search(r"\bmusic\b", prompt, re.I) and not re.search(r"no\s+(background\s+)?music", prompt, re.I):
+            add("warn", "Prompt", f"Prompt cảnh {i} có nhạc nền — định dạng kênh là không nhạc nền.")
 
     # Âm tiết mỗi cảnh
     for i, s in enumerate(SCENES):

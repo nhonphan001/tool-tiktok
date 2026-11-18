@@ -86,6 +86,31 @@ def parse(text: str, name: str = "") -> dict:
         imgs[int(m.group(1))] = m.group(2)
     if imgs:
         out["images"] = imgs
+    prompts = _video_prompts(t)
+    if prompts:
+        out["prompts"] = prompts
+    return out
+
+
+def _video_prompts(t: str) -> dict:
+    """Mục "Prompt … video" → {1: prompt cảnh 1, …}. Mỗi cảnh bắt đầu bằng dòng chứa “Cảnh N”."""
+    m = re.search(r"^#{1,4}[^\n]*prompt[^\n]*video[^\n]*$|^#{1,4}[^\n]*video[^\n]*prompt[^\n]*$", t, re.M | re.I)
+    if not m:
+        return {}
+    body = t[m.end():]
+    end = re.search(r"^#{1,4}\s|^\s*nhan_video:", body, re.M)
+    body = body[:end.start()] if end else body
+    marks = list(re.finditer(r"^[^\n]*?Cảnh\s*([1-4])\b[^\n]*$", body, re.M))
+    out = {}
+    for k, mk in enumerate(marks):
+        chunk = body[mk.end(): marks[k + 1].start() if k + 1 < len(marks) else len(body)]
+        head = mk.group(0)
+        # prompt có thể nằm ngay sau dấu ":" trên cùng dòng tiêu đề cảnh
+        tail = head.split("**:", 1)[1] if "**:" in head else (head.split("):", 1)[1] if "):" in head else "")
+        text = _clean((tail + " " + chunk).replace("\n", " "))
+        text = re.sub(r"^\d+\.\s*", "", text).strip(" :")
+        if len(text) > 40:
+            out[int(mk.group(1))] = text
     return out
 
 
@@ -94,8 +119,8 @@ def merge(parts: list[dict]) -> dict:
     out: dict = {"sources": []}
     for p in parts:
         for k, v in p.items():
-            if k == "images":
-                out.setdefault("images", {}).update(v)
+            if k in ("images", "prompts"):
+                out.setdefault(k, {}).update(v)
             elif k not in ("source",) and v not in ("", None):
                 out[k] = v
         if p.get("source"):
@@ -104,12 +129,14 @@ def merge(parts: list[dict]) -> dict:
     notes = []
     if imgs:
         notes.append("Ảnh Gemini: " + " · ".join(f"C{i} {imgs[i]}" for i in sorted(imgs)))
-    if out.get("ads_plan"):
-        notes.append("QC: " + out["ads_plan"][:300])
     if notes:
         out["note"] = " | ".join(notes)
+    for i, v in (out.get("images") or {}).items():
+        out[f"image{i}"] = v
+    for i, v in (out.get("prompts") or {}).items():
+        out[f"prompt{i}"] = v
     out["fields"] = [k for k in ("title", "sku", "scene1", "scene2", "scene3", "scene4", "on_screen", "caption", "pinned")
-                     if out.get(k)]
+                     if out.get(k)] + (["prompts"] if len(out.get("prompts") or {}) == 4 else [])
     return out
 
 

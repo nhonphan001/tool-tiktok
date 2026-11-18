@@ -436,7 +436,7 @@ def packages_import_one(request: Request, goi: str):
         flash(request, f"Không tìm thấy Gói {goi} trong hộp thư", "error")
         return RedirectResponse("/packages/import", status_code=303)
     existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
-    p = {k: g.get(k, "") for k in packages.FIELDS}
+    p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES)}
     p["loai"] = g.get("loai") or 2
     p["birth"] = {}
     if existing:
@@ -477,7 +477,8 @@ def package_detail(request: Request, pid: int):
 @app.post("/packages/save")
 async def package_save(request: Request):
     form = await request.form()
-    data = {k: form.get(k, "") for k in (*packages.FIELDS, "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
+    data = {k: form.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES,
+                                         "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
     pid = packages.save(data, int(form["id"]) if form.get("id") else None)
     if data.get("goi"):
         gemini_requests.mark_imported(data["goi"])

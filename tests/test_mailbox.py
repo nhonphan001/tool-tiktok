@@ -45,3 +45,27 @@ def test_parse_gemini_bold_h1_headings_goi17():
     pk["loai"] = 3
     chk = packages.check(pk)
     assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]
+
+
+def test_video_prompts_parsed_saved_and_checked():
+    from app import db, packages
+    db.get_conn()
+    p = mailbox.parse((FX / "goi17_xong_gdoc.md").read_text(), "SANXUAT-1911-GOI-17__XONG.md")
+    pr = p["prompts"]
+    assert sorted(pr) == [1, 2, 3, 4]
+    assert pr[1].startswith("Photorealistic live-action") and "Sáng nay cả nhà" in pr[1] and "Cảnh 2" not in pr[1]
+    assert "Ghé lại tiệm trà" in pr[2] and "Cảnh 1" not in pr[2]
+    m = mailbox.merge([p])
+    assert "prompts" in m["fields"] and m["prompt3"] == pr[3] and m["image1"].startswith("1iu-")
+    data = {k: m.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES)}
+    data["loai"] = 3
+    data["image2"] = "https://drive.google.com/file/d/1vmbeF3hKtyycM05u2mN0ZyLPx5pvm3Ax/view?usp=drivesdk"
+    pid = packages.save(data)
+    q = packages.get(pid)
+    assert q["prompt1"] == pr[1] and q["image2"] == "1vmbeF3hKtyycM05u2mN0ZyLPx5pvm3Ax" and "7 ngày" in q["ads_plan"]
+    chk = packages.check(q)
+    msgs = [i["msg"] for i in chk["items"] if i["rule"] == "Prompt"]
+    # cảnh 4: prompt có lời thoại khác kịch bản + có nhạc nền
+    assert any("cảnh 4 không chứa đúng lời thoại" in x for x in msgs) and any("Prompt cảnh 4 có nhạc nền" in x for x in msgs)
+    assert not any("cảnh 1" in x or "cảnh 2" in x or "cảnh 3" in x for x in msgs)
+    assert chk["errors"] == 0 and chk["ads_ok"]

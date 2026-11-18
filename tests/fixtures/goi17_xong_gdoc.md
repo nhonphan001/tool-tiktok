@@ -36,12 +36,30 @@ Sáng nay cả nhà đã kịp pha cho mình một ly trà hay tách cà phê �
 # **Kế hoạch quảng cáo**
 
   - **Mục tiêu Quảng bá (Promote)**: Tăng người theo dõi (More followers), chạy liên tục **7 ngày**.
-  - **Giờ đăng & Giờ bật Quảng bá**: Đăng 07:00 sáng 19/11, bật Quảng bá 11:00 – 11:30.
 
-# **Danh sách 4 ảnh AI 9:16 chuẩn Cô Kim v3.1 (Đã lưu tại** **01\_KICH\_BAN\_VA\_ANH\_AI****)**
+# **Danh sách 4 ảnh AI 9:16**
 
   - Cảnh 1 (0–8s): [GOI\_17\_V3\_1\_CANH\_1.jpg](https://drive.google.com/file/d/1iu-YlkjfrNaiBROBS_acaN4boeCmRkrp/view) (1iu-YlkjfrNaiBROBS\_acaN4boeCmRkrp)
 
+# **Prompt tạo video 8 giây (Google Flow / Veo 3 — Giọng vào ngay giây 0.0, KHÔNG nhạc nền)**
+
+1.  **Cảnh 1 (0.0s – 8.0s | Dùng ảnh** GOI\_17\_V3\_1\_CANH\_1\_TraSangChuaLanh\_ChuanBiTra.jpg**)**:
+
+Photorealistic live-action DSLR video (9:16), subtle slow push-in. She speaks IMMEDIATELY at 0.0s: "Sáng nay cả nhà có thấy mình đang chạy quá nhanh giữa những ngày cuối năm bận rộn, mà quên mất một chút thở đều chưa?" STRICTLY NO background music.
+
+1.  **Cảnh 2 (8.0s – 16.0s | Dùng ảnh** GOI\_17\_V3\_1\_CANH\_2.jpg**)**:
+
+Photorealistic video. She speaks: "Ghé lại tiệm trà nhỏ của Cô Kim vài giây thôi nha, để nghe tiếng nước sôi rót nhẹ vào ấm tử sa thơm mùi trà mới." STRICTLY NO background music, NO soundtrack.
+
+1.  **Cảnh 3 (16.0s – 24.0s | Dùng ảnh** x.jpg**)**:
+
+Photorealistic video. She speaks: "Dù hôm qua có bao nhiêu việc còn dang dở, sáng nay cứ nhấp một ngụm trà ấm cho lòng dịu lại rồi hãy bắt đầu." STRICTLY NO background music.
+
+1.  **Cảnh 4 (24.0s – 32.0s | Dùng ảnh** y.jpg**)**:
+
+Photorealistic video with soft background music. She speaks: "Cả nhà bấm theo dõi Cô Kim nha, mỗi sáng Cô Kim pha cho cả nhà." 
+
+l  
 nhan\_video:  
 goi: 17  
 loai: 3  
