@@ -5,10 +5,10 @@
 <p class="muted">Cột <b>“Tên dùng trong video”</b> (cột O trong bảng quản trị) là tên ngắn, sạch quy tắc B.4 để đọc trong lời thoại và caption; Gói SX đối chiếu theo cột này. Cột “Rà B.4” liệt kê từ cấm trong tên, công năng và lời thoại gợi ý của bảng — cần sửa trong bảng để Gemini không viết lại các câu này.</p>
 <p class="muted">Nguồn: {% if s.product_csv_url %}link CSV xuất bản{% elif s.product_sheet_id %}Google Sheets (<code>{{ s.product_sheet_range }}</code>){% else %}<b>chưa cấu hình</b> — vào Cài đặt điền ID bảng hoặc link CSV{% endif %}.
   Tool chỉ <b>thêm dòng mới</b> vào bảng (form bên dưới), không sửa hay xoá dòng có sẵn. {% if synced %}Lần đọc gần nhất: {{ synced|localtime }}.{% endif %}</p>
-<div class="card scroll"><table>
+<div class="card scroll"><table class="prods">
 <tr><th>Mã</th><th>Hành</th><th>Tên trong bảng</th><th>Tên dùng trong video</th><th>Rà B.4</th><th>Giá</th><th>Link TikTok Shop</th><th class="n">Video dùng</th><th class="n">Tổng view</th></tr>
 {% for p in items %}<tr>
-  <td>{{ p.code }}</td><td>{{ p.element }}</td><td>{{ p.name }}<div class="muted" style="font-size:12px">{{ p.material }}</div></td>
+  <td class="nw">{{ p.code }}</td><td>{{ p.element }}</td><td><div class="clamp" title="{{ p.name }}" onclick="this.classList.toggle('open')">{{ p.name }}</div><div class="muted" style="font-size:12px">{{ p.material }}</div></td>
   <td>{% if p.video_name %}{{ p.video_name }}{% else %}<span class="badge">chưa có</span>{% endif %}</td>
   <td class="small">{% if p.audit %}{% for a in p.audit %}<div style="color:var(--err)">{{ a.field }}: {{ a.found }}</div>{% endfor %}{% else %}<span class="badge ok">Sạch</span>{% endif %}</td>
   <td>{{ p.price }}<div class="muted small">{{ p.commission }}</div></td>
