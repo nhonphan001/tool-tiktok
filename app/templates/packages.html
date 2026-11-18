@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row" style="justify-content:space-between"><h1>Gói sản xuất ({{ items|length }})</h1><a class="btn" href="/packages/new">+ Gói mới</a></div>
+<p class="muted">Soạn lời thoại, caption, bình luận ghim, lá số và SKU trước khi dựng video. Tool kiểm tra B.1/B.2/B.3/B.4 (0 token), sinh khối <code>nhan_video</code> và tự gắn gói vào video sau khi đăng (khi caption khớp).</p>
+<div class="card scroll"><table>
+<tr><th>Gói</th><th>Tiêu đề</th><th>Loại</th><th>SKU</th><th>Kiểm tra</th><th>Quảng cáo</th><th>Trạng thái</th><th>Video</th></tr>
+{% for p in items %}<tr>
+  <td><a href="/packages/{{ p.id }}">{{ p.goi or ('#' ~ p.id) }}</a></td>
+  <td>{{ p.title }}</td>
+  <td>{{ 'Lá số' if p.loai==1 else 'Sản phẩm' }}</td>
+  <td>{{ p.sku or '—' }}</td>
+  <td>{% if p.chk.errors %}<span class="badge error">{{ p.chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %}{% if p.chk.warns %} <span class="badge">{{ p.chk.warns }} cảnh báo</span>{% endif %}</td>
+  <td>{{ 'Được' if p.chk.ads_ok else 'Không' }}</td>
+  <td>{{ status[p.status or 'nhap'] }}</td>
+  <td>{% if p.video_id %}<a href="/videos/{{ p.video_id }}">xem</a>{% if p.link_source=='auto' %} <span class="muted small">(tự khớp)</span>{% endif %}{% else %}—{% endif %}</td>
+</tr>{% else %}<tr><td colspan="8" class="muted">Chưa có gói nào.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

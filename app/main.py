@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import analytics, compliance, db, jobs, kpi, notebooklm, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
+from . import analytics, battu, comments, compliance, db, jobs, kpi, notebooklm, packages, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -29,6 +29,7 @@ templates.env.filters["markdown"] = lambda t: md.markdown(t or "", extensions=["
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.get_conn()
+    packages.init()
     apply_overrides(db.load_settings())
     if db.load_settings().get("cost_recomputed") != "v1":  # tính lại chi phí theo bảng giá mới (một lần)
         strategy.recompute_costs()
@@ -267,6 +268,110 @@ def analytics_page(request: Request):
     return render(request, "analytics.html", an=an, ta=ta, slots=slots, kpi_min=settings.kpi_like_view_min)
 
 
+def _parse_time(t: str) -> tuple[int | None, int]:
+    t = (t or "").strip()
+    if not t:
+        return None, 0
+    hh, _, mm = t.partition(":")
+    return int(hh), int(mm or 0)
+
+
+def _chart_from_params(q) -> dict:
+    h, mi = _parse_time(q.get("t", ""))
+    return battu.lap_la_so(int(q.get("dd")), int(q.get("mm")), int(q.get("yy")), h, mi, q.get("gioi") or None,
+                           q.get("lich") or "duong", bool(q.get("nhuan")))
+
+
+@app.get("/laso", response_class=HTMLResponse)
+def laso_page(request: Request):
+    q = request.query_params
+    result = error = None
+    if q.get("dd") and q.get("mm") and q.get("yy"):
+        try:
+            result = _chart_from_params(q)
+        except (ValueError, TypeError) as e:
+            error = str(e)
+    from urllib.parse import urlencode
+
+    return render(request, "laso.html", f=dict(q), result=result, error=error, rows=None, text="",
+                  summary=battu.mo_ta_ngan(result) if result else "", qs=urlencode(dict(q)))
+
+
+@app.post("/laso/comments", response_class=HTMLResponse)
+def laso_comments(request: Request, text: str = Form("")):
+    # Không lưu bình luận: chỉ phân tích và hiển thị trong phản hồi này
+    rows = comments.analyze(text)
+    return render(request, "laso.html", f={}, result=None, error=None, rows=rows, text=text, summary="", qs="")
+
+
+@app.get("/packages", response_class=HTMLResponse)
+def packages_page(request: Request):
+    items = packages.all_packages()
+    for p in items:
+        p["chk"] = packages.check(p)
+    return render(request, "packages.html", items=items, status=packages.STATUS)
+
+
+def _package_ctx(p: dict) -> dict:
+    acc = db.get_active_account()
+    chk = packages.check(p) if p.get("id") else {"items": [], "errors": 0, "warns": 0, "ads_ok": False,
+                                                 "chart": packages.chart_of(p)[0], "hanh": "", "product": None}
+    return {"p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
+            "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
+            "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
+
+
+@app.get("/packages/new", response_class=HTMLResponse)
+def package_new(request: Request):
+    q = request.query_params
+    birth = {k: q.get(k, "") for k in ("dd", "mm", "yy", "t", "lich", "nhuan", "gioi")} if q.get("dd") else {}
+    return render(request, "package.html", **_package_ctx({"loai": 1 if birth else 2, "birth": birth}))
+
+
+@app.get("/packages/{pid}/phieu.md")
+def package_markdown(pid: int):
+    p = packages.get(pid)
+    if not p:
+        return RedirectResponse("/packages", status_code=303)
+    text = packages.to_markdown(p, packages.check(p))
+    fname = f"PHIEU_GOI_{(p.get('goi') or pid)}.md".replace(" ", "_")
+    return HTMLResponse(text, media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+@app.get("/packages/{pid}", response_class=HTMLResponse)
+def package_detail(request: Request, pid: int):
+    p = packages.get(pid)
+    if not p:
+        return RedirectResponse("/packages", status_code=303)
+    return render(request, "package.html", **_package_ctx(p))
+
+
+@app.post("/packages/save")
+async def package_save(request: Request):
+    form = await request.form()
+    data = {k: form.get(k, "") for k in (*packages.FIELDS, "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
+    pid = packages.save(data, int(form["id"]) if form.get("id") else None)
+    chk = packages.check(packages.get(pid))
+    flash(request, f"Đã lưu gói. Kiểm tra: {chk['errors']} lỗi, {chk['warns']} cảnh báo.",
+          "success" if not chk["errors"] else "error")
+    return RedirectResponse(f"/packages/{pid}", status_code=303)
+
+
+@app.post("/packages/{pid}/delete")
+def package_delete(request: Request, pid: int):
+    packages.delete(pid)
+    flash(request, "Đã xoá gói", "info")
+    return RedirectResponse("/packages", status_code=303)
+
+
+@app.post("/packages/{pid}/link")
+def package_link(request: Request, pid: int, video_id: str = Form(...)):
+    packages.link_video(pid, video_id)
+    flash(request, "Đã gắn video và ghi nhãn theo gói", "success")
+    return RedirectResponse(f"/packages/{pid}", status_code=303)
+
+
 @app.get("/compliance", response_class=HTMLResponse)
 def compliance_page(request: Request):
     acc = db.get_active_account()
@@ -391,6 +496,7 @@ def settings_page(request: Request):
         "settings.html",
         s=settings,
         next_run=scheduler.next_run(),
+        scan_mode=scheduler.describe(),
         scans=db.query("SELECT * FROM scans ORDER BY id DESC LIMIT 20"),
         syncs=db.query("SELECT * FROM sync_log ORDER BY id DESC LIMIT 20"),
         sa_email=notebooklm.service_account_email(),
@@ -537,6 +643,18 @@ def api_public_summary(request: Request):
         "last_scan": last_scan,
     }
     return JSONResponse(data, headers=CORS)
+
+
+@app.get("/api/public/laso")
+def api_public_laso(request: Request):
+    """Lập lá số cho Gemini/công cụ khác: ?dd=5&mm=6&yy=1995&t=18:00&lich=duong|am&nhuan=1&gioi=nu (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    try:
+        r = _chart_from_params(request.query_params)
+    except (ValueError, TypeError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400, headers=CORS)
+    return JSONResponse({**r, "tom_tat": battu.mo_ta_ngan(r)}, headers=CORS)
 
 
 @app.get("/api/public/report.md")

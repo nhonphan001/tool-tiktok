@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_chart.html" import chart %}
+{% block content %}
+<p><a href="/packages">← Gói sản xuất</a></p>
+<h1>{{ ('Gói ' ~ p.goi) if p.goi else 'Gói mới' }}{% if p.title %} — {{ p.title }}{% endif %}</h1>
+<div class="side" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
+<div class="card">
+  <form method="post" action="/packages/save">
+    {% if p.id %}<input type="hidden" name="id" value="{{ p.id }}">{% endif %}
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:80px"><label>Số gói</label><input name="goi" value="{{ p.goi or '' }}" placeholder="13"></div>
+      <div style="flex:3;min-width:200px"><label>Tiêu đề</label><input name="title" value="{{ p.title or '' }}"></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <div style="flex:2;min-width:220px"><label>Loại video</label><select name="loai">{% for k, v in loai.items() %}<option value="{{ k }}" {{ 'selected' if (p.loai or 1)==k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div style="flex:2;min-width:200px"><label>Nhóm nội dung</label><select name="content_group"><option value="">—</option>{% for k, v in groups.items() %}<option value="{{ k }}" {{ 'selected' if p.content_group==k }}>{{ k }}. {{ v }}</option>{% endfor %}</select></div>
+      <div style="flex:1;min-width:120px"><label>Trạng thái</label><select name="status">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if (p.status or 'nhap')==k }}>{{ v }}</option>{% endfor %}</select></div>
+    </div>
+    <h2 style="margin-top:16px">Lá số (video loại 1)</h2>
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:60px"><label>Ngày</label><input type="number" name="dd" value="{{ b.dd or '' }}"></div>
+      <div style="flex:1;min-width:60px"><label>Tháng</label><input type="number" name="mm" value="{{ b.mm or '' }}"></div>
+      <div style="flex:1;min-width:80px"><label>Năm</label><input type="number" name="yy" value="{{ b.yy or '' }}"></div>
+      <div style="flex:1;min-width:100px"><label>Giờ</label><input type="time" name="t" value="{{ b.t or '' }}"></div>
+      <div style="flex:1;min-width:100px"><label>Lịch</label><select name="lich"><option value="duong">Dương</option><option value="am" {{ 'selected' if b.lich=='am' }}>Âm</option></select></div>
+      <div style="flex:1;min-width:80px"><label>Giới tính</label><select name="gioi"><option value="">—</option><option value="nu" {{ 'selected' if b.gioi=='nu' }}>Nữ</option><option value="nam" {{ 'selected' if b.gioi=='nam' }}>Nam</option></select></div>
+    </div>
+    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="nhuan" value="1" style="width:auto" {{ 'checked' if b.nhuan }}> Tháng nhuận (âm lịch)</label>
+    <h2 style="margin-top:16px">Sản phẩm (video loại 2)</h2>
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:180px"><label>SKU</label>
+        {% if products %}<select name="sku"><option value="">— không gắn —</option>{% for x in products %}<option value="{{ x.code }}" {{ 'selected' if p.sku==x.code }}>{{ x.code }} · {{ x.element }} · {{ x.name }}</option>{% endfor %}</select>
+        {% else %}<input name="sku" value="{{ p.sku or '' }}" placeholder="SP-THUY-02 (chưa đồng bộ bảng sản phẩm)">{% endif %}</div>
+      <div style="flex:2;min-width:200px"><label>Tên sản phẩm dùng trong kịch bản</label><input name="product_name" value="{{ p.product_name or '' }}" placeholder="chép đúng tên trong bảng quản trị"></div>
+    </div>
+    <h2 style="margin-top:16px">Lời thoại 4 cảnh × 8 giây <span class="muted small">(24–28 âm tiết / cảnh)</span></h2>
+    {% for i in range(1, 5) %}<label>Cảnh {{ i }} <span class="muted" data-syl="scene{{ i }}"></span></label><textarea name="scene{{ i }}" rows="2" oninput="syl(this)">{{ p['scene' ~ i] or '' }}</textarea>{% endfor %}
+    <label>Chữ trên hình (hook, phụ đề nổi bật)</label><textarea name="on_screen" rows="2">{{ p.on_screen or '' }}</textarea>
+    <label>Caption + hashtag</label><textarea name="caption" rows="3">{{ p.caption or '' }}</textarea>
+    <label>Bình luận ghim</label><textarea name="pinned" rows="2">{{ p.pinned or '' }}</textarea>
+    <label>Ghi chú</label><input name="note" value="{{ p.note or '' }}">
+    <p class="row"><button class="btn">Lưu &amp; kiểm tra</button>
+      {% if p.id %}<a class="btn sec" href="/packages/{{ p.id }}/phieu.md">Tải phiếu .md (gửi Gemini)</a>{% endif %}</p>
+  </form>
+  {% if p.id %}<form method="post" action="/packages/{{ p.id }}/delete" onsubmit="return confirm('Xoá gói này?')"><button class="btn sec small">Xoá gói</button></form>{% endif %}
+</div>
+<div>
+  <div class="card"><h2>Kiểm tra {% if chk.errors %}<span class="badge error">{{ chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %} <span class="badge">{{ 'Được chạy quảng cáo' if chk.ads_ok else 'Không chạy quảng cáo' }}</span></h2>
+    <ul class="chk">{% for i in chk['items'] %}<li class="{{ i.level }}"><b>{{ i.rule }}</b> — {{ i.msg }}</li>{% endfor %}</ul>
+    {% if not p.id %}<p class="muted small">Bấm “Lưu &amp; kiểm tra” để chạy kiểm tra.</p>{% endif %}
+  </div>
+  {% if chk.chart %}<div class="card" style="margin-top:16px"><h2>Lá số tính được</h2>{{ chart(chk.chart, True) }}</div>{% endif %}
+  {% if p.id %}
+  <div class="card" style="margin-top:16px"><h2>Khối nhan_video</h2><pre class="block">{{ block }}</pre></div>
+  <div class="card" style="margin-top:16px"><h2>Video đã đăng</h2>
+    {% if p.video_id %}<p>Đã gắn: <a href="/videos/{{ p.video_id }}">{{ p.video_id }}</a> {% if p.link_source=='auto' %}(tự khớp theo caption){% endif %}. Nhãn video đã được ghi theo gói.</p>{% endif %}
+    <form method="post" action="/packages/{{ p.id }}/link" class="row">
+      <select name="video_id" style="flex:1">{% for v in videos %}<option value="{{ v.id }}" {{ 'selected' if v.id==p.video_id }}>{{ v.posted_str }} · {{ v.label[:60] }}</option>{% endfor %}</select>
+      <button class="btn sec">Gắn video</button>
+    </form>
+    <p class="muted small">Sau mỗi lần quét, tool tự gắn nếu caption video mới khớp caption của gói.</p>
+  </div>
+  {% endif %}
+</div>
+</div>
+<script>
+function syl(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; const s=document.querySelector('[data-syl="'+el.name+'"]'); if(s){ s.textContent='· '+n+' âm tiết'; s.style.color=(n&&(n<24||n>28))?'#b7791f':''; } }
+document.querySelectorAll('textarea[name^=scene]').forEach(syl);
+</script>
+{% endblock %}

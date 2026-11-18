@@ -1,0 +1,32 @@
+{% macro chart(r, compact=False) %}
+<div class="chart">
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <div><b>{{ r.duong_lich }} {{ r.gio }}</b> <span class="muted">· âm lịch {{ r.am_lich }}{% if r.gioi %} · {{ 'Nam' if r.gioi=='nam' else 'Nữ' }}{% endif %}</span></div>
+    <span class="badge">Nhật chủ {{ r.nhat_chu }} {{ r.nhat_chu_hanh }} — {{ r.nhat_chu_ta }}</span>
+  </div>
+  <table class="pillars">
+    <tr><th></th><th>Năm</th><th>Tháng</th><th class="nc">Ngày</th><th>Giờ</th></tr>
+    <tr><td class="muted">Thập thần</td>{% for t in r.thap_than %}<td class="{{ 'nc' if loop.index0==2 }}">{{ t or '—' }}</td>{% endfor %}</tr>
+    <tr><td class="muted">Can · Chi</td>{% for p in r.tru %}<td class="big {{ 'nc' if loop.index0==2 }}">{{ p or '?' }}</td>{% endfor %}</tr>
+    {% if not compact %}
+    <tr><td class="muted">Tàng can</td>{% for t in r.tang_can %}<td class="small {{ 'nc' if loop.index0==2 }}">{{ (t or ['—'])|join(', ') }}</td>{% endfor %}</tr>
+    <tr><td class="muted">Nạp âm</td>{% for t in r.nap_am %}<td class="small {{ 'nc' if loop.index0==2 }}">{{ t or '—' }}</td>{% endfor %}</tr>
+    <tr><td class="muted">Trường sinh</td>{% for t in r.truong_sinh %}<td class="small {{ 'nc' if loop.index0==2 }}">{{ t or '—' }}</td>{% endfor %}</tr>
+    {% endif %}
+  </table>
+  <div class="usage">
+    <span>{{ r.trang_thai }}</span>
+    <span>Dụng thần: <b>{{ r.dung_than }}</b></span>
+    <span>Hỷ: <b>{{ r.hy_than }}</b></span>
+    {% if r.ky_than %}<span>Kỵ: {{ r.ky_than|join(', ') }}</span>{% endif %}
+    {% if r.dieu_hau %}<span>Điều hậu: {{ r.dieu_hau }}</span>{% endif %}
+    <span>Không vong: {{ r.khong_vong|join(', ') }}</span>
+  </div>
+  {% if not compact %}
+  <div class="usage">{% for k, v in r.ngu_hanh_diem.items() %}<span>{{ k }} {{ v }}</span>{% endfor %}</div>
+  {% if r.quan_he %}<p class="small muted">Hợp xung hình hại: {{ r.quan_he|join(' · ') }}</p>{% endif %}
+  {% if r.dai_van %}<p class="small muted">Đại vận ({{ 'thuận' if r.dai_van_thuan else 'nghịch' }}): {% for v in r.dai_van %}{{ v.tru }} ({{ v.tu_tuoi }}t){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+  {% endif %}
+  {% for c in r.canh_bao %}<div class="small" style="color:#b7791f">⚠ {{ c }}</div>{% endfor %}
+</div>
+{% endmacro %}

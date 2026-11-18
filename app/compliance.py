@@ -41,7 +41,7 @@ FORTUNE_RULES = [
      r"(don|hut|thu\s*hut|mang\s*lai|mang\s*den|kich|kich\s*hoat|vuong)\s*(dieu\s*lanh|may\s*man|tai\s*loc|loc\s*la|vuong\s*khi)"),
     ("binh_an", "hứa bình an (phong thủy bình an...)", r"(phong\s*thuy|giu|mang\s*lai|mang\s*den)\s*binh\s*an"),
     ("bu_khuyet_la_so", "nối lá số với vật phẩm (thiếu hành → dùng vật phẩm)",
-     r"bu\s*khuyet|bo\s*sung\s*(nguon\s*)?(nang\s*luong|hanh|menh|khi)"
+     r"bu\s*khuyet|khuyet\s*(hanh\s*)?(kim|moc|thuy|hoa|tho)\b|bo\s*sung\s*(nguon\s*)?(nang\s*luong|hanh|menh|khi)"
      r"|thieu\s*(hut\s*)?(nguon\s*)?(nang\s*luong|hanh|kim|moc|thuy|hoa|tho)\b|hop\s*menh\s*nen"),
     ("du_doan_chac_chan", "dự đoán chắc chắn / kết quả tuyệt đối",
      r"du\s*doan\s*chinh\s*xac|chac\s*chan\s*se|dam\s*bao\s*se|100\s*%\s*(se|chinh\s*xac|linh)|linh\s*nghiem"),

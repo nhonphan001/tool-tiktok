@@ -40,6 +40,8 @@ class Settings:
     tiktok_client_secret: str = field(default_factory=lambda: os.getenv("TIKTOK_CLIENT_SECRET", ""))
 
     scan_interval_hours: float = field(default_factory=lambda: float(os.getenv("SCAN_INTERVAL_HOURS", "6")))
+    # Giờ quét cố định theo TIMEZONE (để trống = quét theo chu kỳ scan_interval_hours)
+    scan_times: str = field(default_factory=lambda: os.getenv("SCAN_TIMES", "05:00,11:00,17:00,23:00"))
     max_videos_per_scan: int = field(default_factory=lambda: int(os.getenv("MAX_VIDEOS_PER_SCAN", "200")))
 
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
@@ -99,6 +101,7 @@ class Settings:
 # Các khóa có thể chỉnh trên web app (lưu trong DB, ghi đè .env)
 EDITABLE_KEYS = {
     "scan_interval_hours": float,
+    "scan_times": str,
     "max_videos_per_scan": int,
     "gemini_model": str,
     "channel_context": str,

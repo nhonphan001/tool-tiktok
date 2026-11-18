@@ -38,7 +38,10 @@
       <label>Vùng đọc</label><input name="product_sheet_range" value="{{ s.product_sheet_range }}">
       <label>Hoặc link CSV đã xuất bản (vd. tab WEB_XUAT_BAN) — ưu tiên nếu có</label><input name="product_csv_url" value="{{ s.product_csv_url }}">
       <h2 style="margin-top:20px">Quét & Gemini</h2>
-      <label>Chu kỳ quét (giờ)</label><input type="number" step="0.25" min="0.25" name="scan_interval_hours" value="{{ s.scan_interval_hours }}">
+      <label>Giờ quét cố định (giờ Việt Nam, phân tách dấu phẩy; để trống = quét theo chu kỳ bên dưới)</label>
+      <input name="scan_times" value="{{ s.scan_times }}" placeholder="05:00,11:00,17:00,23:00">
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Đang áp dụng: {{ scan_mode }}.</p>
+      <label>Chu kỳ quét (giờ) — chỉ dùng khi để trống giờ cố định</label><input type="number" step="0.25" min="0.25" name="scan_interval_hours" value="{{ s.scan_interval_hours }}">
       <label>Số video tối đa mỗi lần quét</label><input type="number" min="1" name="max_videos_per_scan" value="{{ s.max_videos_per_scan }}">
       <label>Model Gemini</label><input name="gemini_model" value="{{ s.gemini_model }}">
       <label>Cổng gọi Gemini</label>

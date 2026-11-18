@@ -399,3 +399,123 @@ def test_vertex_global_option_and_fallback(seeded, monkeypatch):
     fin = [f for f in c.get("/api/jobs").json()["finished"] if f.get("type") == "strategy" and f["id"] == sid]
     assert fin and fin[0]["endpoint_label"].startswith("Vertex AI · theo vùng")
     assert "Sẽ gọi: Vertex AI · global" in c.get("/strategy").text
+
+
+def test_laso_page_and_comments(seeded, monkeypatch):
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    r = c.get("/laso?dd=5&mm=6&yy=1995&t=18:00&gioi=nu")
+    assert r.status_code == 200 and "Kỷ Dậu" in r.text and "Nhật chủ Đinh Hỏa" in r.text
+    assert "không có ngày 31" in c.get("/laso?dd=31&mm=2&yy=1995").text
+    r = c.post("/laso/comments", data={"text": "Cô ơi xem giúp con 5/6/1995 giờ Dậu nữ ạ\nchồng 14/5/1991 4h, vợ 13/4/1995 âm lịch 6h30\nsn 1988"})
+    assert r.status_code == 200
+    assert "Ất Hợi – Tân Tỵ – Đinh Mão – Kỷ Dậu" in r.text and "Tân Mùi – Quý Tỵ – Giáp Thân – Bính Dần" in r.text
+    assert "Ất Hợi – Tân Tỵ – Quý Mão – Ất Mão" in r.text and "Chỉ có năm sinh 1988" in r.text
+    assert db.query_one("SELECT COUNT(*) AS n FROM app_settings WHERE value LIKE '%1995%'")["n"] == 0  # không lưu
+    assert c.get("/api/public/laso?dd=5&mm=6&yy=1995").status_code == 401
+    monkeypatch.setattr(settings, "api_token", "tk")
+    j = c.get("/api/public/laso?dd=13&mm=4&yy=1995&t=06:00&lich=am&token=tk").json()
+    assert j["tu_tru"] == "Ất Hợi – Tân Tỵ – Quý Mão – Ất Mão" and j["nhat_chu"] == "Quý"
+
+
+def _seed_products():
+    with db.tx() as c:
+        c.execute("DELETE FROM products")
+        c.execute("INSERT INTO products(code, element, name, link, status) VALUES(?,?,?,?,?)",
+                  ("SP-THUY-02", "Thủy", "Vòng thạch anh tóc đen thiên nhiên", "https://vt.tiktok.com/x/", "Đang bán"))
+        c.execute("INSERT INTO products(code, element, name, link, status) VALUES(?,?,?,?,?)",
+                  ("SP-HOA-04", "Hỏa", "Vòng Tay Chu Sa Ngũ Lộ Thần Tài", "", "Chờ link"))
+
+
+def test_package_checks_catch_known_mistakes(seeded):
+    from app import packages
+
+    _seed_products()
+    # Gói lá số: kịch bản ghi nhầm Nhật chủ bằng can năm (lỗi Gói 3/13) + gắn SKU
+    p = {"goi": "13", "loai": 1, "content_group": 1, "sku": "SP-THUY-02",
+         "birth": {"dd": "5", "mm": "6", "yy": "1995", "t": "18:00", "lich": "duong", "gioi": "nu"},
+         "scene1": "Lá số Ất Hợi – Tân Tỵ – Đinh Mão – Kỷ Dậu, Nhật chủ Ất Mộc nên cần thêm nước.",
+         "caption": "Để lại ngày sinh dưới bình luận để Cô Kim giải mã #BatTu"}
+    chk = packages.check(p)
+    msgs = " | ".join(i["msg"] for i in chk["items"])
+    assert "Nhật chủ Ất" in msgs and "Nhật chủ là Đinh" in msgs
+    assert "không gắn giỏ hàng" in msgs and chk["errors"] >= 2 and not chk["ads_ok"]
+    assert chk["hanh"] == "Thủy"
+    p2 = dict(p, sku="", scene1="Nhật chủ Đinh Hỏa, lá số thiếu Thủy nên đeo vòng thạch anh sẽ giúp tâm an.")
+    assert any(i["rule"] == "B.4.1" for i in packages.check(p2)["items"])
+    p3 = dict(p, sku="", scene1="Nhật chủ Đinh Hỏa như ngọn đèn nhỏ giữa mùa hạ, cần dòng nước mát để cân bằng.")
+    assert not any(i["rule"] == "B.4.1" for i in packages.check(p3)["items"])
+
+    # Gói sản phẩm: nói lá số + tên SKU sai + bùa → nhiều lỗi
+    bad = {"goi": "14", "loai": 2, "sku": "SP-THUY-02", "product_name": "Vòng Obsidian",
+           "scene1": "Lá số thiếu Thủy thì đeo vòng này bổ sung hành Thủy, như lá bùa hộ mệnh.",
+           "caption": "Xem thêm ở link bio nhé"}
+    chk = packages.check(bad)
+    rules = {i["rule"] for i in chk["items"] if i["level"] == "error"}
+    assert {"B.1", "B.3", "B.4", "B.4.3"} <= rules and not chk["ads_ok"]
+
+    # Gói sản phẩm sạch: đạt, được chạy quảng cáo
+    good = {"goi": "15", "loai": 2, "sku": "SP-THUY-02", "product_name": "Vòng thạch anh tóc đen thiên nhiên",
+            "scene1": "Vòng thạch anh tóc đen thiên nhiên, hạt tám ly, dây co giãn, hợp phối đồ màu tối đi làm hay đi chơi đều xinh nha cả nhà.",
+            "caption": "Vòng thạch anh tóc đen thiên nhiên, hạt 8mm. Bấm giỏ hàng góc trái nhé! "
+                       "Để lại ngày sinh dưới bình luận để Cô Kim giải mã"}
+    chk = packages.check(good)
+    assert chk["errors"] == 0 and chk["ads_ok"], chk["items"]
+    blk = packages.nhan_video_block(good, chk)
+    assert "ma_san_pham: SP-THUY-02" in blk and "duoc_chay_quang_cao: true" in blk and "hanh_dung_than: Thủy" in blk
+
+
+def test_package_pages_link_and_auto_link(seeded):
+    from app import packages, tags
+
+    _seed_products()
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    assert c.get("/packages").status_code == 200
+    r = c.get("/packages/new?dd=5&mm=6&yy=1995&t=18:00&gioi=nu")
+    assert r.status_code == 200 and "Kỷ Dậu" in r.text
+    r = c.post("/packages/save", data={"goi": "21", "title": "Thử", "loai": "1", "content_group": "1", "dd": "5",
+                                       "mm": "6", "yy": "1995", "t": "18:00", "gioi": "nu",
+                                       "scene1": "Nhật chủ Đinh Hỏa như ngọn đèn nhỏ", "caption": "x"},
+               follow_redirects=False)
+    pid = int(r.headers["location"].rsplit("/", 1)[1])
+    page = c.get(f"/packages/{pid}").text
+    assert "nhan_video:" in page and "goi: 21" in page
+    md = c.get(f"/packages/{pid}/phieu.md")
+    assert md.status_code == 200 and "Phiếu gói 21" in md.text and "Nhật chủ = can trụ Ngày" in md.text
+    c.post(f"/packages/{pid}/link", data={"video_id": "demo003"})
+    t = tags.get_all()["demo003"]
+    assert t["goi"] == "21" and t["source"] == "package" and t["element"] == "Thủy" and t["has_cart"] == 0
+    # tự khớp theo caption sau khi quét
+    cap = "Vòng thạch anh tóc đen thiên nhiên hạt 8mm cho nàng công sở, bấm giỏ hàng góc trái nhé #TiemTraGiaiMa"
+    with db.tx() as cx:
+        cx.execute("UPDATE videos SET description=? WHERE id='demo010'", (cap,))
+    pid2 = packages.save({"goi": "22", "loai": "2", "caption": cap})
+    linked = packages.auto_link(seeded)
+    assert (pid2, "demo010") in linked and packages.get(pid2)["link_source"] == "auto"
+    assert "Gói sản xuất gần đây" in report.build_report(seeded)
+
+
+def test_fixed_scan_times(monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from app import scheduler
+
+    assert scheduler.parse_times("23:00, 05:00,11:00;17:00, 25:00, x") == [(5, 0), (11, 0), (17, 0), (23, 0)]
+    monkeypatch.setattr(settings, "scan_times", "05:00,11:00,17:00,23:00")
+    monkeypatch.setattr(settings, "timezone", "Asia/Ho_Chi_Minh")
+    trig, label = scheduler.build_trigger()
+    assert label == "giờ cố định 05:00, 11:00, 17:00, 23:00"
+    tz = ZoneInfo("Asia/Ho_Chi_Minh")
+    nxt = trig.get_next_fire_time(None, datetime(2026, 11, 18, 12, 30, tzinfo=tz))
+    assert nxt.astimezone(tz).hour == 17 and nxt.astimezone(tz).minute == 0
+    monkeypatch.setattr(settings, "scan_times", "")
+    assert scheduler.build_trigger()[1].startswith("mỗi ")
+
+
+def test_khuyet_hanh_rule():
+    from app import compliance
+
+    assert compliance.check("Lá số khuyết Kim nên đeo vòng bạc", True)["level"] == "fortune_risk"
+    assert compliance.check("khuyết hành Hỏa", True)["level"] == "fortune_risk"

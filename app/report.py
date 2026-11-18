@@ -51,6 +51,7 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
     lines += _kpi_section(open_id)
     lines += _compliance_section(open_id)
     lines += _tag_section(open_id)
+    lines += _package_section()
 
     lines += ["", "## 2. Nhận định tự động"] + [f"- {i}" for i in an["insights"]]
 
@@ -139,6 +140,24 @@ def _tag_section(open_id: str) -> list[str]:
         lines += ["", f"| {title} | Số video | View TB | Tương tác TB | Tim/view |", "|---|---|---|---|---|"]
         lines += [f"| {r['label']} | {r['count']} | {_n(r['avg_views'])} | {r['avg_engagement']}% | {r['like_view']}% |"
                   for r in rows]
+    return lines
+
+
+def _package_section(limit: int = 12) -> list[str]:
+    from . import packages
+
+    items = packages.all_packages()[:limit]
+    lines = ["", "## Gói sản xuất gần đây (kiểm tra tự động của TikTok Manager)"]
+    if not items:
+        return lines + ["- Chưa có gói nào được soạn trong tool."]
+    lines += ["| Gói | Tiêu đề | Loại | SKU | Kiểm tra | Quảng cáo | Trạng thái | Video |", "|---|---|---|---|---|---|---|---|"]
+    for p in items:
+        chk = packages.check(p)
+        lines.append(
+            f"| {p.get('goi') or p['id']} | {(p.get('title') or '').replace('|', '/')} | {'Lá số' if p['loai'] == 1 else 'Sản phẩm'}"
+            f" | {p.get('sku') or '—'} | {'đạt' if not chk['errors'] else str(chk['errors']) + ' lỗi'}"
+            f" | {'được' if chk['ads_ok'] else 'không'} | {packages.STATUS.get(p.get('status') or 'nhap')}"
+            f" | {p.get('video_id') or '—'} |")
     return lines
 
 

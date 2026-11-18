@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_chart.html" import chart %}
+{% block content %}
+<h1>Lá số Bát Tự</h1>
+<p class="muted">Lõi tính giống web tra lá số nangtamchatluongsong.vn (lịch Hồ Ngọc Đức, tiết khí Meeus), đã so khớp 0 sai lệch trên 5.240 ca. <b>Nhật chủ luôn là can của trụ Ngày.</b></p>
+<div class="grid g2">
+  <div class="card"><h2>Lập một lá số</h2>
+    <form method="get" action="/laso">
+      <div class="row" style="gap:8px">
+        <div style="flex:1;min-width:70px"><label>Ngày</label><input type="number" name="dd" min="1" max="31" value="{{ f.dd or '' }}" required></div>
+        <div style="flex:1;min-width:70px"><label>Tháng</label><input type="number" name="mm" min="1" max="12" value="{{ f.mm or '' }}" required></div>
+        <div style="flex:1;min-width:90px"><label>Năm</label><input type="number" name="yy" min="1900" max="2100" value="{{ f.yy or '' }}" required></div>
+        <div style="flex:1;min-width:110px"><label>Giờ (trống = không rõ)</label><input type="time" name="t" value="{{ f.t or '' }}"></div>
+      </div>
+      <div class="row" style="gap:8px">
+        <div style="flex:1;min-width:120px"><label>Lịch</label><select name="lich"><option value="duong">Dương lịch</option><option value="am" {{ 'selected' if f.lich=='am' }}>Âm lịch</option></select></div>
+        <div style="flex:1;min-width:120px"><label>Giới tính (cho Đại vận)</label><select name="gioi"><option value="">—</option><option value="nu" {{ 'selected' if f.gioi=='nu' }}>Nữ</option><option value="nam" {{ 'selected' if f.gioi=='nam' }}>Nam</option></select></div>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:28px"><input type="checkbox" name="nhuan" value="1" style="width:auto" {{ 'checked' if f.nhuan }}> Tháng nhuận</label>
+      </div>
+      <p class="row"><button class="btn">Xem lá số</button>{% if result %}<a class="btn sec" href="/packages/new?{{ qs }}">Tạo gói sản xuất từ lá số này</a>{% endif %}</p>
+    </form>
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    {% if result %}{{ chart(result) }}
+      <label>Dòng tóm tắt (chép vào kịch bản)</label><input readonly value="{{ summary }}" onclick="this.select()">{% endif %}
+  </div>
+  <div class="card"><h2>Dán bình luận xin xem lá số</h2>
+    <p class="muted small">Mỗi dòng một bình luận. Tool tự tìm ngày sinh (5/6/1995, ngày 5 tháng 6 năm 1995…), giờ (18h30, 6h chiều, giờ Dậu), âm lịch (âm, AL, nhuận) và giới tính. <b>Bình luận không được lưu lại.</b></p>
+    <form method="post" action="/laso/comments">
+      <textarea name="text" rows="9" placeholder="Cô ơi xem giúp con 5/6/1995 giờ Dậu, nữ ạ&#10;chồng 14/5/1991 4h, vợ 13/4/1995 âm lịch 6h30">{{ text or '' }}</textarea>
+      <p><button class="btn">Tách ngày sinh &amp; lập lá số</button></p>
+    </form>
+  </div>
+</div>
+{% if rows is not none %}
+<div class="card scroll" style="margin-top:16px"><h2>Kết quả ({{ rows|selectattr('chart')|list|length }}/{{ rows|length }} lập được lá số)</h2>
+  <table>
+    <tr><th>#</th><th>Bình luận</th><th>Đọc được</th><th>Tứ trụ</th><th>Nhật chủ</th><th>Dụng thần</th><th></th></tr>
+    {% for r in rows %}<tr>
+      <td>{{ r.line }}</td>
+      <td class="small" style="max-width:280px">{{ r.comment }}</td>
+      <td class="small">{% if r.d %}{{ r.d }}/{{ r.m }}/{{ r.y }}{{ ' âm' if r.lunar }}{{ ' nhuận' if r.leap }} · {{ '%02d:%02d'|format(r.h, r.mi) if r.h is not none else 'không rõ giờ' }}{% if r.gioi %} · {{ 'Nam' if r.gioi=='nam' else 'Nữ' }}{% endif %}{% if r.time_note %}<div class="muted">{{ r.time_note }}</div>{% endif %}{% endif %}</td>
+      {% if r.chart %}
+        <td><b>{{ r.chart.tu_tru }}</b>{% for c in r.chart.canh_bao %}<div class="small" style="color:#b7791f">⚠ {{ c }}</div>{% endfor %}</td>
+        <td>{{ r.chart.nhat_chu }} {{ r.chart.nhat_chu_hanh }}<div class="muted small">{{ r.chart.trang_thai }}</div></td>
+        <td>{{ r.chart.dung_than }}</td>
+        <td class="small"><a href="/laso?dd={{ r.d }}&mm={{ r.m }}&yy={{ r.y }}{% if r.h is not none %}&t={{ '%02d:%02d'|format(r.h, r.mi) }}{% endif %}{% if r.lunar %}&lich=am{% endif %}{% if r.leap %}&nhuan=1{% endif %}{% if r.gioi %}&gioi={{ r.gioi }}{% endif %}">Chi tiết</a></td>
+      {% else %}<td colspan="4" class="muted">{{ r.error }}</td>{% endif %}
+    </tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

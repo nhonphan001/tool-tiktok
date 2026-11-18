@@ -130,6 +130,14 @@ def _post_scan(open_id: str) -> None:
     from . import notebooklm, strategy
 
     try:
+        from . import packages
+
+        linked = packages.auto_link(open_id)
+        if linked:
+            log.info("Auto-linked packages to videos: %s", linked)
+    except Exception:  # noqa: BLE001
+        log.exception("Auto-link packages failed")
+    try:
         if settings.auto_strategy:
             strategy.generate(open_id)
         notebooklm.sync_all(open_id)
