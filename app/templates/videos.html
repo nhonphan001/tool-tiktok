@@ -32,7 +32,7 @@
     {% if v.tag.goi %}<span class="badge">Gói {{ v.tag.goi }}</span>{% endif %}
     {% if v.tag.source=='ai' %}<span class="muted">(AI)</span>{% endif %}
   {% else %}<span class="muted">—</span>{% endif %}</td>
-  <td>{% if v.compliance.level=='ok' %}<span class="badge ok">Sạch</span>{% else %}<span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart') }}" title="{{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}">{{ level_labels[v.compliance.level] }}</span>{% endif %}</td>
+  <td>{% if v.compliance.level=='ok' %}<span class="badge ok">Sạch</span>{% else %}<span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart','fortune_risk') }}" title="{{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}">{{ level_labels[v.compliance.level] }}</span>{% endif %}</td>
   <td>{{ v.posted_str }}</td>
   <td class="n">{{ v.view_count|num }}</td><td class="n">{{ v.like_count|num }}</td><td class="n">{{ v.comment_count|num }}</td><td class="n">{{ v.share_count|num }}</td>
   <td class="n">{{ v.like_view }}%</td><td class="n">{{ v.views_per_day|num }}</td>

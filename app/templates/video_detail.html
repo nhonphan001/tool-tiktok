@@ -35,9 +35,10 @@
 </div>
 <div class="card"><h2>Kiểm tra caption</h2>
   {% set c = v.compliance %}
-  <p><span class="badge {{ 'ok' if c.level=='ok' else ('error' if c.level in ('violation','violation_if_cart') else '') }}">{{ level_labels[c.level] }}</span></p>
+  <p><span class="badge {{ 'ok' if c.level=='ok' else ('error' if c.level in ('violation','violation_if_cart','fortune_risk') else '') }}">{{ level_labels[c.level] }}</span></p>
   {% for x in c.offsite %}<div>• Mời ra ngoài nền tảng: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
-  {% for x in c.promise %}<div>• Hứa hẹn / hù dọa: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
+  {% if c.no_ads %}<div><b>Không chạy Quảng bá / quảng cáo trả phí</b> cho video này.</div>{% endif %}
+  {% for x in c.promise %}<div>• Hứa hẹn / bói toán / bùa: <b>{{ x.label }}</b> <span class="muted">(“{{ x.match }}”)</span></div>{% endfor %}
   {% if c.level=='violation_if_cart' %}<p class="muted">Gắn nhãn "Có giỏ hàng" hoặc "Không" để kết luận chính xác.</p>{% endif %}
   <p class="muted" style="font-size:12px">Chỉ kiểm tra tiêu đề/caption lấy từ TikTok. Lời thoại và bình luận ghim: dán vào trang <a href="/compliance">Tuân thủ</a>.</p>
 </div>

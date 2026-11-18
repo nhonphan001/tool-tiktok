@@ -2,6 +2,8 @@
 
 - violation: lời mời ra ngoài nền tảng (web, Bio, tiểu sử, tên miền, Zalo, Shopee, Lazada, link).
   Với video CÓ giỏ hàng là vi phạm (bị loại); video không giỏ hàng thì là cảnh báo.
+- fortune_risk: nối lá số với vật phẩm / gán công dụng bùa, hộ mệnh, may mắn, bình an, dự đoán chắc chắn
+  (TikTok từ chối quảng bá vì "dịch vụ bói toán và sản phẩm bùa hộ mệnh" — không chạy quảng cáo, nên sửa caption).
 - warning: lời hứa hẹn quá đà / hù dọa.
 """
 import re
@@ -27,6 +29,22 @@ PROMISE_RULES = [
     ("cuu_hon_nhan", "cứu hôn nhân", r"cuu\s*(van\s*)?hon\s*nhan|giu\s*chong\s*chac\s*chan"),
     ("chieu_tai", "hứa chiêu tài", r"chieu\s*tai"),
     ("hu_doa", "hù dọa (đại họa, xui tận mạng...)", r"dai\s*hoa|tan\s*mang|chet\s*choc|tai\s*hoa\s*ap\s*toi|xui\s*xeo\s*ca\s*doi"),
+]
+
+# Tử vi/bói toán + vật phẩm: lý do TikTok từ chối quảng bá ngày 18/11/2026
+# ("nhân vật phong cách thầy bói" + "lá bùa may mắn vì bình an cá nhân").
+FORTUNE_RULES = [
+    ("bua_ho_menh", "bùa / hộ mệnh / hộ thân", r"\bbua\b|ho\s*menh|ho\s*than"),
+    ("tam_linh_vat_pham", "công dụng tâm linh (trấn trạch, trừ tà, giải hạn, khai quang, linh khí...)",
+     r"tran\s*trach|tru\s*ta|giai\s*han|hoa\s*giai|khai\s*quang|linh\s*khi|tich\s*ta"),
+    ("may_man_tai_loc", "hứa may mắn / tài lộc / điều lành",
+     r"(don|hut|thu\s*hut|mang\s*lai|mang\s*den|kich|kich\s*hoat|vuong)\s*(dieu\s*lanh|may\s*man|tai\s*loc|loc\s*la|vuong\s*khi)"),
+    ("binh_an", "hứa bình an (phong thủy bình an...)", r"(phong\s*thuy|giu|mang\s*lai|mang\s*den)\s*binh\s*an"),
+    ("bu_khuyet_la_so", "nối lá số với vật phẩm (thiếu hành → dùng vật phẩm)",
+     r"bu\s*khuyet|bo\s*sung\s*(nguon\s*)?(nang\s*luong|hanh|menh|khi)"
+     r"|thieu\s*(hut\s*)?(nguon\s*)?(nang\s*luong|hanh|kim|moc|thuy|hoa|tho)\b|hop\s*menh\s*nen"),
+    ("du_doan_chac_chan", "dự đoán chắc chắn / kết quả tuyệt đối",
+     r"du\s*doan\s*chinh\s*xac|chac\s*chan\s*se|dam\s*bao\s*se|100\s*%\s*(se|chinh\s*xac|linh)|linh\s*nghiem"),
 ]
 
 ALLOWED_CTA = ["bấm giỏ hàng góc trái", "để lại ngày sinh dưới bình luận để Cô Kim giải mã"]
@@ -57,20 +75,26 @@ def check(text: str, has_cart: bool | None = True) -> dict:
     norm = normalize(text)
     offsite = _scan(text, OFFSITE_RULES, norm)
     promise = _scan(text, PROMISE_RULES, norm)
+    fortune = _scan(text, FORTUNE_RULES, norm)
     if offsite and has_cart:
         level = "violation"
     elif offsite and has_cart is None:
         level = "violation_if_cart"
+    elif fortune:
+        level = "fortune_risk"
     elif offsite or promise:
         level = "warning"
     else:
         level = "ok"
-    return {"level": level, "offsite": offsite, "promise": promise}
+    # Không chạy quảng cáo trả phí khi có dấu hiệu bói toán + vật phẩm
+    return {"level": level, "offsite": offsite, "promise": promise + fortune, "fortune": fortune,
+            "no_ads": bool(fortune or offsite)}
 
 
 LEVEL_LABELS = {
     "violation": "VI PHẠM (video có giỏ hàng)",
     "violation_if_cart": "Vi phạm nếu video có giỏ hàng",
+    "fortune_risk": "Rủi ro bói toán/bùa – không chạy quảng cáo",
     "warning": "Cần xem lại",
     "ok": "Sạch",
 }

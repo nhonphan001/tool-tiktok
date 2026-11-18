@@ -267,3 +267,32 @@ def test_public_api(seeded, monkeypatch):
     d = r.json()
     assert d["latest"]["follower_count"] > 0 and "kpi" in d and "videos" in d
     assert "## KPI" in c.get("/api/public/report.md?token=secret-token").text
+
+
+def test_fortune_amulet_rules():
+    """Video bị TikTok từ chối quảng bá ngày 18/11/2026 (bói toán + bùa hộ mệnh)."""
+    from app import compliance
+
+    cap = ("khi lá số Bát Tự thiếu hụt nguồn năng lượng Kim sáng suốt, bạn rất dễ lo âu. Mang theo Lá Bồ Đề Mạ Vàng "
+           "bên mình sẽ giúp nhắc tâm luôn tĩnh tại và nhẹ nhàng đón điều lành. Bấm vào Giỏ hàng góc trái "
+           "#PhongThuyBinhAn")
+    r = compliance.check(cap, True)
+    assert r["level"] == "fortune_risk" and r["no_ads"]
+    assert {"bu_khuyet_la_so", "may_man_tai_loc", "binh_an"} <= {x["code"] for x in r["fortune"]}
+    for t in ["Lá bùa hộ mệnh", "giúp trấn trạch, hóa giải vận hạn", "chắc chắn sẽ gặp quý nhân",
+              "đeo vòng để bổ sung hành Thủy"]:
+        assert compliance.check(t, True)["level"] == "fortune_risk", t
+    for t in ["Vòng thạch anh tóc đen thiên nhiên, hạt 8mm, dây co giãn. Bấm giỏ hàng góc trái",
+              "Chào buổi sáng, chúc cả nhà một ngày may mắn", "Đêm Trà Giải Mã cùng Cô Kim"]:
+        assert compliance.check(t, True)["level"] == "ok", t
+    assert compliance.check("Xem link bio", True)["level"] == "violation"  # vi phạm nặng hơn vẫn ưu tiên
+
+
+def test_rules_default_not_frozen(seeded):
+    from app import config as cfg
+
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    c.post("/settings", data={"content_rules": cfg._default_text("content_rules.md", "CONTENT_RULES")})
+    assert db.load_settings().get("content_rules") == ""
+    assert "Lá Bồ Đề" in settings.content_rules and "bói toán" in strategy.full_system_prompt()

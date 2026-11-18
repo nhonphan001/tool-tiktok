@@ -66,7 +66,7 @@ def main(src: str, out: str) -> None:
         "tim_xem": (v.get("like_view") or 0) / 100,
         "link": v.get("share_url") or "",
     } for v in d.get("videos", [])])
-    levels = {"violation": "Vi phạm (có giỏ hàng)", "violation_if_cart": "Vi phạm nếu có giỏ hàng", "warning": "Cần xem lại"}
+    levels = {"violation": "Vi phạm (có giỏ hàng)", "violation_if_cart": "Vi phạm nếu có giỏ hàng", "fortune_risk": "Rủi ro bói toán/bùa – không quảng cáo", "warning": "Cần xem lại"}
     dump("tiktok_tuan_thu.json", [{
         "id": str(v["id"]), "ngay": v.get("posted") or "", "tieu_de": v.get("title") or "",
         "muc": levels.get(v.get("level"), v.get("level")), "phat_hien": ", ".join(v.get("found") or []),

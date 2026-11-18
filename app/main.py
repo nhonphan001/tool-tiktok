@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import analytics, compliance, db, jobs, kpi, notebooklm, products, report, scanner, scheduler, strategy, tags, tiktok
-from .config import EDITABLE_KEYS, apply_overrides, settings
+from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 BASE_DIR = os.path.dirname(__file__)
@@ -402,6 +402,8 @@ async def settings_save(request: Request):
             val = "true" if form.get("auto_strategy") else "false"
         elif key in form:
             val = str(form.get(key)).strip()
+            if key in DEFAULT_TEXT_KEYS and val == _default_text(*DEFAULT_TEXT_KEYS[key]).strip():
+                val = ""  # giống mặc định -> lưu trống để luôn theo bản mặc định mới nhất
         else:
             continue
         db.save_setting(key, val)
