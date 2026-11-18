@@ -590,3 +590,58 @@ def test_public_dashboard_files(seeded, monkeypatch):
         j = c.get(f"/api/public/dashboard/{n}.json", headers={"x-api-token": "tk"}).json()
         assert "rows" in j and "meta" in j, n
     assert c.get("/api/public/dashboard/tiktok_kenh.json?token=tk").json()["rows"][0]["follower"] > 0
+
+
+REAL_ROWS = [  # dữ liệu thật của bảng quản trị ngày 18/11 (cột A..N) + cột O "Tên dùng trong video" đề xuất
+    ["SP-THUY-01", "Thủy", "Vòng Đá Aquamarine Xanh Biếc Hải Lam", "Vòng tay đá tự nhiên", "Xanh nước biển trong (Aquamarine)",
+     "Hạ nhiệt Hỏa viêm, khơi thông mạch Tài Tinh và giữ tâm trí điềm tĩnh thông suốt",
+     "Người khuyết Thủy như lá số này hãy đeo vòng đá Aquamarine xanh biếc Cô Kim ghim sẵn ở giỏ hàng góc trái nhé",
+     "389.000 ₫", "15,0%", "https://www.tiktok.com/@tiemtragiaima", "https://shopee.vn", "https://www.lazada.vn",
+     "Đang Bật", "Mã gắn giỏ hàng: SP-THUY-01"],
+    ["SP-KIM-04", "Kim", "Lá Bồ Đề Mạ Vàng - Mặt Trước Hình Hoa Sen Và Chữ Phúc - Mặt Sau Hình Phật - Kèm Túi Nhung Chữ Lộc Phong Thủy Trang Trí",
+     "Vật phẩm hộ mệnh bỏ ví / ốp điện thoại / bàn trà", "Lá Bồ Đề mạ vàng ánh kim kèm túi nhung đỏ thêu chữ Lộc",
+     "Bồi đắp Kim khí thanh tịnh kết hợp sắc đỏ Hỏa ấm, giúp tịnh tâm, giữ bình an và tụ phúc lành cuối năm",
+     "Lá Bồ Đề mạ vàng khắc hoa sen chữ Phúc kèm túi nhung chữ Lộc ở giỏ hàng góc trái sẽ giúp bạn gửi gắm ước nguyện bình an mỗi ngày",
+     "68.000 ₫", "20,0%", "https://vt.tiktok.com/ZS9fokDfBWDLu-Madov/", "Chưa áp dụng", "Chưa áp dụng", "Đang Bật",
+     "Mã gắn giỏ hàng: SP-KIM-04", "Lá bồ đề mạ vàng kèm túi nhung đỏ"],
+]
+
+
+def test_products_sheet_video_name_and_audit(seeded, monkeypatch):
+    from app import packages, products
+
+    class R:
+        status_code = 200
+
+        def json(self):
+            return {"values": REAL_ROWS}
+
+    class Creds:
+        token = "t"
+
+    monkeypatch.setattr(settings, "product_csv_url", "")
+    monkeypatch.setattr(settings, "product_sheet_id", "SHEET")
+    monkeypatch.setattr("app.notebooklm._credentials", lambda scopes: Creds())
+    monkeypatch.setattr(products.httpx, "get", lambda *a, **k: R())
+    msg, _ = products.sync()
+    assert "2 sản phẩm" in msg and "1 mã chưa có link TikTok Shop thật" in msg and "1 mã chưa có “Tên dùng trong video”" in msg
+    p = products.by_code()
+    assert p["SP-KIM-04"]["video_name"] == "Lá bồ đề mạ vàng kèm túi nhung đỏ"
+    assert not products.real_link(p["SP-THUY-01"]["link"]) and products.real_link(p["SP-KIM-04"]["link"])
+    a1 = {x["field"] for x in products.audit(p["SP-THUY-01"])}
+    assert "Lời thoại gợi ý" in a1  # "Người khuyết Thủy như lá số này hãy đeo…"
+    a4 = {x["field"] for x in products.audit(p["SP-KIM-04"])}
+    assert {"Phân loại", "Công năng", "Lời thoại gợi ý"} <= a4 and "Tên dùng trong video" not in a4
+
+    pkg = {"goi": "T", "loai": 2, "sku": "SP-KIM-04", "product_name": "Lá bồ đề mạ vàng kèm túi nhung đỏ",
+           "scene1": "Lá bồ đề mạ vàng kèm túi nhung đỏ, bấm giỏ hàng góc trái nhé", "caption": "Bấm giỏ hàng góc trái"}
+    chk = packages.check(pkg)
+    assert not any(i["rule"].startswith("B.3") and i["level"] == "error" for i in chk["items"]), chk["items"]
+    assert not chk["ads_ok"] and any("KHÔNG chạy Quảng bá" in i["msg"] for i in chk["items"])  # "Vật phẩm hộ mệnh"
+    pkg2 = dict(pkg, sku="SP-THUY-01", product_name="Vòng đá")
+    rules = [i for i in packages.check(pkg2)["items"] if i["rule"].startswith("B.3")]
+    assert any("link tạm" in i["msg"] for i in rules) and any(i["level"] == "error" for i in rules)
+    c = TestClient(app)
+    c.post("/login", data={"password": "pw"})
+    page = c.get("/products").text
+    assert "Tên dùng trong video" in page and "link tạm" in page

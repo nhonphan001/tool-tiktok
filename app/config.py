@@ -68,7 +68,7 @@ class Settings:
     # Bảng quản trị sản phẩm (Google Sheets, chỉ đọc bằng service account)
     product_sheet_id: str = field(default_factory=lambda: os.getenv("PRODUCT_SHEET_ID", ""))
     product_sheet_range: str = field(
-        default_factory=lambda: os.getenv("PRODUCT_SHEET_RANGE", "San_Pham_Affiliate_5_Hanh!A10:N")
+        default_factory=lambda: os.getenv("PRODUCT_SHEET_RANGE", "San_Pham_Affiliate_5_Hanh!A10:O")
     )
 
     # Hoặc link CSV đã "Xuất bản lên web" (vd. tab WEB_XUAT_BAN) — không cần service account

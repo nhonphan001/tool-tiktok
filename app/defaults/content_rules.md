@@ -15,7 +15,13 @@ B. TỬ VI, BÓI TOÁN VÀ VẬT PHẨM (Chính sách quảng cáo TikTok, mục
    - Không khẳng định chắc chắn: "chắc chắn sẽ", "đảm bảo", "100%", "dự đoán chính xác", "sẽ gặp/sẽ giàu/sẽ hết".
 6. Quảng cáo trả phí (Quảng bá, GMV Max…): chỉ chạy cho video sản phẩm thuần (mục 5, gạch đầu dòng 3). Hình ảnh hù dọa/siêu nhiên chỉ được xuất hiện sau 6 giây đầu.
 
-C. KHÁC
-7. Không hứa hẹn quá đà: không nói vật phẩm chữa bệnh, đảm bảo giàu có, cứu hôn nhân; không hù dọa người xem.
-8. Không bịa tên sản phẩm; chỉ dùng tên đúng theo bảng quản trị sản phẩm.
-9. Thận trọng (đề xuất của Claude, chưa phải văn bản TikTok): hạn chế đưa hình Phật/thần linh làm điểm bán của sản phẩm trong video có giỏ hàng.
+C. HÌNH ẢNH (chuẩn v3.1, áp dụng mọi video, bắt buộc với video có giỏ hàng)
+7. Không lửa cháy, tia sáng phép thuật, linh vật/tượng vàng phát sáng (ngựa, chim, cóc…), hào quang quanh vật phẩm hay nhân vật.
+8. Không cảnh chắp tay khấn vái, lễ bái trước vật phẩm; không bày bàn thờ, nhang đèn cúng trong video có giỏ hàng.
+9. Vật phẩm trong video có giỏ hàng phải là hình sản phẩm thật, đúng chi tiết như trong giỏ hàng (mặt khắc, chữ thêu, màu); ảnh AI chỉ dùng làm bối cảnh/nhân vật.
+10. Video sản phẩm (Loại 2) không có cảnh Cô Kim xem lá số; ưu tiên cận cảnh tay cầm sản phẩm, bàn trà, ánh sáng tự nhiên.
+
+D. KHÁC
+11. Không hứa hẹn quá đà: không nói vật phẩm chữa bệnh, đảm bảo giàu có, cứu hôn nhân; không hù dọa người xem.
+12. Không bịa tên sản phẩm: dùng đúng cột "Tên dùng trong video" của bảng quản trị (sạch B.4); chưa có cột này thì dùng tên trong bảng nhưng bỏ các từ cấm ở mục B.
+13. Thận trọng (đề xuất của Claude, chưa phải văn bản TikTok): hạn chế đưa hình Phật/thần linh làm điểm bán của sản phẩm trong video có giỏ hàng.

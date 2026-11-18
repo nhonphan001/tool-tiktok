@@ -11,11 +11,12 @@ import json
 import re
 
 from . import analytics, battu, compliance, db, products, tags
+from .products import real_link
 
 SCENES = ("scene1", "scene2", "scene3", "scene4")
 FIELDS = ("goi", "title", "loai", "content_group", "sku", "product_name", "on_screen", "caption", "pinned", "note",
           *SCENES)
-LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng, được quảng cáo)"}
+LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)"}
 STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "da_dang": "Đã đăng"}
 SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # 24–28 âm tiết / cảnh 8 giây (chuẩn của quy trình v2.5)
 
@@ -163,6 +164,7 @@ def check(p: dict) -> dict:
         if m:
             add("warn", "B.4.1", f"Video lá số đang khuyên dùng vật phẩm (“{m.group(0)}”): không nối lá số với vật phẩm.")
     product = None
+    product_no_ads = False
     sku = (p.get("sku") or "").strip().upper()
     if loai == 1 and sku:
         add("error", "B.4.3", "Video giải mã lá số không gắn giỏ hàng / SKU.")
@@ -188,14 +190,31 @@ def check(p: dict) -> dict:
         else:
             product = prods[sku]
             name = (p.get("product_name") or "").strip()
+            vname = (product.get("video_name") or "").strip()
+            # Tên đúng để dùng trong video: cột "Tên dùng trong video" (sạch B.4); chưa có thì dùng tên trong bảng
+            ref = vname or product["name"]
+            if not vname:
+                bad_name = compliance.check(product["name"], True)
+                if bad_name["promise"] or bad_name["offsite"]:
+                    add("error", "B.3/B.4", f"Tên {sku} trong bảng có từ cấm B.4 "
+                        f"({', '.join(x['match'] for x in bad_name['promise'] + bad_name['offsite'])}). "
+                        "Cần điền cột “Tên dùng trong video” trong bảng quản trị rồi đọc lại bảng.")
+                else:
+                    add("warn", "B.3", f"{sku} chưa có cột “Tên dùng trong video” trong bảng — tạm đối chiếu theo tên đầy đủ.")
             if not name:
-                add("warn", "B.3", f"Chưa ghi tên sản phẩm trong kịch bản. Tên đúng theo bảng: “{product['name']}”.")
-            elif compliance.normalize(name).strip() != compliance.normalize(product["name"]).strip():
-                add("error", "B.3", f"Tên sản phẩm phải chép đúng bảng: “{product['name']}” (đang ghi “{name}”).")
-            if not (product.get("link") or "").startswith("http"):
-                add("warn", "B.3", f"{sku} chưa có link TikTok Shop thật trong bảng.")
-            if loai == 2 and compliance.normalize(product["name"]).strip() not in norm:
-                add("warn", "B.3", "Lời thoại/caption chưa nhắc tên sản phẩm đúng như bảng.")
+                add("warn", "B.3", f"Chưa ghi tên sản phẩm trong kịch bản. Tên dùng trong video: “{ref}”.")
+            elif compliance.normalize(name).strip() not in (compliance.normalize(ref).strip(),
+                                                              compliance.normalize(product["name"]).strip()):
+                add("error", "B.3", f"Tên sản phẩm phải đúng bảng: “{ref}” (đang ghi “{name}”).")
+            if not real_link(product.get("link") or ""):
+                add("warn", "B.3", f"{sku} chưa có link TikTok Shop thật trong bảng (đang là link tạm hoặc trống).")
+            if loai == 2 and compliance.normalize(ref).strip() not in norm:
+                add("warn", "B.3", f"Lời thoại/caption chưa nhắc tên sản phẩm “{ref}”.")
+            for a in products.audit(product):
+                if a["field"] in ("Tên trong bảng", "Phân loại"):
+                    product_no_ads = True
+                    add("warn", "B.4", f"{sku}: {a['field']} trong bảng mang tính tâm linh ({a['found']}) — TikTok có thể "
+                                       "xếp sản phẩm vào nhóm bùa hộ mệnh: KHÔNG chạy Quảng bá/GMV Max cho SKU này.")
             if re.search(r"ngung|het\s*hang|tam\s*dung", compliance.normalize(product.get("status") or "")):
                 add("warn", "B.3", f"Trạng thái {sku} trong bảng: “{product['status']}”.")
 
@@ -244,7 +263,7 @@ def check(p: dict) -> dict:
     if not items:
         add("ok", "Tổng", "Không phát hiện vấn đề.")
     hanh = chart["dung_than"] if (loai == 1 and chart) else (product["element"] if product else "")
-    return {"items": items, "errors": errors, "warns": warns, "ads_ok": loai == 2 and errors == 0 and not fortune_any,
+    return {"items": items, "errors": errors, "warns": warns, "ads_ok": loai == 2 and errors == 0 and not fortune_any and not product_no_ads,
             "chart": chart, "hanh": hanh, "product": product}
 
 
@@ -257,7 +276,7 @@ def nhan_video_block(p: dict, chk: dict) -> str:
         f"  loai: {p.get('loai')}  # {LOAI.get(int(p.get('loai') or 1), '')}",
         f"  nhom_noi_dung: {p.get('content_group') or ''}",
         f"  ma_san_pham: {p.get('sku') or ''}",
-        f"  ten_san_pham: {(chk['product'] or {}).get('name') or p.get('product_name') or ''}",
+        f"  ten_san_pham: {(chk['product'] or {}).get('video_name') or (chk['product'] or {}).get('name') or p.get('product_name') or ''}",
         f"  hanh_dung_than: {chk['hanh'] or ''}",
         f"  co_gio_hang: {'co' if int(p.get('loai') or 1) == 2 else 'khong'}",
         f"  duoc_chay_quang_cao: {'true' if chk['ads_ok'] else 'false'}",

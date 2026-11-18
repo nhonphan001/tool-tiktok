@@ -12,8 +12,16 @@ from .config import settings
 SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}"
 ELEMENTS = ["Kim", "Mộc", "Thủy", "Hỏa", "Thổ"]
 # Cột theo tài liệu bàn giao: A mã, B hành, C tên, E màu sắc & chất liệu, H giá, I hoa hồng, J link, M trạng thái, N ghi chú
-SHEET_COLUMNS = {"code": 0, "element": 1, "name": 2, "material": 4, "price": 7, "commission": 8, "link": 9,
-                 "status": 12, "note": 13}
+SHEET_COLUMNS = {"code": 0, "element": 1, "name": 2, "category": 3, "material": 4, "benefit": 5, "cta": 6, "price": 7,
+                 "commission": 8, "link": 9, "status": 12, "note": 13, "video_name": 14}
+# Cột O (thêm mới): "Tên dùng trong video" — tên ngắn, sạch quy tắc B.4, dùng trong lời thoại/caption
+PLACEHOLDER_LINK = re.compile(r"^https?://(www\.)?(tiktok\.com/@[\w.]+|shopee\.vn|lazada\.vn)/?$", re.I)
+
+
+def real_link(url: str) -> bool:
+    """Link TikTok Shop thật (không phải link tạm trỏ về trang kênh / trang chủ sàn)."""
+    u = (url or "").strip()
+    return u.startswith("http") and not PLACEHOLDER_LINK.match(u)
 CODE_RE = re.compile(r"^SP-[A-Z]+-\d+", re.I)
 
 
@@ -38,12 +46,16 @@ def _rows_from_sheets_api() -> list[dict]:
         raise RuntimeError(f"Google Sheets lỗi {r.status_code}: {r.text[:300]}")
     out = []
     for row in r.json().get("values", []):
-        row = row + [""] * (14 - len(row))
+        row = row + [""] * (15 - len(row))
         out.append({k: (row[i] or "").strip() for k, i in SHEET_COLUMNS.items()})
     return out
 
 
-HEADER_KEYS = [  # (trường, điều kiện trên tiêu đề đã bỏ dấu)
+HEADER_KEYS = [  # (trường, điều kiện trên tiêu đề đã bỏ dấu) — thứ tự quan trọng
+    ("video_name", lambda h: "trong video" in h or h.startswith("ten video")),
+    ("cta", lambda h: "loi thoai" in h or "cta" in h),
+    ("benefit", lambda h: "cong nang" in h),
+    ("category", lambda h: "phan loai" in h),
     ("code", lambda h: h.startswith("ma") or "code" in h),
     ("element", lambda h: "hanh" in h),
     ("name", lambda h: h.startswith("ten") or "name" in h),
@@ -97,15 +109,38 @@ def sync() -> tuple[str, None]:
         for it in items:
             c.execute(
                 "INSERT OR REPLACE INTO products(code, element, name, material, price, commission, link, status, note,"
-                " synced_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                " synced_at, video_name, benefit, cta, category) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     it["code"].upper(), normalize_element(it.get("element", "")), it.get("name", ""),
                     it.get("material", ""), it.get("price", ""), it.get("commission", ""), it.get("link", ""),
-                    it.get("status", ""), it.get("note", ""), ts,
+                    it.get("status", ""), it.get("note", ""), ts, it.get("video_name", ""), it.get("benefit", ""),
+                    it.get("cta", ""), it.get("category", ""),
                 ),
             )
-    missing = sum(1 for it in items if not it.get("link", "").startswith("http"))
-    return f"Đã đọc {len(items)} sản phẩm từ {src}; {missing} mã chưa có link TikTok Shop", None
+    missing = sum(1 for it in items if not real_link(it.get("link", "")))
+    no_vname = sum(1 for it in items if not it.get("video_name"))
+    msg = f"Đã đọc {len(items)} sản phẩm từ {src}; {missing} mã chưa có link TikTok Shop thật"
+    if no_vname:
+        msg += f"; {no_vname} mã chưa có “Tên dùng trong video”"
+    return msg, None
+
+
+def audit(p: dict) -> list[dict]:
+    """Rà B.4 trên tên, tên dùng trong video, công năng và lời thoại gợi ý của 1 SKU trong bảng."""
+    from . import compliance
+
+    out = []
+    for field, label in (("name", "Tên trong bảng"), ("category", "Phân loại"), ("video_name", "Tên dùng trong video"),
+                         ("benefit", "Công năng"),
+                         ("cta", "Lời thoại gợi ý")):
+        t = p.get(field) or ""
+        if not t:
+            continue
+        r = compliance.check(t, True)
+        found = r["offsite"] + r["promise"]
+        if found:
+            out.append({"field": label, "found": ", ".join(f"{x['label']} (“{x['match']}”)" for x in found)})
+    return out
 
 
 def all_products() -> list[dict]:

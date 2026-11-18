@@ -39,7 +39,8 @@ FORTUNE_RULES = [
      r"tran\s*trach|tru\s*ta|giai\s*han|hoa\s*giai|khai\s*quang|linh\s*khi|tich\s*ta"),
     ("may_man_tai_loc", "hứa may mắn / tài lộc / điều lành",
      r"(don|hut|thu\s*hut|mang\s*lai|mang\s*den|kich|kich\s*hoat|vuong)\s*(dieu\s*lanh|may\s*man|tai\s*loc|loc\s*la|vuong\s*khi)"),
-    ("binh_an", "hứa bình an (phong thủy bình an...)", r"(phong\s*thuy|giu|mang\s*lai|mang\s*den)\s*binh\s*an"),
+    ("binh_an", "hứa bình an (phong thủy bình an, cầu bình an...)",
+     r"(phong\s*thuy|giu|mang\s*lai|mang\s*den|cau|uoc\s*nguyen|giu\s*gin)\s*binh\s*an"),
     ("bu_khuyet_la_so", "nối lá số với vật phẩm (thiếu hành → dùng vật phẩm)",
      r"bu\s*khuyet|khuyet\s*(hanh\s*)?(kim|moc|thuy|hoa|tho)\b|bo\s*sung\s*(nguon\s*)?(nang\s*luong|hanh|menh|khi)"
      r"|thieu\s*(hut\s*)?(nguon\s*)?(nang\s*luong|hanh|kim|moc|thuy|hoa|tho)\b|hop\s*menh\s*nen"),

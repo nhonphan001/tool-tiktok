@@ -402,6 +402,9 @@ def products_page(request: Request):
                 u = usage.setdefault(code, {"count": 0, "views": 0})
                 u["count"] += 1
                 u["views"] += v["view_count"] or 0
+    for it in items:
+        it["audit"] = products.audit(it)
+        it["real_link"] = products.real_link(it.get("link") or "")
     return render(
         request, "products.html", items=items, usage=usage, s=settings, running=jobs.running("products"),
         synced=items[0]["synced_at"] if items else None,

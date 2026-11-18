@@ -153,6 +153,10 @@ MIGRATIONS = [
     ("strategies", "duration_sec", "REAL DEFAULT 0"),
     ("strategies", "endpoint", "TEXT DEFAULT ''"),
     ("strategies", "endpoint_note", "TEXT DEFAULT ''"),
+    ("products", "video_name", "TEXT DEFAULT ''"),
+    ("products", "benefit", "TEXT DEFAULT ''"),
+    ("products", "cta", "TEXT DEFAULT ''"),
+    ("products", "category", "TEXT DEFAULT ''"),
 ]
 
 
