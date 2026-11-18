@@ -64,3 +64,37 @@ pre.report{white-space:pre-wrap;font-size:13px}
 .chk{list-style:none;padding:0;margin:0}.chk li{padding:6px 0;border-bottom:1px solid var(--border);font-size:14px}
 .chk .error{color:var(--err)}.chk .warn{color:#b7791f}.chk .ok{color:var(--ok)}
 pre.block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;font-size:13px}
+nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
+.side.pkg{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+code{overflow-wrap:anywhere}
+.md table{display:block;overflow-x:auto;max-width:100%}
+/* ---------- Mobile ---------- */
+@media (max-width:800px){
+  .side.pkg{grid-template-columns:1fr}
+  nav{padding:8px 12px 0;gap:0}
+  nav .brand{margin-right:auto;padding:4px 0}
+  nav .right{margin-left:0;gap:8px;font-size:13px}
+  nav .right .acc{display:none}
+  nav .tabs{order:3;flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:6px -12px 0;padding:0 12px 8px;-webkit-overflow-scrolling:touch}
+  nav .tabs::-webkit-scrollbar{display:none}
+  nav a.tab{white-space:nowrap;padding:7px 11px;flex:none}
+  main{padding:14px 12px 60px}
+  h1{font-size:20px}
+  .card{padding:13px}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stat .value{font-size:22px}
+  input,select,textarea{font-size:16px}  /* iOS không tự phóng to khi chạm ô nhập */
+  .row>input,.row>select{max-width:none!important;flex:1 1 140px}
+  .row>.btn,.row>form{flex:none}
+  .scroll table{min-width:560px}
+  .btn{padding:10px 14px}
+  #toasts{left:12px;right:12px;bottom:12px;max-width:none}
+}
+@media (max-width:800px){
+  table.vids td:nth-child(2){min-width:170px}
+  table.vids td:nth-child(4){min-width:max-content}
+  .md table{width:max-content;min-width:100%}
+  .md{overflow-wrap:anywhere}
+}
+@media (min-width:801px){nav{flex-wrap:nowrap}nav .tabs{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:2px}nav .tabs::-webkit-scrollbar{display:none}nav a.tab{white-space:nowrap;padding:8px 10px}nav .right{flex:none}}
+@media (min-width:801px) and (max-width:1360px){nav .right .acc{display:none}nav .brand{margin-right:8px}}

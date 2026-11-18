@@ -3,7 +3,7 @@
 {% block content %}
 <p><a href="/packages">← Gói sản xuất</a></p>
 <h1>{{ ('Gói ' ~ p.goi) if p.goi else 'Gói mới' }}{% if p.title %} — {{ p.title }}{% endif %}</h1>
-<div class="side" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
+<div class="side pkg">
 <div class="card">
   <form method="post" action="/packages/save">
     {% if p.id %}<input type="hidden" name="id" value="{{ p.id }}">{% endif %}

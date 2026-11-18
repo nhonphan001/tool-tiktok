@@ -9,6 +9,7 @@
 <body>
 <nav>
   <a class="brand" href="/">Tik<span>Tok</span> Manager</a>
+  <div class="tabs">
   <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan</a>
   <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
   <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
@@ -19,8 +20,9 @@
   <a class="tab {{ 'on' if active=='products' }}" href="/products">Sản phẩm</a>
   <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo</a>
   <a class="tab {{ 'on' if active=='settings' }}" href="/settings">Cài đặt</a>
+  </div>
   <div class="right">
-    {% if account %}<span>@{{ account.username or account.display_name or 'kênh' }}</span>{% endif %}
+    {% if account %}<span class="acc">@{{ account.username or account.display_name or 'kênh' }}</span>{% endif %}
     <form method="post" action="/scan" style="margin:0"><button class="btn small">Quét ngay</button></form>
     <a href="/logout">Đăng xuất</a>
   </div>
@@ -31,6 +33,7 @@
 {% block content %}{% endblock %}
 </main>
 <script>
+document.querySelector("nav .tab.on")?.scrollIntoView({inline:"center",block:"nearest"});
 Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
 Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
 Chart.defaults.font.family = 'system-ui, sans-serif';

@@ -18,7 +18,7 @@
   <label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" name="untagged" value="1" style="width:auto" {{ 'checked' if untagged }}> Chưa gắn nhãn</label>
   <button class="btn sec">Lọc</button>
 </form>
-<div class="card scroll"><table>
+<div class="card scroll"><table class="vids">
 <tr><th></th><th>Video</th><th>Nhãn</th><th>Tuân thủ</th><th>Đăng lúc</th><th class="n">View</th><th class="n">Like</th><th class="n">Cmt</th><th class="n">Share</th><th class="n">Tim/view</th><th class="n">View/ngày</th></tr>
 {% for v in videos %}
 <tr>
