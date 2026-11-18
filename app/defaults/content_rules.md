@@ -17,7 +17,8 @@ B. TỬ VI, BÓI TOÁN VÀ VẬT PHẨM (Chính sách quảng cáo TikTok, mục
 
 C. HÌNH ẢNH (chuẩn v3.1, áp dụng mọi video, bắt buộc với video có giỏ hàng)
 7. Không lửa cháy, tia sáng phép thuật, linh vật/tượng vàng phát sáng (ngựa, chim, cóc…), hào quang quanh vật phẩm hay nhân vật.
-8. Không cảnh chắp tay khấn vái, lễ bái trước vật phẩm; không bày bàn thờ, nhang đèn cúng trong video có giỏ hàng.
+8. Không cảnh chắp tay khấn vái, lễ bái trước vật phẩm; không thắp nhang, không mâm cúng, không bàn thờ làm phông nền trong video có giỏ hàng.
+   Ngoại lệ — sản phẩm vệ sinh/dọn dẹp bàn thờ (khăn lau, chổi, dung dịch lau): được quay cảnh LAU DỌN mặt bàn thờ như việc nhà bình thường (tay lau mặt gỗ, chân đèn, bình hoa), nhang chưa thắp, không ai khấn vái; không nói sản phẩm giúp "rước lộc, đón tài lộc, giữ bình an, ông bà phù hộ"; chỉ nói công dụng làm sạch, mùi hương, quy cách. Không quay cận ảnh thờ/di ảnh, tượng Phật.
 9. Vật phẩm trong video có giỏ hàng phải là hình sản phẩm thật, đúng chi tiết như trong giỏ hàng (mặt khắc, chữ thêu, màu); ảnh AI chỉ dùng làm bối cảnh/nhân vật.
 10. Video sản phẩm (Loại 2) không có cảnh Cô Kim xem lá số; ưu tiên cận cảnh tay cầm sản phẩm, bàn trà, ánh sáng tự nhiên.
 
