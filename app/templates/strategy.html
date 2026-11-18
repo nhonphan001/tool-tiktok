@@ -16,7 +16,7 @@
       <div><b>{{ usage.month.cost_vnd|num }} ₫</b> <span class="muted">(${{ '%.4f'|format(usage.month.cost) }})</span></div>
       <div class="muted">{{ usage.month.calls }} lần gọi · {{ usage.month.tokens|num }} token</div>
       <div class="muted" style="margin-top:8px">Từ trước tới nay: {{ usage.total.cost_vnd|num }} ₫ · {{ usage.total.tokens|num }} token</div>
-      <div class="muted" style="margin-top:8px;font-size:12px">Ước tính theo giá cấu hình trong Cài đặt. Số tiền thực tế xem ở Google Cloud → Billing.</div>
+      <div class="muted" style="margin-top:8px;font-size:12px">Ước tính theo bảng giá Google của model đang dùng (xem Cài đặt). Số tiền thực tế xem ở Google Cloud → Billing.</div>
     </div>
     <div class="card list" style="margin-top:16px"><h2>Lịch sử</h2>
       {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at|localtime }}

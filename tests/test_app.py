@@ -296,3 +296,43 @@ def test_rules_default_not_frozen(seeded):
     c.post("/settings", data={"content_rules": cfg._default_text("content_rules.md", "CONTENT_RULES")})
     assert db.load_settings().get("content_rules") == ""
     assert "Lá Bồ Đề" in settings.content_rules and "bói toán" in strategy.full_system_prompt()
+
+
+def test_pricing_table(monkeypatch):
+    from app import pricing
+
+    monkeypatch.setattr(settings, "gemini_price_input", 0)
+    monkeypatch.setattr(settings, "gemini_price_output", 0)
+    assert pricing.price_for("gemini-3.8-flash", "vertex", "2026-11-18")[:2] == (0.825, 4.125)
+    assert pricing.price_for("gemini-3.8-flash", "aistudio", "2026-11-18")[:2] == (0.75, 3.75)
+    assert pricing.price_for("gemini-3.8-flash", "vertex", "2027-01-01")[:2] == (1.65, 8.25)
+    assert pricing.price_for("gemini-3.8-flash", "aistudio", "2027-03-01")[:2] == (1.50, 7.50)
+    assert pricing.price_for("model-la", "vertex")[:2] == (0.0, 0.0)
+    # 12.000 vào + (3.500 ra + 1.500 suy luận) qua Vertex theo vùng, 18/11/2026
+    c = strategy.estimate_cost(12000, 3500, 1500, "gemini-3.8-flash", "vertex", "2026-11-18T08:00:00+00:00")
+    assert abs(c - (12000 * 0.825 + 5000 * 4.125) / 1e6) < 1e-12
+    monkeypatch.setattr(settings, "gemini_price_input", 1.0)
+    monkeypatch.setattr(settings, "gemini_price_output", 2.0)
+    assert pricing.price_for("gemini-3.8-flash", "vertex")[2] == "nhập tay trong Cài đặt"
+
+
+def test_recompute_costs(seeded, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_price_input", 0)
+    monkeypatch.setattr(settings, "gemini_price_output", 0)
+    with db.tx() as c:
+        sid = c.execute(
+            "INSERT INTO strategies(open_id, created_at, source, model, goal, content_md, status, input_tokens,"
+            " output_tokens, thinking_tokens, total_tokens, cost_usd) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (seeded, "2026-11-17T08:58:00+00:00", "gemini", "gemini-3.8-flash", "", "x", "done", 10000, 2000, 1000,
+             13000, 0.0105),
+        ).lastrowid
+        c.execute(
+            "INSERT INTO ai_usage(created_at, kind, ref_id, backend, model, input_tokens, output_tokens,"
+            " thinking_tokens, total_tokens, cost_usd) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            ("2026-11-17T08:58:00+00:00", "strategy", sid, "vertex", "gemini-3.8-flash", 10000, 2000, 1000, 13000,
+             0.0105),
+        )
+    strategy.recompute_costs()
+    want = (10000 * 0.825 + 3000 * 4.125) / 1e6
+    assert abs(db.query_one("SELECT cost_usd FROM strategies WHERE id=?", (sid,))["cost_usd"] - want) < 1e-12
+    assert abs(db.query_one("SELECT cost_usd FROM ai_usage WHERE ref_id=?", (sid,))["cost_usd"] - want) < 1e-12

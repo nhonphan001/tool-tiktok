@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import analytics, compliance, db, jobs, kpi, notebooklm, products, report, scanner, scheduler, strategy, tags, tiktok
+from . import analytics, compliance, db, jobs, kpi, notebooklm, pricing, products, report, scanner, scheduler, strategy, tags, tiktok
 from .config import DEFAULT_TEXT_KEYS, EDITABLE_KEYS, _default_text, apply_overrides, settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -30,6 +30,9 @@ templates.env.filters["markdown"] = lambda t: md.markdown(t or "", extensions=["
 async def lifespan(app: FastAPI):
     db.get_conn()
     apply_overrides(db.load_settings())
+    if db.load_settings().get("cost_recomputed") != "v1":  # tính lại chi phí theo bảng giá mới (một lần)
+        strategy.recompute_costs()
+        db.save_setting("cost_recomputed", "v1")
     if os.getenv("DISABLE_SCHEDULER") != "1":
         scheduler.start()
     yield
@@ -390,6 +393,7 @@ def settings_page(request: Request):
         scans=db.query("SELECT * FROM scans ORDER BY id DESC LIMIT 20"),
         syncs=db.query("SELECT * FROM sync_log ORDER BY id DESC LIMIT 20"),
         sa_email=notebooklm.service_account_email(),
+        price_now=pricing.price_for(settings.gemini_model, settings.gemini_backend),
         tiktok_ready=bool(settings.tiktok_client_key and settings.tiktok_client_secret),
     )
 
@@ -410,6 +414,13 @@ async def settings_save(request: Request):
     apply_overrides(db.load_settings())
     scheduler.reschedule()
     flash(request, "Đã lưu cài đặt", "success")
+    return RedirectResponse("/settings", status_code=303)
+
+
+@app.post("/settings/recompute-costs")
+def settings_recompute_costs(request: Request):
+    n = strategy.recompute_costs()
+    flash(request, f"Đã tính lại chi phí cho {n} bản ghi theo giá hiện tại", "success")
     return RedirectResponse("/settings", status_code=303)
 
 

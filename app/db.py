@@ -164,6 +164,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "UPDATE strategies SET status='error', notified=0, content_md='Bị gián đoạn do ứng dụng khởi động lại. Hãy tạo lại.'"
         " WHERE status='pending'"
     )
+    # Giá mặc định cũ (0.30 / 2.50 USD) bị lưu lại khi bấm Lưu cài đặt -> bỏ để dùng bảng giá tự động
+    for key, olds in (("gemini_price_input", ("0.3", "0.30")), ("gemini_price_output", ("2.5", "2.50"))):
+        conn.execute("DELETE FROM app_settings WHERE key=? AND value IN (?, ?)", (key, *olds))
     conn.execute(
         "UPDATE jobs SET status='error', notified=0, message='Bị gián đoạn do ứng dụng khởi động lại.' WHERE status='pending'"
     )

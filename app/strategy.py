@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from . import analytics, db, report
+from . import analytics, db, pricing, report
 from .config import settings
 
 log = logging.getLogger(__name__)
@@ -34,11 +34,36 @@ class StrategyError(Exception):
     pass
 
 
-def estimate_cost(input_tokens: int, output_tokens: int, thinking_tokens: int) -> float:
-    """Chi phí ước tính (USD). Token suy luận (thinking) được tính giá như output."""
-    return (
-        input_tokens * settings.gemini_price_input + (output_tokens + thinking_tokens) * settings.gemini_price_output
-    ) / 1_000_000
+def estimate_cost(input_tokens: int, output_tokens: int, thinking_tokens: int, model: str | None = None,
+                  backend: str | None = None, when=None) -> float:
+    """Chi phí ước tính (USD) theo bảng giá của model/cổng gọi tại thời điểm gọi."""
+    return pricing.cost(input_tokens, output_tokens, thinking_tokens, model or settings.gemini_model,
+                        backend or settings.gemini_backend, when)
+
+
+def recompute_costs() -> int:
+    """Tính lại chi phí mọi lần gọi đã lưu theo bảng giá hiện tại. Trả về số bản ghi đã cập nhật."""
+    n = 0
+    rows = db.query("SELECT * FROM ai_usage")
+    backend_by_strategy = {}
+    with db.tx() as c:
+        for r in rows:
+            cst = estimate_cost(r["input_tokens"], r["output_tokens"], r["thinking_tokens"], r["model"],
+                                r["backend"], r["created_at"])
+            c.execute("UPDATE ai_usage SET cost_usd=? WHERE id=?", (cst, r["id"]))
+            if r["kind"] == "strategy" and r["ref_id"]:
+                backend_by_strategy[r["ref_id"]] = r["backend"]
+            n += 1
+        srows = c.execute(
+            "SELECT id, model, created_at, input_tokens, output_tokens, thinking_tokens FROM strategies"
+            " WHERE total_tokens > 0"
+        ).fetchall()
+        for st in srows:
+            cst = estimate_cost(st["input_tokens"], st["output_tokens"], st["thinking_tokens"], st["model"],
+                                backend_by_strategy.get(st["id"]), st["created_at"])
+            c.execute("UPDATE strategies SET cost_usd=? WHERE id=?", (cst, st["id"]))
+            n += 1
+    return n
 
 
 def _usage(body: dict) -> dict:
