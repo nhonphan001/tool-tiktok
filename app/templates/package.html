@@ -79,10 +79,13 @@
 {% endif %}{% endfor %}</div></div>{% endif %}
     {% for key, label in [('final_video', 'Video thành phẩm (bản đăng)'), ('clean_video', 'Bản sạch (không phụ đề)')] %}{% if p[key] %}
     <div class="kit-item kit-video"><div class="kit-head"><b>🎬 {{ label }}</b>
-      <span class="row" style="gap:6px"><a class="btn small" href="https://drive.google.com/file/d/{{ p[key] }}/view" target="_blank" rel="noopener">Xem</a>
-      <a class="btn sec small" href="https://drive.google.com/uc?export=download&amp;id={{ p[key] }}" target="_blank" rel="noopener">Tải về</a></span></div>
+      <span class="row" style="gap:6px"><a class="btn small" href="{{ ('/media/' ~ p.id ~ '/' ~ key) if p.id else ('https://drive.google.com/file/d/' ~ p[key] ~ '/view') }}" target="_blank" rel="noopener">Xem</a>
+      {% if p.id %}<a class="btn sec small" href="/media/{{ p.id }}/{{ key }}?download=1">Tải về</a>{% else %}<a class="btn sec small" href="https://drive.google.com/uc?export=download&amp;id={{ p[key] }}" target="_blank" rel="noopener">Tải về</a>{% endif %}</span></div>
       <div class="muted small">Drive ID {{ p[key] }}</div></div>{% endif %}{% endfor %}
     {% if not p.final_video %}<div class="kit-item"><span class="muted small">Chưa có video thành phẩm — tool tự lấy từ thư BAOCAO-…GOI-{{ p.goi }}… của Gemini khi nhập từ hộp thư, hoặc dán link vào ô “Video thành phẩm”.</span></div>{% endif %}
+    {% if p.id and (p.image1 or p.image2 or p.image3 or p.image4) %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh 4 cảnh</b>
+      <a class="btn sec small" href="/media/{{ p.id }}/images.zip">Tải cả 4 ảnh (.zip)</a></div>
+      <div class="kit-thumbs">{% for i in range(1, 5) %}{% if p['image' ~ i] %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener"><img src="/media/{{ p.id }}/image{{ i }}" alt="Cảnh {{ i }}" loading="lazy" onerror="this.style.display='none'"><span>C{{ i }}</span></a>{% endif %}{% endfor %}</div></div>{% endif %}
     {{ item('Caption + hashtag', p.caption) }}
     {{ item('Bình luận ghim', p.pinned) }}
     {{ item('Chữ trên hình', p.on_screen) }}
@@ -91,7 +94,11 @@
     {{ item('Lời thoại cả 4 cảnh', all_lines.strip()) }}
     {% for i in range(1, 5) %}{% if p['scene' ~ i] or p['prompt' ~ i] or p['image' ~ i] %}
     <div class="kit-scene"><div class="kit-head"><b>Cảnh {{ i }} · {{ (i-1)*8 }}–{{ i*8 }}s</b>
-      {% if p['image' ~ i] %}<a class="btn sec small" href="https://drive.google.com/file/d/{{ p['image' ~ i] }}/view" target="_blank" rel="noopener">Mở ảnh</a>{% endif %}</div>
+      {% if p['image' ~ i] and p.id %}<a class="btn sec small" href="/media/{{ p.id }}/image{{ i }}?download=1">Tải ảnh</a>
+      {% elif p['image' ~ i] %}<a class="btn sec small" href="https://drive.google.com/file/d/{{ p['image' ~ i] }}/view" target="_blank" rel="noopener">Mở ảnh</a>{% endif %}</div>
+      {% if p['image' ~ i] and p.id %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener" class="kit-img">
+        <img src="/media/{{ p.id }}/image{{ i }}" alt="Ảnh cảnh {{ i }}" loading="lazy"
+             onerror="this.parentNode.outerHTML='<div class=&quot;muted small&quot;>Không tải được ảnh qua tool (service account cần quyền xem thư mục 01). <a href=&quot;https://drive.google.com/file/d/{{ p['image' ~ i] }}/view&quot; target=&quot;_blank&quot;>Mở trên Drive</a></div>'"></a>{% endif %}
       {{ item('Lời thoại', p['scene' ~ i]) }}
       {{ item('Prompt video', p['prompt' ~ i], True) }}
     </div>{% endif %}{% endfor %}

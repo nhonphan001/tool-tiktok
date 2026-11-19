@@ -1,5 +1,6 @@
 """Web app quản lý: dashboard, video, phân tích, chiến lược, cài đặt."""
 import hmac
+import re
 import logging
 import os
 import threading
@@ -477,6 +478,43 @@ def package_new(request: Request):
     q = request.query_params
     birth = {k: q.get(k, "") for k in ("dd", "mm", "yy", "t", "lich", "nhuan", "gioi")} if q.get("dd") else {}
     return render(request, "package.html", **_package_ctx({"loai": 1 if birth else 2, "birth": birth}))
+
+
+@app.get("/media/{pid}/images.zip")
+def media_zip(pid: int):
+    from fastapi.responses import PlainTextResponse
+    from . import media
+
+    p = packages.get(pid)
+    if not p:
+        return PlainTextResponse("Không có gói", status_code=404)
+    try:
+        data, errors = media.images_zip(p)
+    except Exception as e:  # noqa: BLE001
+        return PlainTextResponse(f"Không tải được ảnh: {e}", status_code=502)
+    if not data or len(data) < 100:
+        return PlainTextResponse("Không tải được ảnh nào. " + " · ".join(errors), status_code=502)
+    return HTMLResponse(data, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="GOI_{p.get("goi") or pid}_anh_4_canh.zip"'})
+
+
+@app.get("/media/{pid}/{kind}")
+def media_file(pid: int, kind: str, download: int = 0):
+    from fastapi.responses import FileResponse, PlainTextResponse
+    from . import media
+
+    p = packages.get(pid)
+    fid = media.file_id_for(p or {}, kind)
+    if not fid:
+        return PlainTextResponse("Không có file", status_code=404)
+    try:
+        path, meta = media.fetch(fid)
+    except Exception as e:  # noqa: BLE001
+        return PlainTextResponse(str(e), status_code=502)
+    name = re.sub(r'[^\w.\- ]', "_", meta["name"])
+    return FileResponse(path, media_type=meta["mimeType"], headers={
+        "Content-Disposition": f'{"attachment" if download else "inline"}; filename="{name}"',
+        "Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/packages/{pid}/phieu.md")

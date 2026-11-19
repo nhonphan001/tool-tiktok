@@ -688,3 +688,33 @@ def test_post_plan_suggestions_goi17():
     # Loại 1 không bao giờ quảng cáo, kể cả khi đã lưu "Có"
     s1 = post_plan.suggest({"id": 2, "loai": 1, "post_plan_json": '{"quang_cao": "Có"}'}, {"ads_ok": False}, None, "19:30")
     assert s1["quang_cao"][0].startswith("Không") and s1["gio_dang"][0] == "19:30" and "do_tuoi" not in s1
+
+
+def test_media_routes_serve_package_images(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from app import media, packages
+    from app.config import settings
+    from app.main import app
+    img = tmp_path / "a.jpg"
+    img.write_bytes(b"\xff\xd8\xff" + b"0" * 200)
+    calls = []
+
+    def fake_fetch(fid):
+        calls.append(fid)
+        return str(img), {"name": "CANH.jpg", "mimeType": "image/jpeg"}
+
+    monkeypatch.setattr(media, "fetch", fake_fetch)
+    pid = packages.save({"goi": "99", "loai": 3, "scene1": "x", "image1": "1R-eg5lKwn_8rHbMNXGPnmf3na-4K0njV",
+                         "image2": "https://drive.google.com/file/d/1tSNE42aBWK32a7pH3fJGZ_I0BpRl2u-v/view"})
+    c = TestClient(app)
+    assert c.get(f"/media/{pid}/image1", follow_redirects=False).status_code in (302, 303, 307)  # cần đăng nhập
+    c.post("/login", data={"password": settings.app_password})
+    r = c.get(f"/media/{pid}/image1?download=1")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and "attachment" in r.headers["content-disposition"]
+    assert c.get(f"/media/{pid}/image3").status_code == 404           # cảnh không có ảnh
+    assert c.get(f"/media/{pid}/caption").status_code == 404          # không phải trường media
+    z = c.get(f"/media/{pid}/images.zip")
+    assert z.status_code == 200 and z.content[:2] == b"PK"
+    assert calls[-2:] == ["1R-eg5lKwn_8rHbMNXGPnmf3na-4K0njV", "1tSNE42aBWK32a7pH3fJGZ_I0BpRl2u-v"]
+    html = c.get(f"/packages/{pid}").text
+    assert f"/media/{pid}/image1" in html and "Tải cả 4 ảnh" in html
