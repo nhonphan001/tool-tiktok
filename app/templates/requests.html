@@ -18,6 +18,17 @@
       <div style="flex:1;min-width:110px"><label>Số ngày quảng cáo</label><input type="number" name="ads_days" value="7" min="1" max="60"></div>
       <div style="flex:1;min-width:150px"><label>Ngày / giờ đăng</label><input name="publish" placeholder="Sáng 19/11, 07:00"></div>
     </div>
+    <details id="birthbox" style="margin-top:8px"><summary class="small"><b>Lá số (chỉ cho Loại 1)</b> — tool tự tính và gửi kèm thư, Gemini không tự tính can chi</summary>
+      <div class="row" style="gap:8px">
+        <div style="flex:1;min-width:60px"><label>Ngày</label><input type="number" name="dd" min="1" max="31"></div>
+        <div style="flex:1;min-width:60px"><label>Tháng</label><input type="number" name="mm" min="1" max="12"></div>
+        <div style="flex:1;min-width:80px"><label>Năm</label><input type="number" name="yy" min="1900" max="2100"></div>
+        <div style="flex:1;min-width:100px"><label>Giờ (nếu biết)</label><input type="time" name="t"></div>
+        <div style="flex:1;min-width:100px"><label>Lịch</label><select name="lich"><option value="duong">Dương</option><option value="am">Âm</option></select></div>
+        <div style="flex:1;min-width:90px"><label>Giới tính</label><select name="gioi"><option value="">—</option><option value="nu">Nữ</option><option value="nam">Nam</option></select></div>
+      </div></details>
+    <script>(function(){const s=document.querySelector('select[name=loai]'),b=document.getElementById('birthbox'),a=document.querySelector('input[name=ads]');
+      function u(){const one=s.value==='1'; b.open=one; if(one&&a){a.checked=false;} }; s.addEventListener('change',u); u();})();</script>
     <p class="muted small">Video chạy quảng cáo: tool tự thêm điều kiện <b>không xem lá số / bói toán</b> (TikTok cấm quảng cáo bói toán tại VN) — chọn Loại 3 cho video tăng follow không gắn sản phẩm.</p>
     <p><button class="btn">Tạo &amp; gửi cho Gemini</button></p>
   </form>

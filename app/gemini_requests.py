@@ -102,8 +102,8 @@ def _rules_for(loai: int, ads: bool) -> list[str]:
         return ["**Loại 2 – Video sản phẩm (giỏ hàng).** Chỉ mô tả vật phẩm: chất liệu, màu, cách dùng, làm quà; không xem "
                 "lá số. Tên sản phẩm đúng cột “Tên dùng trong video”. CTA: “bấm giỏ hàng góc trái”. Chèn ảnh sản phẩm thật "
                 "(C.9).", *common]
-    return ["**Loại 1 – Video giải mã lá số (không giỏ hàng, KHÔNG chạy quảng cáo).** Lá số lấy từ trang Lá số của "
-            "TikTok Manager, không tự tính can chi. Không nối lá số với vật phẩm. CTA: “để lại ngày sinh dưới bình luận "
+    return ["**Loại 1 – Video giải mã lá số (không giỏ hàng, KHÔNG chạy quảng cáo).** Dùng NGUYÊN VĂN lá số trong mục "
+            "“Lá số (TikTok Manager tính)” của thư này, không tự tính can chi / Nhật chủ / Dụng thần. Không nối lá số với vật phẩm. CTA: “để lại ngày sinh dưới bình luận "
             "để Cô Kim giải mã”.", *common]
 
 
@@ -139,6 +139,25 @@ def _channel_facts() -> list[str]:
     return out
 
 
+def chart_lines(birth: dict) -> list[str]:
+    """Lá số do tool tính (cho video Loại 1) để Gemini dùng nguyên văn."""
+    from . import battu
+
+    if not birth or not (birth.get("dd") and birth.get("mm") and birth.get("yy")):
+        return []
+    c, err = packages.chart_of({"birth": birth})
+    if err or not c:
+        return [f"- ⚠ Ngày giờ sinh không hợp lệ: {err}"]
+    diem = ", ".join(f"{k} {v}" for k, v in (c.get("ngu_hanh_diem") or {}).items())
+    out = [f"- **Tứ trụ:** {battu.mo_ta_ngan(c)}",
+           f"- **Âm lịch:** {c.get('am_lich', '')} · giới tính: {birth.get('gioi') or 'không rõ'}",
+           f"- **Điểm ngũ hành:** {diem}",
+           f"- **Hỷ thần:** {c.get('hy_than', '')} · **Kỵ thần:** {', '.join(c.get('ky_than') or [])}",
+           f"- **Nạp âm 4 trụ:** {', '.join(c.get('nap_am') or [])}"]
+    out += [f"- ⚠ {x}" for x in c.get("canh_bao") or []]
+    return out
+
+
 def build_letter(req: dict) -> str:
     o = req["opts"]
     loai = int(o.get("loai") or 3)
@@ -164,6 +183,12 @@ def build_letter(req: dict) -> str:
         "## Bắt buộc", "",
         *[f"- {r}" for r in _rules_for(loai, ads)], "",
     ]
+    chart = chart_lines(o.get("birth") or {}) if loai == 1 else []
+    if chart:
+        lines += ["## Lá số (TikTok Manager tính – dùng nguyên văn, Nhật chủ = can trụ Ngày)", "", *chart, ""]
+    elif loai == 1:
+        lines += ["## Lá số", "", "- ⚠ Chưa có ngày giờ sinh: Gemini chọn chủ đề theo tuổi/con giáp chung, KHÔNG ghi tứ trụ "
+                  "cụ thể (bộ kiểm tra B.2 sẽ không đối chiếu được).", ""]
     facts = _channel_facts()
     if facts:
         lines += ["## Số liệu kênh (TikTok Manager, số chính xác)", "", *[f"- {f}" for f in facts], ""]

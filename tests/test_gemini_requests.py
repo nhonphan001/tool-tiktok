@@ -139,3 +139,13 @@ def test_check_replies_notifies_final_video(monkeypatch):
     assert [d.get("video") for d in done] == ["1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB"]
     assert db.query_one("SELECT * FROM jobs WHERE message LIKE '%video thành phẩm Gói 17%'")
     assert gr.check_replies() == []  # không báo lại
+
+
+def test_loai1_letter_includes_tool_chart():
+    _reset()
+    opts = {"loai": 1, "goal": "comment", "ads": False, "ads_days": 7, "publish": "19:30",
+            "birth": {"dd": "12", "mm": "3", "yy": "1995", "t": "08:00", "lich": "duong", "gioi": "nu"}}
+    r = gr.get(gr.create("Giải mã lá số nữ 1995", "Lá số Ất Hợi", opts))
+    L = r["letter_md"]
+    assert "Ất Hợi – Kỷ Mão – Nhâm Dần – Giáp Thìn" in L and "Nhật chủ Nhâm Thủy" in L
+    assert "không tự tính can chi" in L and "quang_cao: khong" in L

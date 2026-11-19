@@ -372,6 +372,15 @@ async def requests_new(request: Request):
         return RedirectResponse("/requests", status_code=303)
     opts = {"loai": int(f.get("loai") or 3), "goal": f.get("goal") or "follow", "ads": bool(f.get("ads")),
             "ads_days": int(f.get("ads_days") or 7), "publish": (f.get("publish") or "").strip()}
+    birth = {k: (f.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "gioi")}
+    if opts["loai"] == 1:
+        opts["ads"] = False  # video lá số không bao giờ chạy quảng cáo
+        if birth["dd"] and birth["mm"] and birth["yy"]:
+            c, err = packages.chart_of({"birth": birth})
+            if err:
+                flash(request, f"Ngày giờ sinh không hợp lệ: {err}", "error")
+                return RedirectResponse("/requests", status_code=303)
+            opts["birth"] = birth
     rid = gemini_requests.create(brief, f.get("title") or "", opts)
     r = gemini_requests.get(rid)
     try:
@@ -440,7 +449,8 @@ def packages_import_one(request: Request, goi: str):
     existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
     p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS)}
     p["loai"] = g.get("loai") or 2
-    p["birth"] = {}
+    req = next((r for r in gemini_requests.all_requests() if str(r["goi"]) == str(goi)), None)
+    p["birth"] = (req or {}).get("opts", {}).get("birth") or {}  # lá số đã gửi trong thư → để B.2 đối chiếu
     if existing:
         p["id"] = existing["id"]
         p["status"] = existing.get("status")
