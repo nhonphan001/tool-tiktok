@@ -16,7 +16,9 @@ PROCESS = [  # (mã, bước, ai làm) — bảng quy trình chung dùng trong t
     ("P5", "Gemini viết kịch bản + 4 ảnh v3.3 + 4 prompt video → SANXUAT-…__XONG trong GUI_CLAUDE", "Gemini"),
     ("P6", "Tool dò thư trả lời / thư sửa mỗi 10 phút và thông báo", "Tool"),
     ("P7", "Nhập từ hộp thư → Lưu & kiểm tra (B.1–B.4, Loại 1/2/3, prompt khớp lời thoại)", "Anh Nhơn + Tool"),
-    ("P8", "Gemini dựng video (Veo/Flow + FFmpeg), QA, gửi BAOCAO-…GOI-n với link video", "Gemini"),
+    ("P8a", "Anh Nhơn tạo 4 clip thô 8s trên Veo/Flow (dùng prompt trong Bộ đăng TikTok) → 02_VIDEO_THO_CHO_KIEM_DUYET", "Anh Nhơn"),
+    ("P8b", "Gemini QA 4 clip thô, FFmpeg cắt/ghép/hook/phụ đề, GIỮ dấu nhận diện AI, lưu 04_VIDEO_DA_DUYET_SAN_SANG_DANG, "
+            "gửi BAOCAO-…GOI-n (clip lỗi → 03_VIDEO_CAN_CHINH_SUA)", "Gemini"),
     ("P9", "Tool lấy link video vào gói, Bộ đăng TikTok (Chép / Tải)", "Tool"),
     ("P10", "Anh Nhơn đăng (đúng caption, nhãn AI, giỏ hàng nếu Loại 2) + bật Quảng bá nếu tool báo Được", "Anh Nhơn"),
     ("P11", "Tool tự gắn video vào gói ở lần quét kế tiếp, tính KPI theo gói", "Tool"),

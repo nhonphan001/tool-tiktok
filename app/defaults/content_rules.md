@@ -21,6 +21,7 @@ C. HÌNH ẢNH (chuẩn Cô Kim v3.3, áp dụng mọi video, bắt buộc với
    Ngoại lệ — sản phẩm vệ sinh/dọn dẹp bàn thờ (khăn lau, chổi, dung dịch lau): được quay cảnh LAU DỌN mặt bàn thờ như việc nhà bình thường (tay lau mặt gỗ, chân đèn, bình hoa), nhang chưa thắp, không ai khấn vái; không nói sản phẩm giúp "rước lộc, đón tài lộc, giữ bình an, ông bà phù hộ"; chỉ nói công dụng làm sạch, mùi hương, quy cách. Không quay cận ảnh thờ/di ảnh, tượng Phật.
 9. Vật phẩm trong video có giỏ hàng phải là hình sản phẩm thật, đúng chi tiết như trong giỏ hàng (mặt khắc, chữ thêu, màu); ảnh AI chỉ dùng làm bối cảnh/nhân vật.
 10. Video sản phẩm (Loại 2) không có cảnh Cô Kim xem lá số; ưu tiên cận cảnh tay cầm sản phẩm, bàn trà, ánh sáng tự nhiên.
+10a. Không xoá, che hay làm mờ dấu nhận diện nội dung AI (logo ✦ của công cụ tạo video, watermark); luôn bật nhãn "Nội dung do AI tạo" khi đăng (đồng thuận DONGTHUAN-1911 V2).
 
 D. KHÁC
 11. Không hứa hẹn quá đà: không nói vật phẩm chữa bệnh, đảm bảo giàu có, cứu hôn nhân; không hù dọa người xem.

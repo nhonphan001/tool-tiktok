@@ -216,6 +216,8 @@ def build_letter(req: dict) -> str:
         "```", "",
         "Sau khi trả lời, TikTok Manager sẽ tự phát hiện thư (tối đa 10 phút) và báo anh Nhơn nhập vào Gói SX để kiểm tra.",
         "",
+        "Video (P8a/P8b): anh Nhơn tạo 4 clip thô trên Veo/Flow theo 4 prompt → 02_VIDEO_THO_CHO_KIEM_DUYET; Gemini QA, "
+        "FFmpeg cắt/ghép/phụ đề, **KHÔNG xoá dấu nhận diện AI (logo ✦)**, lưu 04_VIDEO_DA_DUYET_SAN_SANG_DANG.",
         f"Khi dựng xong video, gửi thư **BAOCAO-<ddmm>-…-GOI-{goi}-…__GUI_CLAUDE.md** trong GUI_CLAUDE, đầu thư có 2 dòng "
         "(tool tự lấy link video vào Gói SX):",
         "```",
