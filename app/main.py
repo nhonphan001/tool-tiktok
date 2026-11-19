@@ -705,12 +705,47 @@ def package_link(request: Request, pid: int, video_id: str = Form(...)):
 
 @app.get("/compliance", response_class=HTMLResponse)
 def compliance_page(request: Request):
+    from . import fixer
+
     acc = db.get_active_account()
+    issues = tags.compliance_issues(acc["open_id"]) if acc else []
+    gem = request.session.pop("fix_gemini", None) or {}
+    for v in issues:
+        cart = None if (v.get("tag") or {}).get("has_cart") is None else bool(v["tag"]["has_cart"])
+        v["orig"] = f"{v.get('title') or ''}\n{v.get('description') or ''}".strip()
+        if (v.get("title") or "").strip() and (v.get("description") or "").strip().startswith((v.get("title") or "").strip()):
+            v["orig"] = (v.get("description") or "").strip()  # TikTok trả title = đầu caption → khỏi lặp
+        v["fix"] = fixer.sua_nhanh(v["orig"], cart)
+        v["gem"] = gem if gem.get("video_id") == v["id"] else None
+    result = request.session.pop("check_result", None)
+    if result:
+        result["fix"] = fixer.sua_nhanh(result["text"], {"1": True, "0": False}.get(result.get("has_cart")))
     return render(
-        request, "compliance.html", issues=tags.compliance_issues(acc["open_id"]) if acc else [],
-        result=request.session.pop("check_result", None), level_labels=compliance.LEVEL_LABELS,
-        allowed=compliance.ALLOWED_CTA, rules=settings.content_rules,
+        request, "compliance.html", issues=issues, result=result, level_labels=compliance.LEVEL_LABELS,
+        allowed=compliance.ALLOWED_CTA, rules=settings.content_rules, gemini_ready=bool(settings.gemini_api_key),
     )
+
+
+@app.post("/compliance/fix/{video_id}")
+def compliance_fix_gemini(request: Request, video_id: str):
+    from . import fixer
+
+    acc = db.get_active_account()
+    v = next((x for x in (tags.compliance_issues(acc["open_id"]) if acc else []) if x["id"] == video_id), None)
+    if not v:
+        flash(request, "Không tìm thấy video", "error")
+        return RedirectResponse("/compliance", status_code=303)
+    cart = None if (v.get("tag") or {}).get("has_cart") is None else bool(v["tag"]["has_cart"])
+    text = (v.get("description") or v.get("title") or "").strip()
+    try:
+        r = fixer.viet_lai_gemini(text, cart)
+        u = r.get("usage") or {}
+        request.session["fix_gemini"] = {"video_id": video_id, "text": r["text"][:3000], "why": r["why"][:300],
+                                         "level": r["after"]["level"], "tokens": u.get("total_tokens", 0),
+                                         "cost_vnd": round((u.get("cost_usd") or 0) * settings.usd_vnd_rate)}
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Gemini chưa viết lại được: {e}", "error")
+    return RedirectResponse(f"/compliance#v{video_id}", status_code=303)
 
 
 @app.post("/compliance/check")

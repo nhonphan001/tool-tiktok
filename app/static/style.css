@@ -143,3 +143,6 @@ details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 .clip-video{width:100%;max-width:300px;aspect-ratio:9/16;background:#000;border-radius:10px;display:block;margin:8px 0}
 .clip-card.clip-dat{border-color:var(--ok)}.clip-card.clip-lam_lai{border-color:var(--err)}
 .veo-box{border:1px dashed var(--accent);border-radius:10px;padding:10px 12px;margin-top:10px;background:rgba(254,44,85,.04)}
+.fix-item{border-top:1px solid var(--border);padding:12px 0}
+.fix-list{margin:6px 0 0;padding-left:18px;font-size:13px}.fix-list s{color:var(--err)}
+.fix-orig{background:var(--bg);border-radius:8px;padding:8px;margin:4px 0}

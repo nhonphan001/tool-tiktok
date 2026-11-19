@@ -21,6 +21,12 @@
         {% if result.no_ads %}<div><b>Không chạy Quảng bá / quảng cáo trả phí</b> cho nội dung này.</div>{% endif %}
         {% if result.level=='ok' %}<div>Không phát hiện từ cấm.</div>{% endif %}
       </div>
+      {% if result.fix and result.fix.changes %}<div class="kit-item"><div class="kit-head"><b>✏️ Gợi ý sửa</b>
+        <span class="row" style="gap:6px"><span class="badge {{ 'ok' if result.fix.after.level=='ok' else '' }}">Sau sửa: {{ level_labels[result.fix.after.level] }}</span>
+        <button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></span></div>
+        <div class="kit-text">{{ result.fix.text }}</div>
+        <ul class="fix-list">{% for a, b, why in result.fix.changes %}<li><s>{{ a }}</s> → <b>{{ b or '(bỏ)' }}</b> <span class="muted">· {{ why }}</span></li>{% endfor %}</ul>
+        {% for n in result.fix.notes %}<div class="small" style="color:#b7791f">⚠ {{ n }}</div>{% endfor %}</div>{% endif %}
     {% endif %}
   </div>
   <div class="card"><h2>Quy tắc đang áp dụng</h2>
@@ -30,12 +36,42 @@
     <p class="muted" style="font-size:12px">Sửa quy tắc trong Cài đặt. Quy tắc này cũng được gửi kèm mọi yêu cầu Gemini lên chiến lược.</p>
   </div>
 </div>
-<div class="card scroll" style="margin-top:16px"><h2>Video đã đăng có vấn đề ({{ issues|length }})</h2>
-  <table><tr><th>Đăng lúc</th><th>Video</th><th>Mức</th><th>Phát hiện</th></tr>
-  {% for v in issues %}<tr><td>{{ v.posted_str }}</td><td><a href="/videos/{{ v.id }}">{{ v.label }}</a></td>
-    <td><span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart','fortune_risk') }}">{{ level_labels[v.compliance.level] }}</span></td>
-    <td>{{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}</td></tr>
-  {% else %}<tr><td colspan="4" class="muted">Không có caption nào vi phạm.</td></tr>{% endfor %}</table>
+<div class="card" style="margin-top:16px"><h2>Video đã đăng có vấn đề ({{ issues|length }}) — gợi ý sửa</h2>
+  <p class="muted small">Tool thay các cụm từ cấm bằng cách nói an toàn rồi <b>kiểm tra lại</b>. Bấm <b>Chép</b> để dán vào mô tả video trên TikTok
+    (nếu TikTok cho sửa mô tả bài đã đăng), hoặc dùng làm mẫu cho video sau. Muốn câu tự nhiên hơn: <b>Viết lại bằng Gemini</b> (tốn vài trăm token).</p>
+  {% for v in issues %}{% set f = v.fix %}
+  <div class="fix-item" id="v{{ v.id }}">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div><a href="/videos/{{ v.id }}"><b>{{ v.label }}</b></a><div class="muted small">{{ v.posted_str }}</div></div>
+      <span class="badge {{ 'error' if v.compliance.level in ('violation','violation_if_cart','fortune_risk') }}">{{ level_labels[v.compliance.level] }}</span></div>
+    <div class="small" style="margin:6px 0"><b>Phát hiện:</b> {{ (v.compliance.offsite + v.compliance.promise)|map(attribute='label')|join(', ') }}</div>
+    <details><summary class="small muted">Caption gốc</summary><div class="kit-text small fix-orig">{{ v.orig }}</div></details>
+    <div class="kit-item"><div class="kit-head"><b>✏️ Bản sửa nhanh</b>
+      <span class="row" style="gap:6px"><span class="badge {{ 'ok' if f.after.level=='ok' else ('' if f.after_nocart.level in ('ok','warning') else 'error') }}">Sau sửa: {{ level_labels[f.after.level] }}</span>
+      <button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></span></div>
+      <div class="kit-text">{{ f.text }}</div>
+      {% if f.changes %}<ul class="fix-list">{% for a, b, why in f.changes %}<li><s>{{ a }}</s> → <b>{{ b or '(bỏ)' }}</b> <span class="muted">· {{ why }}</span></li>{% endfor %}</ul>{% endif %}
+      {% for n in f.notes %}<div class="small" style="color:#b7791f;margin-top:4px">⚠ {{ n }}</div>{% endfor %}
+    </div>
+    {% if v.gem %}<div class="kit-item kit-video"><div class="kit-head"><b>✨ Gemini viết lại</b>
+      <span class="row" style="gap:6px"><span class="badge {{ 'ok' if v.gem.level in ('ok','warning') else 'error' }}">{{ level_labels[v.gem.level] }}</span>
+      <button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></span></div>
+      <div class="kit-text">{{ v.gem.text }}</div>
+      <div class="muted small">{{ v.gem.why }} · {{ v.gem.tokens }} token ≈ {{ v.gem.cost_vnd }}đ</div></div>{% endif %}
+    {% if gemini_ready %}<form method="post" action="/compliance/fix/{{ v.id }}" style="margin:6px 0 0"
+      onsubmit="this.querySelector('button').textContent='Gemini đang viết lại…';this.querySelector('button').disabled=true">
+      <button class="btn sec small">✨ Viết lại bằng Gemini</button></form>{% endif %}
+  </div>
+  {% else %}<p class="muted">Không có caption nào vi phạm.</p>{% endfor %}
   <p class="muted" style="font-size:12px">Chỉ kiểm tra được tiêu đề/caption do TikTok API trả về. Lời thoại và bình luận ghim vẫn phải chấm theo Mẫu A/B.</p>
 </div>
+<script>
+function copyKit(btn){
+  const t = btn.closest('.kit-item').querySelector('.kit-text').innerText.trim();
+  const ok = () => { const o = btn.textContent; btn.textContent = 'Đã chép ✓'; btn.classList.add('done'); setTimeout(() => { btn.textContent = o; btn.classList.remove('done'); }, 1500); };
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(t).then(ok, () => fb()); } else { fb(); }
+  function fb(){ const ta = document.createElement('textarea'); ta.value = t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); ok(); } catch (e) { alert('Không chép được, hãy chọn và chép tay.'); } ta.remove(); }
+}
+</script>
 {% endblock %}
