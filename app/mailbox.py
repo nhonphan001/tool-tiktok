@@ -224,7 +224,7 @@ def scan() -> list[dict]:
             continue
         p["source"] = {"id": f["id"], "name": f["name"], "modified": f.get("modifiedTime", "")}
         groups.setdefault(p["goi"], []).append(p)
-    out = [merge(v) for v in groups.values()]
+    out = [g for g in (merge(v) for v in groups.values()) if g["fields"]]  # bỏ nhóm chỉ có thư báo cáo cũ, không nội dung
     out.sort(key=lambda g: max(s["modified"] for s in g["sources"]), reverse=True)
     return out
 

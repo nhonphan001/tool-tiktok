@@ -88,6 +88,13 @@ def build_report(open_id: str, max_videos: int = 50) -> str:
             f"| {v['posted_str']} | {title} | {v.get('duration') or 0}s | {_n(v['view_count'])} | {_n(v['like_count'])} |"
             f" {_n(v['comment_count'])} | {_n(v['share_count'])} | {v['engagement']}% | {_n(v['views_per_day'])} |"
         )
+    try:  # Phụ lục: báo cáo tự động của tool (để Gemini/Claude đối chiếu quy trình)
+        from . import system_report
+
+        lines += ["", "## 10. Tình trạng hệ thống (TikTok Manager tự báo cáo)", "",
+                  system_report.to_markdown().split("\n", 2)[2]]
+    except Exception:  # noqa: BLE001
+        pass
     return "\n".join(lines) + "\n"
 
 

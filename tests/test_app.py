@@ -645,3 +645,9 @@ def test_products_sheet_video_name_and_audit(seeded, monkeypatch):
     c.post("/login", data={"password": "pw"})
     page = c.get("/products").text
     assert "Tên dùng trong video" in page and "link tạm" in page
+
+
+def test_system_report_renders():
+    from app import system_report
+    md = system_report.to_markdown()
+    assert "BÁO CÁO TỰ ĐỘNG – TIKTOK MANAGER" in md and "| P1 |" in md and "P13" in md

@@ -651,6 +651,32 @@ def strategy_delete(request: Request, sid: int):
     return RedirectResponse("/strategy", status_code=303)
 
 
+@app.get("/system", response_class=HTMLResponse)
+def system_page(request: Request):
+    from . import system_report
+
+    return render(request, "report.html", text=system_report.to_markdown(), title="Báo cáo hệ thống",
+                  md_name="BAOCAO_HE_THONG_TIKTOK_MANAGER.md", md_url="/api/system.md")
+
+
+@app.get("/api/system.md")
+def system_md(request: Request):
+    from . import system_report
+
+    return HTMLResponse(system_report.to_markdown(), media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": "attachment; filename=BAOCAO_HE_THONG_TIKTOK_MANAGER.md"})
+
+
+@app.get("/api/public/system.md")
+def api_public_system(request: Request):
+    """Báo cáo tự động tình trạng hệ thống (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import system_report
+
+    return HTMLResponse(system_report.to_markdown(), media_type="text/markdown; charset=utf-8", headers=CORS)
+
+
 @app.get("/report", response_class=HTMLResponse)
 def report_page(request: Request):
     acc = db.get_active_account()
