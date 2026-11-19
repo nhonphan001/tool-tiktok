@@ -51,7 +51,7 @@ def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
         cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
-        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json"):
+        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json", "clips_json"):
             if col not in cols:
                 c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
 

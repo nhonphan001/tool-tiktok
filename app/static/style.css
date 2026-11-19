@@ -140,3 +140,5 @@ details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 .tabs-bar{flex-wrap:nowrap}
 .tabpane .kit-thumbs{max-width:520px}
 @media (min-width:1101px) and (max-width:1360px){nav a.tab{padding:8px 7px;font-size:14px}nav .brand{font-size:15px}}
+.clip-video{width:100%;max-width:300px;aspect-ratio:9/16;background:#000;border-radius:10px;display:block;margin:8px 0}
+.clip-card.clip-dat{border-color:var(--ok)}.clip-card.clip-lam_lai{border-color:var(--err)}

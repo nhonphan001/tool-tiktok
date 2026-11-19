@@ -67,6 +67,13 @@ def reschedule() -> None:
                 log.info("Gemini replied: %s", [d["code"] for d in done])
         except Exception:  # noqa: BLE001
             log.exception("check_replies")
+        try:
+            from . import clips
+
+            for m in clips.sync_all():
+                log.info(m)
+        except Exception:  # noqa: BLE001
+            log.exception("clips.sync_all")
 
     _scheduler.add_job(_mail, IntervalTrigger(minutes=10), id="mailbox_check", replace_existing=True,
                        max_instances=1, coalesce=True)

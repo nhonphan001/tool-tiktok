@@ -7,7 +7,7 @@ from . import db
 log = logging.getLogger(__name__)
 
 KIND_LABELS = {"classify": "Phân loại video bằng Gemini", "products": "Đồng bộ bảng sản phẩm",
-               "mailbox": "Hộp thư Gemini"}
+               "mailbox": "Hộp thư Gemini", "clips": "Clip thô mới"}
 
 
 def start(kind: str, fn, *args) -> int:

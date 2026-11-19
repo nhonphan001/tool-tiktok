@@ -10,6 +10,9 @@
   {% if imported.images %}<div class="small" style="margin-top:6px">Ảnh cảnh: {% for i, fid in imported.images|dictsort %}<a href="https://drive.google.com/file/d/{{ fid }}/view" target="_blank" rel="noopener">Cảnh {{ i }}</a>{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}</div>{% endif %}
 <div class="tabs-bar" role="tablist" data-default="{{ default_tab }}">
   {% if has_kit %}<a href="#kit" role="tab" data-tab="kit">📦 Bộ đăng TikTok</a>{% endif %}
+  {% if p.id and clips %}{% set n_ok = clips.values()|selectattr('status','equalto','dat')|list|length if clips else 0 %}
+  {% set n_wait = clips.values()|selectattr('status','equalto','cho_duyet')|list|length if clips else 0 %}
+  <a href="#clips" role="tab" data-tab="clips">🎞 Video thô {% if n_wait %}<span class="badge error">{{ n_wait }} chờ</span>{% elif clips %}<span class="badge {{ 'ok' if n_ok == 4 else '' }}">{{ n_ok }}/4</span>{% endif %}</a>{% endif %}
   <a href="#form" role="tab" data-tab="form">✏️ Kịch bản</a>
   <a href="#check" role="tab" data-tab="check">✅ Kiểm tra {% if chk.errors %}<span class="badge error">{{ chk.errors }}</span>{% elif p.id %}<span class="badge ok">Đạt</span>{% endif %}</a>
   {% if p.id %}<a href="#posted" role="tab" data-tab="posted">🎬 Video đã đăng{% if p.video_id %} ✓{% endif %}</a>{% endif %}
@@ -116,6 +119,43 @@
     {{ item('Kế hoạch quảng cáo', p.ads_plan) }}
     {% if not p.id %}<p class="muted small">Đây là nội dung chưa lưu — bấm “Lưu &amp; kiểm tra” trước khi đăng.</p>{% endif %}
   </div>{% endif %}
+</section>{% endif %}
+{% if p.id and clips %}<section class="tabpane" id="pane-clips" data-pane="clips">
+<div class="card">
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0">Duyệt clip thô (P8a)</h2>
+    <form method="post" action="/packages/{{ p.id }}/clips/sync" style="margin:0"><button class="btn sec small">Quét lại thư mục 02</button></form></div>
+  <p class="muted small">Tool đọc thư mục <b>02_VIDEO_THO_CHO_KIEM_DUYET</b>, nhận file tên <code>Goi_{{ p.goi }}_canh_1…4</code> (bản mới nhất của mỗi cảnh).
+    Xem từng clip → <b>Đạt</b> hoặc <b>Làm lại</b>. Đủ 4 cảnh Đạt thì gửi Gemini ghép, chèn hook và phụ đề.</p>
+  {% if raw_err %}<div class="flash error">{{ raw_err }}</div>{% endif %}
+  {% if ghep %}<div class="flash {{ 'success' if ghep.status in ('answered','imported') else '' }}">Yêu cầu ghép <b>{{ ghep.code }}</b>: {{ req_status.get(ghep.status, ghep.status) }}{% if ghep.answer_name %} · {{ ghep.answer_name }}{% endif %}</div>{% endif %}
+  {% if clips_ok and not (ghep and ghep.status in ('sent','answered','imported')) %}
+    <form method="post" action="/packages/{{ p.id }}/ghep" onsubmit="return confirm('Gửi Gemini ghép 4 clip đã duyệt?')"><button class="btn">✅ Đủ 4 cảnh đạt — Gửi Gemini ghép (P8b)</button></form>
+  {% endif %}
+</div>
+{% for i in range(1, 5) %}{% set c = clips[i|string] %}
+<div class="card clip-card clip-{{ c.status }}" style="margin-top:12px">
+  <div class="row" style="justify-content:space-between"><b>Cảnh {{ i }} · {{ (i-1)*8 }}–{{ i*8 }}s</b>
+    <span class="badge {{ 'ok' if c.status=='dat' else ('error' if c.status in ('lam_lai','cho_duyet') else '') }}">{{ clip_status.get(c.status, c.status) }}{% if c.rounds %} · lần {{ c.rounds + 1 }}{% endif %}</span></div>
+  {% if c.id %}
+    <video src="/media/{{ p.id }}/clip{{ i }}" controls preload="metadata" playsinline class="clip-video"></video>
+    <div class="muted small">{{ c.name }}</div>
+    {% if c.note %}<div class="small" style="margin-top:4px">Ghi chú: {{ c.note }}</div>{% endif %}
+    <div class="row" style="gap:6px;margin-top:8px">
+      <form method="post" action="/packages/{{ p.id }}/clips/{{ i }}" style="margin:0"><input type="hidden" name="status" value="dat"><button class="btn small" {{ 'disabled' if c.status=='dat' }}>Đạt</button></form>
+      <form method="post" action="/packages/{{ p.id }}/clips/{{ i }}" class="row" style="margin:0;gap:6px;flex:1">
+        <input type="hidden" name="status" value="lam_lai"><input name="note" placeholder="Lý do làm lại (vd: sai lời, méo mặt, có nhạc)" style="flex:1;min-width:160px">
+        <button class="btn sec small">Làm lại</button></form>
+      <a class="btn sec small" href="/media/{{ p.id }}/clip{{ i }}?download=1">Tải</a>
+    </div>
+  {% else %}<p class="muted small">Chưa thấy file <code>Goi_{{ p.goi }}_canh_{{ i }}…mp4</code> trong thư mục 02.</p>{% endif %}
+  {% if c.status in ('lam_lai','chua_co') and (p['prompt' ~ i] or p['image' ~ i]) %}
+  <div class="kit-item" style="margin-top:8px"><div class="kit-head"><b>Tạo {{ 'lại' if c.status=='lam_lai' else '' }} cảnh {{ i }} trên Gemini/Flow</b>
+    <span class="row" style="gap:6px">{% if p['image' ~ i] %}<a class="btn sec small" href="/media/{{ p.id }}/image{{ i }}?download=1">Tải ảnh</a>{% endif %}
+    <button type="button" class="btn sec small" onclick="copyKit(this)">Chép prompt</button></span></div>
+    <div class="kit-text big">{{ p['prompt' ~ i] }}</div>
+    <div class="muted small">Lưu clip vào 02 với tên <code>Goi_{{ p.goi }}_canh_{{ i }}{{ '_v' ~ (c.rounds + 2) if c.status=='lam_lai' else '' }}.mp4</code> — tool tự nhận bản mới và đưa về “Chờ duyệt”.</div></div>
+  {% endif %}
+</div>{% endfor %}
 </section>{% endif %}
 {% if p.id %}<section class="tabpane" id="pane-posted" data-pane="posted">
   <div class="card" style="margin-top:16px"><h2>Video đã đăng</h2>

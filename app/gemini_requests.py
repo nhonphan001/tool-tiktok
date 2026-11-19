@@ -254,6 +254,19 @@ def build_letter(req: dict) -> str:
     return "\n".join(x for x in lines if x is not None)
 
 
+def create_ghep(goi: str, code: str, title: str, letter: str) -> int:
+    """Yêu cầu ghép video (P8b) sau khi anh Nhơn duyệt đạt 4 clip thô."""
+    init()
+    now = db.now_iso()
+    with db.tx() as c:
+        return c.execute(
+            "INSERT INTO gemini_requests(goi, code, title, brief, opts_json, letter_md, status, created_at, video_seen)"
+            " VALUES(?,?,?,?,?,?, 'draft', ?, ?)",
+            (str(goi), code, title, "Ghép 4 clip thô đã duyệt, chèn hook + phụ đề (P8b)",
+             json.dumps({"kind": "ghep", "loai": 0}, ensure_ascii=False), letter, now, now),
+        ).lastrowid
+
+
 def create(brief: str, title: str, opts: dict) -> int:
     init()
     goi = str(next_goi())
@@ -380,6 +393,10 @@ def check_replies() -> list[dict]:
                               (f"Gemini đã gửi video thành phẩm Gói {r['goi']} ({f['name']}). Bấm để nhập link video vào gói.",
                                db.now_iso(), db.now_iso(), f"/packages/import/{r['goi']}"))
             if vids.get("final_video"):
+                if '"ghep"' in (r.get("opts_json") or "") and r["status"] == "sent":
+                    with db.tx() as c:
+                        c.execute("UPDATE gemini_requests SET status='answered', answered_at=?, answer_file_id=?,"
+                                  " answer_name=? WHERE id=?", (db.now_iso(), f["id"], f["name"], r["id"]))
                 done.append({**r, "answer_name": f["name"], "video": vids["final_video"]})
         sent = r["sent_at"] or r["created_at"]
         hits = [f for f in files if rx.search(f["name"]) and re.search(r"__(XONG|TRALOI)", f["name"], re.I)

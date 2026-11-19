@@ -358,7 +358,7 @@ def _package_ctx(p: dict) -> dict:
                    reverse=True)
     best = next((s["label"].replace("Khung ", "") for s in slots if s.get("label", "").startswith("Khung")), "")
     plan = post_plan.suggest(p, chk, req, best)
-    return {"plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
+    return {"clips": None, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
 
@@ -528,12 +528,79 @@ def package_markdown(pid: int):
                         headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
+_RAW_CACHE: dict = {"t": 0.0, "files": None, "err": ""}
+
+
+def _raw_files(force: bool = False) -> tuple[list, str]:
+    """Danh sách clip thô trong thư mục 02 (đệm 60 giây)."""
+    import time
+
+    from . import clips
+
+    if force or _RAW_CACHE["files"] is None or time.time() - _RAW_CACHE["t"] > 60:
+        try:
+            _RAW_CACHE.update(files=clips.list_raw(), err="", t=time.time())
+        except Exception as e:  # noqa: BLE001
+            _RAW_CACHE.update(files=[], err=str(e)[:200], t=time.time())
+    return _RAW_CACHE["files"] or [], _RAW_CACHE["err"]
+
+
 @app.get("/packages/{pid}", response_class=HTMLResponse)
 def package_detail(request: Request, pid: int):
+    from . import clips
+
     p = packages.get(pid)
     if not p:
         return RedirectResponse("/packages", status_code=303)
-    return render(request, "package.html", **_package_ctx(p))
+    files, raw_err = _raw_files()
+    cl, new = clips.sync(p, files)
+    if new:
+        clips.save(pid, cl)
+        p = packages.get(pid)
+    ctx = _package_ctx(p)
+    ghep = next((r for r in gemini_requests.all_requests()
+                 if str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "ghep"), None)
+    ctx.update(clips=cl, clip_status=clips.STATUS, clips_ok=clips.all_ok(cl), raw_err=raw_err, ghep=ghep,
+               req_status=gemini_requests.STATUS)
+    return render(request, "package.html", **ctx)
+
+
+@app.post("/packages/{pid}/clips/sync")
+def package_clips_sync(request: Request, pid: int):
+    files, err = _raw_files(force=True)
+    flash(request, f"Không đọc được thư mục 02: {err}" if err else f"Đã quét thư mục 02 ({len(files)} clip).",
+          "error" if err else "info")
+    return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+
+
+@app.post("/packages/{pid}/clips/{scene}")
+def package_clip_status(request: Request, pid: int, scene: str, status: str = Form(...), note: str = Form("")):
+    from . import clips
+
+    try:
+        clips.set_status(pid, scene, status, note)
+        flash(request, f"Cảnh {scene}: {clips.STATUS.get(status, status)}", "success" if status == "dat" else "info")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+
+
+@app.post("/packages/{pid}/ghep")
+def package_ghep(request: Request, pid: int):
+    from . import clips
+
+    p = packages.get(pid)
+    cl = clips.load(p or {})
+    if not p or not clips.all_ok(cl):
+        flash(request, "Cần duyệt ĐẠT đủ 4 cảnh trước khi gửi Gemini ghép", "error")
+        return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+    code, letter = clips.ghep_letter(p, cl)
+    rid = gemini_requests.create_ghep(p["goi"], code, f"Ghép video Gói {p['goi']}", letter)
+    try:
+        flash(request, "Đã gửi yêu cầu ghép cho Gemini: " + gemini_requests.send(rid), "success")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Đã soạn thư ghép nhưng chưa gửi được: {e}", "error")
+    return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
 @app.post("/packages/save")
