@@ -396,7 +396,8 @@ def requests_check(request: Request):
     try:
         done = gemini_requests.check_replies()
         flash(request, ("Thư mới / cập nhật từ Gemini: " + ", ".join(
-            f"Gói {d['goi']}" + (" (đã sửa)" if d.get("updated") else "") for d in done)) if done
+            f"Gói {d['goi']}" + (" (video thành phẩm)" if d.get("video") else " (đã sửa)" if d.get("updated") else "")
+            for d in done)) if done
               else "Chưa có thư trả lời mới.", "success" if done else "info")
     except Exception as e:  # noqa: BLE001
         flash(request, f"Không kiểm tra được hộp thư: {e}", "error")
@@ -437,12 +438,16 @@ def packages_import_one(request: Request, goi: str):
         flash(request, f"Không tìm thấy Gói {goi} trong hộp thư", "error")
         return RedirectResponse("/packages/import", status_code=303)
     existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
-    p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES)}
+    p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS)}
     p["loai"] = g.get("loai") or 2
     p["birth"] = {}
     if existing:
         p["id"] = existing["id"]
         p["status"] = existing.get("status")
+        full = packages.get(existing["id"]) or {}
+        for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS, "content_group"):
+            if not p.get(k) and full.get(k):
+                p[k] = full[k]  # thư không có trường này → giữ giá trị đang lưu trong tool
     ctx = _package_ctx({**p, "id": None})
     ctx["p"] = p
     ctx["imported"] = g
@@ -478,7 +483,7 @@ def package_detail(request: Request, pid: int):
 @app.post("/packages/save")
 async def package_save(request: Request):
     form = await request.form()
-    data = {k: form.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES,
+    data = {k: form.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS,
                                          "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
     pid = packages.save(data, int(form["id"]) if form.get("id") else None)
     if data.get("goi"):

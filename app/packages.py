@@ -18,6 +18,7 @@ FIELDS = ("goi", "title", "loai", "content_group", "sku", "product_name", "on_sc
           *SCENES, "ads_plan")
 PROMPTS = ("prompt1", "prompt2", "prompt3", "prompt4")   # prompt video 8 giây (Veo / Flow) từng cảnh
 IMAGES = ("image1", "image2", "image3", "image4")        # ID ảnh Drive từng cảnh
+VIDEOS = ("final_video", "clean_video")                  # ID video thành phẩm (có phụ đề) / bản sạch
 LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
@@ -50,7 +51,7 @@ def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
         cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
-        for col in ("ads_plan", "prompts_json", "images_json"):
+        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video"):
             if col not in cols:
                 c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
 
@@ -94,6 +95,8 @@ def save(data: dict, pid: int | None = None) -> int:
     row["birth_json"] = json.dumps(birth if birth["dd"] and birth["mm"] and birth["yy"] else {}, ensure_ascii=False)
     row["prompts_json"] = json.dumps({str(i): str(data.get(f"prompt{i}") or "").strip() for i in range(1, 5)
                                       if str(data.get(f"prompt{i}") or "").strip()}, ensure_ascii=False)
+    for k in VIDEOS:
+        row[k] = _drive_id(str(data.get(k) or ""))
     row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, 5)
                                      if str(data.get(f"image{i}") or "").strip()}, ensure_ascii=False)
     status = data.get("status") or None

@@ -42,6 +42,8 @@ def init() -> None:
         cols = {r[1] for r in c.execute("PRAGMA table_info(gemini_requests)").fetchall()}
         if "answer_modified" not in cols:
             c.execute("ALTER TABLE gemini_requests ADD COLUMN answer_modified TEXT DEFAULT ''")
+        if "video_seen" not in cols:
+            c.execute("ALTER TABLE gemini_requests ADD COLUMN video_seen TEXT DEFAULT ''")
 
 
 def _slug(text: str, n: int = 4) -> str:
@@ -213,6 +215,14 @@ def build_letter(req: dict) -> str:
         f"  loai: {loai}",
         "```", "",
         "Sau khi trả lời, TikTok Manager sẽ tự phát hiện thư (tối đa 10 phút) và báo anh Nhơn nhập vào Gói SX để kiểm tra.",
+        "",
+        f"Khi dựng xong video, gửi thư **BAOCAO-<ddmm>-…-GOI-{goi}-…__GUI_CLAUDE.md** trong GUI_CLAUDE, đầu thư có 2 dòng "
+        "(tool tự lấy link video vào Gói SX):",
+        "```",
+        f"goi: {goi}",
+        'file_video_final_drive: "<ID Drive bản đăng có phụ đề>"',
+        'file_video_clean_khong_sub: "<ID Drive bản sạch>"',
+        "```",
     ]
     return "\n".join(x for x in lines if x is not None)
 
@@ -324,6 +334,26 @@ def check_replies() -> list[dict]:
     done = []
     for r in pend:
         rx = re.compile(rf"GOI[-_]?{re.escape(str(r['goi']))}(?!\d)", re.I)
+        # Thư BAOCAO-… có video thành phẩm mới
+        seen = r.get("video_seen") or ""
+        reports = [f for f in files if rx.search(f["name"]) and f["name"].upper().startswith("BAOCAO-")
+                   and (f.get("modifiedTime") or "")[:19] > seen[:19]]
+        if reports:
+            f = max(reports, key=lambda x: x.get("modifiedTime") or "")
+            try:
+                vids = mailbox.parse_videos(mailbox._read(token, f))
+            except Exception:  # noqa: BLE001
+                log.exception("read report %s", f["name"])
+                vids = {}
+            with db.tx() as c:
+                c.execute("UPDATE gemini_requests SET video_seen=? WHERE id=?", (f.get("modifiedTime") or "", r["id"]))
+                if vids.get("final_video"):
+                    c.execute("INSERT INTO jobs(kind, status, message, created_at, finished_at, notified, link)"
+                              " VALUES('mailbox','done',?,?,?,0,?)",
+                              (f"Gemini đã gửi video thành phẩm Gói {r['goi']} ({f['name']}). Bấm để nhập link video vào gói.",
+                               db.now_iso(), db.now_iso(), f"/packages/import/{r['goi']}"))
+            if vids.get("final_video"):
+                done.append({**r, "answer_name": f["name"], "video": vids["final_video"]})
         sent = r["sent_at"] or r["created_at"]
         hits = [f for f in files if rx.search(f["name"]) and re.search(r"__(XONG|TRALOI)", f["name"], re.I)
                 and (f.get("modifiedTime") or "") >= sent[:19]]

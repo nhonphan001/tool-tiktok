@@ -69,3 +69,21 @@ def test_video_prompts_parsed_saved_and_checked():
     assert any("cảnh 4 không chứa đúng lời thoại" in x for x in msgs) and any("Prompt cảnh 4 có nhạc nền" in x for x in msgs)
     assert not any("cảnh 1" in x or "cảnh 2" in x or "cảnh 3" in x for x in msgs)
     assert chk["errors"] == 0 and chk["ads_ok"]
+
+
+def test_report_only_adds_videos_and_keeps_script():
+    x = mailbox.parse((FX / "goi17_v33_real.md").read_text(), "SANXUAT-1911-GOI-17-TOI-MUON-CO-MOT__XONG.md")
+    r = mailbox.parse_report((FX / "goi17_baocao.md").read_text(), "BAOCAO-1911-HOAN-TAT-GOI-17-VA-TOKEN__GUI_CLAUDE.md")
+    assert r == {"goi": "17", "final_video": "1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB",
+                 "clean_video": "1bfaqlfXyZE4HTA9DHebUA9VBl9f5w-03"}
+    m = mailbox.merge([{**x, "source": {"id": "a", "name": "XONG", "modified": "1"}},
+                       {**r, "source": {"id": "b", "name": "BAOCAO", "modified": "2"}}])
+    assert m["caption"].endswith("#CuoiNam") and "video" in m["fields"]  # báo cáo không ghi đè caption
+    assert m["final_video"] == "1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB"
+    from app import db, packages
+    db.get_conn()
+    d = {k: m.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS)}
+    d["loai"] = 3
+    d["clean_video"] = "https://drive.google.com/file/d/1bfaqlfXyZE4HTA9DHebUA9VBl9f5w-03/view?usp=drivesdk"
+    q = packages.get(packages.save(d))
+    assert q["final_video"] == "1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB" and q["clean_video"] == "1bfaqlfXyZE4HTA9DHebUA9VBl9f5w-03"

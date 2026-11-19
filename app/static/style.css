@@ -117,3 +117,4 @@ table.prods td:nth-child(3){min-width:200px;max-width:320px}
 .kit-scene{border-top:1px dashed var(--border);margin-top:10px;padding-top:8px}
 .btn.done{background:var(--ok);color:#fff;border-color:var(--ok)}
 details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
+.kit-video{background:rgba(20,164,77,.08);border-color:var(--ok)}

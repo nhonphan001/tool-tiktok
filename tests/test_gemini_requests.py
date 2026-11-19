@@ -117,3 +117,25 @@ def test_real_goi17_v33_prompts():
     d["loai"] = 3
     chk = packages.check(packages.get(packages.save(d)))
     assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]
+
+
+def test_check_replies_notifies_final_video(monkeypatch):
+    from pathlib import Path
+    _reset()
+    rid = gr.create(BRIEF, "", OPTS)
+    with db.tx() as c:
+        c.execute("UPDATE gemini_requests SET status='imported', sent_at='2026-11-18T17:00:00+00:00',"
+                  " answered_at='2026-11-18T23:40:00+00:00', answer_modified='2026-11-18T23:35:27Z' WHERE id=?", (rid,))
+    files = [{"id": "x", "name": "SANXUAT-1911-GOI-17-TOI__XONG.md", "modifiedTime": "2026-11-18T23:35:27Z"},
+             {"id": "rep", "name": "BAOCAO-1911-HOAN-TAT-GOI-17-VA-TOKEN__GUI_CLAUDE.md",
+              "modifiedTime": "2026-11-19T01:57:08.703Z"}]
+    report = (Path(__file__).parent / "fixtures" / "goi17_baocao.md").read_text()
+    monkeypatch.setattr(gr, "_token", lambda *a: "t")
+    monkeypatch.setattr(mailbox, "folder_ids", lambda: ["A"])
+    monkeypatch.setattr(mailbox, "_list_files", lambda token, folder: files)
+    monkeypatch.setattr(mailbox, "_read", lambda token, f: report)
+    monkeypatch.setattr(settings, "mailbox_outbox_doc_id", "")
+    done = gr.check_replies()
+    assert [d.get("video") for d in done] == ["1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB"]
+    assert db.query_one("SELECT * FROM jobs WHERE message LIKE '%video thành phẩm Gói 17%'")
+    assert gr.check_replies() == []  # không báo lại

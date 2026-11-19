@@ -37,6 +37,35 @@ def _section(text: str, heading: str) -> str:
     return _clean(" ".join(lines))
 
 
+_ID = r"([A-Za-z0-9_-]{25,60})"
+
+
+def parse_videos(text: str) -> dict:
+    """ID video thành phẩm trong thư: file_video_final(_drive) / file_final_drive và file_video_clean…"""
+    t = _unescape(text)
+    out = {}
+    m = re.search(rf"^\s*(?:file_)?(?:video_)?final(?:_\w*)?\s*:\s*\"?\s*{_ID}", t, re.M | re.I) \
+        or re.search(rf"\[[^\]]*final[^\]]*\.mp4\]\(https://drive\.google\.com/file/d/{_ID}", t, re.I)
+    if m:
+        out["final_video"] = m.group(1)
+    m = re.search(rf"^\s*(?:file_)?(?:video_)?clean(?:_\w*)?\s*:\s*\"?\s*{_ID}", t, re.M | re.I) \
+        or re.search(rf"\[[^\]]*clean[^\]]*\.mp4\]\(https://drive\.google\.com/file/d/{_ID}", t, re.I)
+    if m:
+        out["clean_video"] = m.group(1)
+    return out
+
+
+def parse_report(text: str, name: str = "") -> dict:
+    """Thư BAOCAO-…: CHỈ lấy số gói + video thành phẩm, không ghi đè kịch bản đã duyệt."""
+    t = _unescape(text)
+    out = {}
+    m = re.search(r"GOI[-_ ]?(\d+)", name, re.I) or re.search(r"^\s*goi:\s*(\d+)", t, re.M)
+    if m:
+        out["goi"] = m.group(1)
+    out.update(parse_videos(t))
+    return out
+
+
 def parse(text: str, name: str = "") -> dict:
     """Tách các trường phiếu gói từ 1 file (Markdown gốc hoặc Google Doc xuất Markdown)."""
     t = _unescape(text)
@@ -81,6 +110,7 @@ def parse(text: str, name: str = "") -> dict:
         m = re.search(r'caption_de_xuat:\s*"(.+?)"\s*$', t, re.M)
         if m:
             out["caption"] = _clean(m.group(1))
+    out.update(parse_videos(t))
     imgs = {}
     for m in re.finditer(r"canh_([1-4])_[\d_]*s?\s*:\s*\"?\s*([A-Za-z0-9_-]{25,60})", t):
         imgs[int(m.group(1))] = m.group(2)
@@ -137,7 +167,8 @@ def merge(parts: list[dict]) -> dict:
     for i, v in (out.get("prompts") or {}).items():
         out[f"prompt{i}"] = v
     out["fields"] = [k for k in ("title", "sku", "scene1", "scene2", "scene3", "scene4", "on_screen", "caption", "pinned")
-                     if out.get(k)] + (["prompts"] if len(out.get("prompts") or {}) == 4 else [])
+                     if out.get(k)] + (["prompts"] if len(out.get("prompts") or {}) == 4 else []) \
+        + (["video"] if out.get("final_video") else [])
     return out
 
 
@@ -148,7 +179,7 @@ def folder_ids() -> list[str]:
 
 def _list_files(token: str, folder: str) -> list[dict]:
     r = httpx.get(DRIVE, headers={"Authorization": f"Bearer {token}"}, timeout=30, params={
-        "q": f"'{folder}' in parents and name contains 'SANXUAT-' and trashed=false",
+        "q": f"'{folder}' in parents and (name contains 'SANXUAT-' or name contains 'BAOCAO-') and trashed=false",
         "fields": "files(id,name,mimeType,modifiedTime)", "pageSize": 100, "orderBy": "modifiedTime",
         "supportsAllDrives": "true", "includeItemsFromAllDrives": "true"})
     if r.status_code == 404:
@@ -185,7 +216,8 @@ def scan() -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for f in files:
         try:
-            p = parse(_read(token, f), f["name"])
+            raw = _read(token, f)
+            p = parse_report(raw, f["name"]) if f["name"].upper().startswith("BAOCAO-") else parse(raw, f["name"])
         except httpx.HTTPError:
             continue
         if not p.get("goi"):

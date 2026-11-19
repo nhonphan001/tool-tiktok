@@ -46,6 +46,11 @@
     <label>Chữ trên hình (hook, phụ đề nổi bật)</label><textarea name="on_screen" rows="2">{{ p.on_screen or '' }}</textarea>
     <label>Caption + hashtag</label><textarea name="caption" rows="3">{{ p.caption or '' }}</textarea>
     <label>Bình luận ghim</label><textarea name="pinned" rows="2">{{ p.pinned or '' }}</textarea>
+    <h2 style="margin-top:16px">Video thành phẩm</h2>
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:200px"><label>Bản đăng (có phụ đề) — ID / link Drive</label><input name="final_video" value="{{ p.final_video or '' }}" placeholder="dán link .mp4 trên Drive"></div>
+      <div style="flex:1;min-width:200px"><label>Bản sạch (không phụ đề)</label><input name="clean_video" value="{{ p.clean_video or '' }}"></div>
+    </div>
     <label>Kế hoạch quảng cáo</label><textarea name="ads_plan" rows="3">{{ p.ads_plan or '' }}</textarea>
     <label>Ghi chú</label><input name="note" value="{{ p.note or '' }}">
     <p class="row"><button class="btn">Lưu &amp; kiểm tra</button>
@@ -58,10 +63,16 @@
     <ul class="chk">{% for i in chk['items'] %}<li class="{{ i.level }}"><b>{{ i.rule }}</b> — {{ i.msg }}</li>{% endfor %}</ul>
     {% if not p.id %}<p class="muted small">Bấm “Lưu &amp; kiểm tra” để chạy kiểm tra.</p>{% endif %}
   </div>
-  {% set has_kit = p.caption or p.pinned or p.on_screen or p.scene1 or p.prompt1 %}
+  {% set has_kit = p.caption or p.pinned or p.on_screen or p.scene1 or p.prompt1 or p.final_video %}
   {% if has_kit %}<div class="card kit" id="kit" style="margin-top:16px"><h2>Bộ đăng TikTok <span class="muted small" style="font-weight:400">bấm Chép rồi dán</span></h2>
     {% macro item(label, text, big=False) %}{% if text %}<div class="kit-item"><div class="kit-head"><b>{{ label }}</b><button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></div>
       <div class="kit-text{{ ' big' if big }}">{{ text }}</div></div>{% endif %}{% endmacro %}
+    {% for key, label in [('final_video', 'Video thành phẩm (bản đăng)'), ('clean_video', 'Bản sạch (không phụ đề)')] %}{% if p[key] %}
+    <div class="kit-item kit-video"><div class="kit-head"><b>🎬 {{ label }}</b>
+      <span class="row" style="gap:6px"><a class="btn small" href="https://drive.google.com/file/d/{{ p[key] }}/view" target="_blank" rel="noopener">Xem</a>
+      <a class="btn sec small" href="https://drive.google.com/uc?export=download&amp;id={{ p[key] }}" target="_blank" rel="noopener">Tải về</a></span></div>
+      <div class="muted small">Drive ID {{ p[key] }}</div></div>{% endif %}{% endfor %}
+    {% if not p.final_video %}<div class="kit-item"><span class="muted small">Chưa có video thành phẩm — tool tự lấy từ thư BAOCAO-…GOI-{{ p.goi }}… của Gemini khi nhập từ hộp thư, hoặc dán link vào ô “Video thành phẩm”.</span></div>{% endif %}
     {{ item('Caption + hashtag', p.caption) }}
     {{ item('Bình luận ghim', p.pinned) }}
     {{ item('Chữ trên hình', p.on_screen) }}

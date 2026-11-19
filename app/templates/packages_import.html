@@ -10,7 +10,7 @@
   <td><b>Gói {{ g.goi }}</b><div style="margin-top:6px"><a class="btn small nw" href="/packages/import/{{ g.goi }}">{{ 'Cập nhật gói đã có' if g.existing_id else 'Dùng gói này' }}</a></div></td>
   <td>{{ g.title or '—' }}</td>
   <td class="nw">{{ g.sku or '—' }}</td>
-  <td class="small">{% for f in ['scene1','scene2','scene3','scene4','on_screen','caption','pinned'] %}<span class="badge {{ 'ok' if f in g.fields }}">{{ {'scene1':'C1','scene2':'C2','scene3':'C3','scene4':'C4','on_screen':'Chữ','caption':'Caption','pinned':'Ghim'}[f] }}</span> {% endfor %}</td>
+  <td class="small">{% for f in ['scene1','scene2','scene3','scene4','on_screen','caption','pinned','prompts','video'] %}<span class="badge {{ 'ok' if f in g.fields }}">{{ {'scene1':'C1','scene2':'C2','scene3':'C3','scene4':'C4','on_screen':'Chữ','caption':'Caption','pinned':'Ghim','prompts':'Prompt','video':'Video'}[f] }}</span> {% endfor %}</td>
   <td>{{ (g.images or {})|length }}/4</td>
   <td class="small">{% for s in g.sources %}<div><a href="https://drive.google.com/open?id={{ s.id }}" target="_blank" rel="noopener">{{ s.name }}</a></div>{% endfor %}</td>
 </tr>{% else %}{% if not error %}<tr><td colspan="6" class="muted">Không tìm thấy file SANXUAT-… nào có số gói.</td></tr>{% endif %}{% endfor %}
