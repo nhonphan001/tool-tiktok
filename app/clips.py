@@ -149,6 +149,29 @@ def ghep_letter(p: dict, clips: dict) -> tuple[str, str]:
     goi = p.get("goi")
     code = f"GHEP-{vn:%d%m}-GOI-{goi}"
     rows = "\n".join(f"| Cảnh {k} | {clips[str(k)]['name']} | `{clips[str(k)]['id']}` |" for k in range(1, 5))
+    from . import tts
+
+    silent = any(clips[str(k)].get("audio") is False or "khongtieng" in str(clips[str(k)].get("name", "")).lower()
+                 for k in range(1, 5))
+    vinfo = tts.scene_info(p)
+    voice = ""
+    if silent or vinfo:
+        vk = tts.voice_key()
+        vrows = "\n".join(f"| Cảnh {k} | {vinfo[str(k)]['name']} | {vinfo[str(k)]['seconds']}s · {vinfo[str(k)]['sps']} âm tiết/giây |"
+                          if str(k) in vinfo else f"| Cảnh {k} | (chưa có) | |" for k in range(1, 5))
+        voice = f"""
+## Phương án B — clip không tiếng + giọng TTS cố định
+Giọng thương hiệu: **{tts.VOICES[vk][2] if vk else '(chưa chọn)'}**. File giọng nằm cùng thư mục 02:
+
+| Cảnh | File giọng | Độ dài · tốc độ |
+|---|---|---|
+{vrows}
+
+- Lồng file giọng cảnh k vào clip cảnh k (bỏ tiếng gốc của clip nếu có), bắt đầu từ giây 0.
+- Chuẩn hoá độ to **−14 LUFS** (loudnorm), cùng mức cho cả 4 cảnh; không thêm nhạc nền.
+- Giọng dài hơn 8 giây: tăng tốc tối đa 1,08× (atempo), không cắt chữ. Ngắn hơn: để lặng cuối cảnh.
+- Ghi vào BAOCAO nhận xét khẩu hình qua voan (khớp / lệch chấp nhận được / lệch rõ).
+"""
     md = f"""---
 ma_yeu_cau: {code}
 loai: yeu_cau_ghep_video (P8b)
@@ -165,7 +188,7 @@ Anh Nhơn đã duyệt **ĐẠT cả 4 clip thô** trên TikTok Manager. Gemini 
 | Cảnh | File trong 02_VIDEO_THO_CHO_KIEM_DUYET | ID Drive |
 |---|---|---|
 {rows}
-
+{voice}
 1. Cắt khoảng lặng đầu/cuối và tạp âm thừa, ghép 4 cảnh theo thứ tự 1→4, fade âm 20–30 ms ở điểm nối.
 2. Gắn hook đầu video: **{p.get('on_screen') or '(chữ trên hình trong phiếu gói)'}** (5–6 giây đầu).
 3. Phụ đề tiếng Việt khớp từng giây theo đúng lời thoại phiếu gói.

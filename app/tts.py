@@ -1,0 +1,236 @@
+"""Giọng đọc Cô Kim bằng TTS (phương án B: Veo không tiếng + 1 giọng TTS cố định).
+
+- Google Cloud Text-to-Speech (texttospeech.googleapis.com), xác thực bằng service account (scope cloud-platform).
+  Cần bật "Cloud Text-to-Speech API" trong project Vertex.
+- 2 loại giọng: Gemini TTS (gemini-2.5-flash-tts, điều khiển giọng bằng lời dặn: miền Nam, ấm, chậm) và Chirp 3 HD.
+- Trang /giong: tạo 4 mẫu cùng 1 câu → nghe, xem tốc độ (âm tiết/giây) → chọn 1 giọng thương hiệu (cài đặt tts_voice).
+- Gói SX: tạo 4 file giọng Goi_<n>_canh_<k>_giong.wav theo lời thoại 4 cảnh để Gemini ghép ở P8b (chuẩn hoá −14 LUFS).
+Giá (ước tính, rất nhỏ): Gemini 2.5 Flash TTS ~$0,50/1 triệu token chữ + ~$10/1 triệu token âm thanh (25 token/giây);
+Chirp 3 HD ~$30/1 triệu ký tự. Một câu 8 giây < $0,005.
+"""
+import base64
+import io
+import json
+import os
+import re
+import wave
+import zipfile
+
+import httpx
+
+from . import db
+from .config import settings
+
+URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+GEMINI_TTS_MODEL = "gemini-2.5-flash-tts"
+STYLE = ("Đọc bằng giọng nữ miền Nam (Sài Gòn), khoảng 25–30 tuổi, ấm áp, nhẹ nhàng, thân mật như đang rót trà tâm sự "
+         "với người nghe. Tốc độ chậm rãi, khoảng 3,6 âm tiết mỗi giây, ngắt nghỉ tự nhiên ở dấu phẩy. Đọc đúng dấu "
+         "tiếng Việt, không thêm từ, không nhạc nền.")
+VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả)
+    "g_sulafat": ("gemini", "Sulafat", "Gemini · Sulafat", "ấm, tròn giọng"),
+    "g_aoede": ("gemini", "Aoede", "Gemini · Aoede", "nhẹ, thoáng"),
+    "g_kore": ("gemini", "Kore", "Gemini · Kore", "chắc, rõ chữ"),
+    "chirp_aoede": ("chirp", "vi-VN-Chirp3-HD-Aoede", "Chirp 3 HD · Aoede", "giọng có sẵn tiếng Việt, không chỉnh được vùng miền"),
+}
+SAMPLE_TEXT = ("Chào con, Cô Kim pha sẵn ấm trà rồi đây. Ngồi xuống uống với Cô một chén, "
+               "rồi kể Cô nghe hôm nay con thấy lòng mình thế nào nhé.")
+RATE = 24000
+SYL_MIN, SYL_MAX = 3.5, 3.8
+
+
+class TTSError(RuntimeError):
+    pass
+
+
+def ready() -> tuple[bool, str]:
+    if not settings.gemini_vertex_project:
+        return False, "Chưa có ID project Vertex (Cài đặt → Gemini)"
+    if not os.path.exists(settings.google_service_account_file or ""):
+        return False, "Thiếu file service account"
+    return True, ""
+
+
+def voice_key() -> str:
+    return settings.tts_voice if settings.tts_voice in VOICES else ""
+
+
+def syllables(text: str) -> int:
+    return len(re.findall(r"[^\s\d.,!?;:\"“”()…–\-]+", text or ""))
+
+
+def estimate_usd(text: str, key: str, seconds: float = 8) -> float:
+    if VOICES[key][0] == "chirp":
+        return round(len(text) * 30e-6, 5)
+    return round(len(text) / 3 * 0.5e-6 + seconds * 25 * 10e-6, 5)
+
+
+def build_request(text: str, key: str, rate: float = 1.0) -> dict:
+    kind, name = VOICES[key][0], VOICES[key][1]
+    audio = {"audioEncoding": "LINEAR16", "sampleRateHertz": RATE}
+    if kind == "gemini":
+        return {"input": {"prompt": STYLE, "text": text},
+                "voice": {"languageCode": "vi-VN", "name": name, "modelName": GEMINI_TTS_MODEL}, "audioConfig": audio}
+    return {"input": {"text": text}, "voice": {"languageCode": "vi-VN", "name": name},
+            "audioConfig": {**audio, "speakingRate": rate}}
+
+
+def _token() -> str:
+    from .notebooklm import _credentials
+
+    return _credentials(["https://www.googleapis.com/auth/cloud-platform"]).token
+
+
+def wav_seconds(data: bytes) -> float:
+    try:
+        with wave.open(io.BytesIO(data)) as w:
+            return w.getnframes() / float(w.getframerate())
+    except (wave.Error, EOFError):
+        return len(data) / (RATE * 2.0)
+
+
+def _as_wav(data: bytes) -> bytes:
+    if data[:4] == b"RIFF":
+        return data
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(data)
+    return buf.getvalue()
+
+
+def synthesize(text: str, key: str, rate: float = 1.0) -> bytes:
+    if key not in VOICES:
+        raise TTSError(f"Giọng không có: {key}")
+    if not text.strip():
+        raise TTSError("Lời thoại trống")
+    h = {"Authorization": f"Bearer {_token()}", "Content-Type": "application/json",
+         "x-goog-user-project": settings.gemini_vertex_project}
+    r = httpx.post(URL, headers=h, json=build_request(text, key, rate), timeout=90)
+    if r.status_code != 200:
+        msg = r.text[:300]
+        if r.status_code == 403 and "texttospeech" in msg.lower():
+            msg = "Chưa bật Cloud Text-to-Speech API cho project, hoặc service account chưa có quyền. " + msg
+        raise TTSError(f"TTS lỗi {r.status_code}: {msg}")
+    b64 = r.json().get("audioContent")
+    if not b64:
+        raise TTSError("TTS không trả âm thanh")
+    data = _as_wav(base64.b64decode(b64))
+    from . import strategy
+
+    strategy.record_usage("tts", None, {"endpoint": "cloud_tts", "input_tokens": len(text), "output_tokens": 0,
+                                        "thinking_tokens": 0, "total_tokens": len(text),
+                                        "cost_usd": estimate_usd(text, key, wav_seconds(data))})
+    return data
+
+
+def tts_dir() -> str:
+    from .media import cache_dir
+
+    d = os.path.join(cache_dir(), "tts")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _meta(text: str, data: bytes) -> dict:
+    sec = round(wav_seconds(data), 2)
+    n = syllables(text)
+    sps = round(n / sec, 2) if sec else 0
+    return {"seconds": sec, "syllables": n, "sps": sps, "speed_ok": SYL_MIN <= sps <= SYL_MAX + 0.2,
+            "fits_8s": sec <= 8.0}
+
+
+# ---------- Mẫu nghe thử ----------
+def samples_path() -> str:
+    return os.path.join(tts_dir(), "samples.json")
+
+
+def load_samples() -> dict:
+    try:
+        with open(samples_path(), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def make_samples(text: str, keys: list[str] | None = None) -> dict:
+    keys = [k for k in (keys or list(VOICES)) if k in VOICES]
+    out = load_samples() if keys != list(VOICES) else {}
+    out["_text"] = text
+    errors = []
+    for k in keys:
+        try:
+            data = synthesize(text, k)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{VOICES[k][2]}: {str(e)[:200]}")
+            out.pop(k, None)
+            continue
+        with open(os.path.join(tts_dir(), f"mau_{k}.wav"), "wb") as f:
+            f.write(data)
+        out[k] = {**_meta(text, data), "created": db.now_iso()}
+    with open(samples_path(), "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False)
+    return {"samples": out, "errors": errors}
+
+
+def sample_file(key: str) -> str:
+    return os.path.join(tts_dir(), f"mau_{key}.wav") if key in VOICES else ""
+
+
+# ---------- Giọng 4 cảnh của gói ----------
+def scene_name(goi, k: int) -> str:
+    return f"Goi_{re.sub(r'[^0-9A-Za-z]', '', str(goi))}_canh_{k}_giong.wav"
+
+
+def scene_file(goi, k: int) -> str:
+    return os.path.join(tts_dir(), scene_name(goi, k))
+
+
+def scene_info(p: dict) -> dict:
+    out = {}
+    for k in range(1, 5):
+        path = scene_file(p.get("goi"), k)
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = f.read()
+            out[str(k)] = {"name": scene_name(p.get("goi"), k), **_meta(p.get(f"scene{k}") or "", data)}
+    return out
+
+
+def make_scenes(p: dict, key: str | None = None) -> dict:
+    key = key or voice_key()
+    if not key:
+        raise TTSError("Chưa chọn giọng thương hiệu — vào trang Giọng Cô Kim để chọn")
+    errors, done = [], []
+    for k in range(1, 5):
+        text = (p.get(f"scene{k}") or "").strip()
+        if not text:
+            errors.append(f"cảnh {k}: chưa có lời thoại")
+            continue
+        try:
+            data = synthesize(text, key)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"cảnh {k}: {str(e)[:160]}")
+            continue
+        with open(scene_file(p.get("goi"), k), "wb") as f:
+            f.write(data)
+        done.append(str(k))
+    return {"done": done, "errors": errors, "voice": VOICES[key][2]}
+
+
+def scenes_zip(p: dict) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for k in range(1, 5):
+            path = scene_file(p.get("goi"), k)
+            if os.path.exists(path):
+                z.write(path, scene_name(p.get("goi"), k))
+    return buf.getvalue()
+
+
+def estimate_scenes(p: dict, key: str | None = None) -> float:
+    key = key or voice_key()
+    if not key:
+        return 0.0
+    return round(sum(estimate_usd(p.get(f"scene{k}") or "", key) for k in range(1, 5)), 4)

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Giọng Cô Kim</h1>
+<p class="muted">Phương án B: Veo tạo hình <b>không tiếng</b>, lời thoại 4 cảnh đọc bằng <b>một giọng TTS cố định</b> nên giọng đồng nhất 100%.
+  Nghe thử các giọng dưới đây rồi chọn 1 giọng thương hiệu. Tiêu chí: giọng miền Nam, ấm, đọc đúng dấu, tốc độ {{ syl_min }}–{{ syl_max }} âm tiết/giây.</p>
+{% if not ok %}<div class="flash error">{{ why }} — <a href="/settings">Cài đặt</a></div>{% endif %}
+<div class="card">
+  <form method="post" action="/giong/mau" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang tạo 4 giọng… (10–40 giây)'">
+    <label>Câu đọc thử (giữ cùng 1 câu cho cả 4 giọng để so sánh)</label>
+    <textarea name="text" rows="3" maxlength="400" oninput="sylc(this)">{{ text }}</textarea>
+    <div class="muted small" id="sylc"></div>
+    <div class="row" style="gap:8px;margin-top:8px"><button class="btn" {{ 'disabled' if not ok }}>Tạo {{ voices|length }} giọng mẫu · ≈ ${{ '%.3f'|format(est) }}</button>
+      {% if samples|length > 1 %}<a class="btn sec" href="/giong/mau.zip">Tải {{ voices|length }} mẫu (.zip) cho Gemini chấm</a>{% endif %}</div>
+  </form>
+  <details style="margin-top:8px"><summary class="muted small">Lời dặn giọng gửi kèm cho Gemini TTS</summary><div class="kit-text small" style="margin-top:6px">{{ style }}</div></details>
+</div>
+{% for k, vv in voices.items() %}{% set s = samples.get(k) %}
+<div class="card voice-card {{ 'on' if chosen==k }}" style="margin-top:12px">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <div><b>{{ loop.index }}. {{ vv[2] }}</b> {% if chosen==k %}<span class="badge ok">Giọng thương hiệu ✓</span>{% endif %}
+      <div class="muted small">{{ vv[3] }}</div></div>
+    {% if s %}<span class="small">{{ s.seconds }}s · {{ s.syllables }} âm tiết · <b style="color:{{ 'var(--ok)' if s.speed_ok else '#b7791f' }}">{{ s.sps }} âm tiết/giây</b></span>{% endif %}
+  </div>
+  {% if s %}
+    <audio controls preload="none" src="/giong/mau/{{ k }}.wav?v={{ v }}" style="width:100%;margin-top:8px"></audio>
+    <div class="row" style="gap:6px;margin-top:6px">
+      {% if chosen != k %}<form method="post" action="/giong/chon" style="margin:0"><input type="hidden" name="key" value="{{ k }}">
+        <button class="btn small">Chọn giọng này</button></form>{% endif %}
+      <a class="btn sec small" href="/giong/mau/{{ k }}.wav?download=1">Tải</a></div>
+  {% else %}<p class="muted small" style="margin:6px 0 0">Chưa có mẫu — bấm “Tạo giọng mẫu”.</p>{% endif %}
+</div>{% endfor %}
+<p class="muted small" style="margin-top:12px">Gửi Gemini chấm: tải .zip, giải nén vào thư mục 02 (tên <code>GIONG_MAU_1…4</code>), rồi nhắn Gemini “chấm giọng mẫu”.
+  Sau khi chọn, ở mỗi Gói SX → tab Video thô có nút “Tạo giọng 4 cảnh”.</p>
+<script>
+function sylc(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; document.getElementById('sylc').textContent=n+' âm tiết · ở {{ syl_min }}–{{ syl_max }} âm tiết/giây ≈ '+(n/{{ syl_max }}).toFixed(1)+'–'+(n/{{ syl_min }}).toFixed(1)+' giây'; }
+sylc(document.querySelector('textarea[name=text]'));
+</script>
+{% endblock %}

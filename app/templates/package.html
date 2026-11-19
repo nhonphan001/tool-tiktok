@@ -129,16 +129,37 @@
   {% if raw_err %}<div class="flash error">{{ raw_err }}</div>{% endif %}
   <div class="veo-box">
     <div class="row" style="justify-content:space-between;align-items:center"><b>🎬 Tạo clip bằng Veo (API, trả phí)</b>
-      <span class="muted small">{{ veo_all.model }} · {{ veo_all.resolution }} · ${{ '%.2f'|format(veo_one.usd) }}/cảnh · tháng này đã dùng ${{ '%.2f'|format(veo_all.spent) }}{% if veo_all.budget %} / trần ${{ veo_all.budget|int }}{% endif %}</span></div>
+      <span class="muted small">{{ veo_all.model }} · {{ veo_all.resolution }} · ${{ '%.2f'|format(veo_one_b.usd) }}/cảnh không tiếng · ${{ '%.2f'|format(veo_one.usd) }} có tiếng · tháng này đã dùng ${{ '%.2f'|format(veo_all.spent) }}{% if veo_all.budget %} / trần ${{ veo_all.budget|int }}{% endif %}</span></div>
     {% if veo_running %}<p class="pending" style="padding:8px 0"><span class="spinner"></span> Veo đang tạo clip… mỗi cảnh khoảng 1–3 phút, tool sẽ báo khi xong.</p>
     {% elif not veo_ok %}<p class="muted small" style="margin:6px 0 0">{{ veo_why }} — <a href="/settings">Cài đặt → Veo</a>. Vẫn có thể tạo tay trên Gemini/Flow rồi lưu vào thư mục 02.</p>
     {% else %}
-    <form method="post" action="/packages/{{ p.id }}/veo" style="margin:8px 0 0"
-          onsubmit="return confirm('Tạo 4 cảnh bằng {{ veo_all.model }} {{ veo_all.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_all.usd) }} ≈ {{ '{:,}'.format(veo_all.vnd).replace(',', '.') }}đ (tính theo giây video).')">
-      <input type="hidden" name="scenes" value="1,2,3,4"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_all.usd) }}">
-      <button class="btn" {{ 'disabled' if veo_all.over_budget }}>Tạo cả 4 cảnh bằng Veo · ≈ ${{ '%.2f'|format(veo_all.usd) }} ≈ {{ '{:,}'.format(veo_all.vnd).replace(',', '.') }}đ</button>
-      {% if veo_all.over_budget %}<span class="small" style="color:var(--err)">Vượt trần ngân sách tháng</span>{% endif %}
-    </form>{% endif %}
+    <div class="row" style="gap:8px;margin-top:8px">
+    <form method="post" action="/packages/{{ p.id }}/veo" style="margin:0"
+          onsubmit="return confirm('Phương án B: tạo 4 cảnh KHÔNG TIẾNG bằng {{ veo_all_b.model }} {{ veo_all_b.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ.\nGiọng đọc lồng sau bằng giọng TTS cố định.')">
+      <input type="hidden" name="scenes" value="1,2,3,4"><input type="hidden" name="audio" value="0"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_all_b.usd) }}">
+      <button class="btn" {{ 'disabled' if veo_all_b.over_budget }}>4 cảnh không tiếng (PA B) · ≈ ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ</button>
+    </form>
+    <form method="post" action="/packages/{{ p.id }}/veo" style="margin:0"
+          onsubmit="return confirm('Tạo 4 cảnh CÓ TIẾNG bằng {{ veo_all.model }} {{ veo_all.resolution }}?\nLưu ý: giọng Veo có thể khác nhau giữa các cảnh.\nChi phí ước tính: ${{ '%.2f'|format(veo_all.usd) }} ≈ {{ '{:,}'.format(veo_all.vnd).replace(',', '.') }}đ.')">
+      <input type="hidden" name="scenes" value="1,2,3,4"><input type="hidden" name="audio" value="1"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_all.usd) }}">
+      <button class="btn sec" {{ 'disabled' if veo_all.over_budget }}>Có tiếng Veo · ≈ ${{ '%.2f'|format(veo_all.usd) }}</button>
+    </form></div>
+      {% if veo_all_b.over_budget %}<span class="small" style="color:var(--err)">Vượt trần ngân sách tháng</span>{% endif %}
+    {% endif %}
+  </div>
+  <div class="veo-box voice-box">
+    <div class="row" style="justify-content:space-between;align-items:center"><b>🎙️ Giọng Cô Kim 4 cảnh (TTS)</b>
+      <span class="muted small">{% if tts_voice %}Giọng: <b>{{ tts_voice }}</b> · <a href="/giong">đổi</a>{% else %}<a href="/giong">Chưa chọn giọng — nghe thử &amp; chọn</a>{% endif %}</span></div>
+    {% for k in ['1','2','3','4'] %}{% set t = tts_scenes.get(k) %}{% if t %}
+      <div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="small" style="min-width:52px">Cảnh {{ k }}</span>
+        <audio controls preload="none" src="/media/{{ p.id }}/giong{{ k }}?v={{ t.seconds }}" style="flex:1;min-width:180px;height:34px"></audio>
+        <span class="small" style="color:{{ 'var(--ok)' if t.fits_8s else 'var(--err)' }}">{{ t.seconds }}s · {{ t.sps }} ât/giây</span></div>
+    {% endif %}{% endfor %}
+    {% if not tts_ok %}<p class="muted small" style="margin:6px 0 0">{{ tts_why }}</p>
+    {% elif tts_voice %}<form method="post" action="/packages/{{ p.id }}/giong" style="margin:8px 0 0"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang tạo giọng…';return true">
+      <button class="btn small sec">{{ 'Tạo lại' if tts_scenes else 'Tạo' }} giọng 4 cảnh từ lời thoại · ≈ ${{ '%.3f'|format(tts_usd) }}</button></form>{% endif %}
+    <p class="muted small" style="margin:6px 0 0">File giọng đi kèm trong “Tải 4 clip (.zip)”; thư GHEP sẽ dặn Gemini lồng giọng và chuẩn hoá −14 LUFS.</p>
   </div>
   <div class="row" style="gap:8px;margin-top:10px"><a class="btn sec small" href="/media/{{ p.id }}/clips.zip">Tải 4 clip (.zip)</a>
     <span class="muted small">Clip Veo nằm trên máy chủ: giải nén .zip vào <code>G:\My Drive\…\02_VIDEO_THO_CHO_KIEM_DUYET</code> để Gemini ghép được (tool giữ nguyên kết quả duyệt).</span></div>
@@ -170,9 +191,9 @@
     <button type="button" class="btn sec small" onclick="copyKit(this)">Chép prompt</button></span></div>
     <div class="kit-text big">{{ p['prompt' ~ i] }}</div>
     {% if veo_ok and not veo_running %}<form method="post" action="/packages/{{ p.id }}/veo" style="margin:6px 0"
-      onsubmit="return confirm('Tạo {{ 'lại ' if c.status=='lam_lai' else '' }}cảnh {{ i }} bằng {{ veo_one.model }} {{ veo_one.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_one.usd) }} ≈ {{ '{:,}'.format(veo_one.vnd).replace(',', '.') }}đ.')">
-      <input type="hidden" name="scenes" value="{{ i }}"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_one.usd) }}">
-      <button class="btn small" {{ 'disabled' if veo_one.over_budget }}>🎬 Tạo {{ 'lại ' if c.status=='lam_lai' else '' }}bằng Veo · ≈ ${{ '%.2f'|format(veo_one.usd) }}</button></form>{% endif %}
+      onsubmit="return confirm('Tạo {{ 'lại ' if c.status=='lam_lai' else '' }}cảnh {{ i }} KHÔNG TIẾNG bằng {{ veo_one_b.model }} {{ veo_one_b.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_one_b.usd) }} ≈ {{ '{:,}'.format(veo_one_b.vnd).replace(',', '.') }}đ.')">
+      <input type="hidden" name="scenes" value="{{ i }}"><input type="hidden" name="audio" value="0"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_one_b.usd) }}">
+      <button class="btn small" {{ 'disabled' if veo_one_b.over_budget }}>🎬 Tạo {{ 'lại ' if c.status=='lam_lai' else '' }}bằng Veo (không tiếng) · ≈ ${{ '%.2f'|format(veo_one_b.usd) }}</button></form>{% endif %}
     <div class="muted small">Hoặc tạo tay trên Gemini/Flow, lưu vào 02 với tên <code>Goi_{{ p.goi }}_canh_{{ i }}{{ '_v' ~ (c.rounds + 2) if c.status=='lam_lai' else '' }}.mp4</code> — tool tự nhận bản mới và đưa về “Chờ duyệt”.</div></div>
   {% endif %}
 </div>{% endfor %}

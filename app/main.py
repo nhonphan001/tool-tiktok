@@ -501,6 +501,12 @@ def media_clips_zip(pid: int):
                 path = ""
             if path and os.path.exists(path):
                 z.write(path, c.get("name") or f"Goi_{p.get('goi')}_canh_{k}.mp4")
+        from . import tts as _tts
+
+        for k in range(1, 5):  # giọng TTS 4 cảnh (phương án B) đi kèm để Gemini ghép
+            vp = _tts.scene_file(p.get("goi"), k)
+            if os.path.exists(vp):
+                z.write(vp, _tts.scene_name(p.get("goi"), k))
     if buf.tell() < 100:
         return PlainTextResponse("Chưa có clip nào", status_code=404)
     return HTMLResponse(buf.getvalue(), media_type="application/zip",
@@ -531,6 +537,15 @@ def media_file(pid: int, kind: str, download: int = 0):
     from . import media
 
     p = packages.get(pid)
+    if kind in ("giong1", "giong2", "giong3", "giong4") and p:
+        from . import tts as _tts
+
+        path = _tts.scene_file(p.get("goi"), int(kind[-1]))
+        if not os.path.exists(path):
+            return PlainTextResponse("Chưa có file giọng", status_code=404)
+        return FileResponse(path, media_type="audio/wav", headers={
+            "Content-Disposition": f'{"attachment" if download else "inline"}; filename="{os.path.basename(path)}"',
+            "Cache-Control": "no-store"})
     if kind.startswith("clip") and p:
         from . import clips as _clips, veo as _veo
 
@@ -599,10 +614,17 @@ def package_detail(request: Request, pid: int):
                  if str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "ghep"), None)
     from . import veo
 
+    from . import tts
+
     ok, why = veo.ready()
+    tts_ok, tts_why = tts.ready()
+    vk = tts.voice_key()
     ctx.update(clips=cl, clip_status=clips.STATUS, clips_ok=clips.all_ok(cl), raw_err=raw_err, ghep=ghep,
                req_status=gemini_requests.STATUS, veo_ok=ok, veo_why=why, veo_one=veo.estimate(1),
-               veo_all=veo.estimate(4), veo_running=veo.running(pid))
+               veo_all=veo.estimate(4), veo_one_b=veo.estimate(1, False), veo_all_b=veo.estimate(4, False),
+               veo_running=veo.running(pid), tts_ok=tts_ok, tts_why=tts_why,
+               tts_voice=tts.VOICES[vk][2] if vk else "", tts_scenes=tts.scene_info(p),
+               tts_usd=tts.estimate_scenes(p))
     return render(request, "package.html", **ctx)
 
 
@@ -627,11 +649,13 @@ def package_clip_status(request: Request, pid: int, scene: str, status: str = Fo
 
 
 @app.post("/packages/{pid}/veo")
-def package_veo(request: Request, pid: int, scenes: str = Form(...), confirm_usd: str = Form("")):
+def package_veo(request: Request, pid: int, scenes: str = Form(...), confirm_usd: str = Form(""),
+                audio: str = Form("1")):
     from . import veo
 
     sc = [s for s in scenes.split(",") if s in ("1", "2", "3", "4")]
-    est = veo.estimate(len(sc))
+    au = audio != "0"
+    est = veo.estimate(len(sc), au)
     if not sc:
         flash(request, "Chưa chọn cảnh", "error")
     elif confirm_usd != f"{est['usd']:.2f}":
@@ -640,13 +664,105 @@ def package_veo(request: Request, pid: int, scenes: str = Form(...), confirm_usd
         flash(request, "Veo đang chạy cho gói này, đợi xong rồi tạo tiếp", "info")
     else:
         try:
-            veo.start(pid, sc)
+            veo.start(pid, sc, au)
             vnd = f"{est['vnd']:,}".replace(",", ".")
-            flash(request, f"Đã gửi Veo tạo cảnh {', '.join(sc)} ({est['model']} {est['resolution']}, ≈ ${est['usd']:.2f} ≈ "
+            flash(request, f"Đã gửi Veo tạo cảnh {', '.join(sc)} ({est['model']} {est['resolution']}"
+                           f"{'' if au else ', không tiếng'}, ≈ ${est['usd']:.2f} ≈ "
                            f"{vnd}đ). Mỗi clip mất khoảng 1–3 phút; tool sẽ báo khi xong.", "success")
         except Exception as e:  # noqa: BLE001
             flash(request, f"Không chạy được Veo: {e}", "error")
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+
+
+@app.post("/packages/{pid}/giong")
+def package_voice(request: Request, pid: int):
+    from . import tts
+
+    p = packages.get(pid)
+    if not p:
+        return RedirectResponse("/packages", status_code=303)
+    try:
+        r = tts.make_scenes(p)
+        msg = (f"Đã tạo giọng {r['voice']} cho cảnh {', '.join(r['done'])}." if r["done"] else "Chưa tạo được giọng.")
+        if r["errors"]:
+            msg += " Lỗi: " + " · ".join(r["errors"])
+        flash(request, msg, "success" if r["done"] and not r["errors"] else ("info" if r["done"] else "error"))
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Không tạo được giọng: {e}", "error")
+    return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+
+
+@app.get("/giong")
+def voices_page(request: Request):
+    from . import tts
+
+    ok, why = tts.ready()
+    samples = tts.load_samples()
+    return render(request, "voices.html", active="voices", voices=tts.VOICES, samples=samples, ok=ok, why=why,
+                  chosen=tts.voice_key(), text=samples.get("_text") or tts.SAMPLE_TEXT, style=tts.STYLE,
+                  syl_min=tts.SYL_MIN, syl_max=tts.SYL_MAX, est=sum(tts.estimate_usd(tts.SAMPLE_TEXT, k) for k in tts.VOICES),
+                  v=int(os.path.getmtime(tts.samples_path())) if os.path.exists(tts.samples_path()) else 0)
+
+
+@app.post("/giong/mau")
+def voices_make(request: Request, text: str = Form(...)):
+    from . import tts
+
+    text = text.strip()[:400]
+    try:
+        r = tts.make_samples(text)
+        n = len([k for k in r["samples"] if not k.startswith("_")])
+        flash(request, f"Đã tạo {n}/{len(tts.VOICES)} giọng mẫu." + (" Lỗi: " + " · ".join(r["errors"]) if r["errors"] else ""),
+              "success" if not r["errors"] else ("info" if n else "error"))
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Không tạo được giọng mẫu: {e}", "error")
+    return RedirectResponse("/giong", status_code=303)
+
+
+@app.post("/giong/chon")
+def voices_choose(request: Request, key: str = Form(...)):
+    from . import tts
+
+    if key not in tts.VOICES:
+        flash(request, "Giọng không hợp lệ", "error")
+    else:
+        db.save_setting("tts_voice", key)
+        apply_overrides(db.load_settings())
+        flash(request, f"Đã chọn giọng thương hiệu: {tts.VOICES[key][2]}. Mọi gói sẽ dùng giọng này.", "success")
+    return RedirectResponse("/giong", status_code=303)
+
+
+@app.get("/giong/mau/{key}.wav")
+def voices_file(key: str, download: int = 0):
+    from fastapi.responses import FileResponse, PlainTextResponse
+    from . import tts
+
+    path = tts.sample_file(key)
+    if not path or not os.path.exists(path):
+        return PlainTextResponse("Chưa có mẫu", status_code=404)
+    return FileResponse(path, media_type="audio/wav", headers={
+        "Content-Disposition": f'{"attachment" if download else "inline"}; filename="Co_Kim_mau_{key}.wav"',
+        "Cache-Control": "no-store"})
+
+
+@app.get("/giong/mau.zip")
+def voices_zip():
+    import io as _io
+    import zipfile as _zip
+
+    from fastapi.responses import PlainTextResponse
+    from . import tts
+
+    buf = _io.BytesIO()
+    with _zip.ZipFile(buf, "w", _zip.ZIP_STORED) as z:
+        for i, k in enumerate(tts.VOICES, 1):
+            path = tts.sample_file(k)
+            if os.path.exists(path):
+                z.write(path, f"GIONG_MAU_{i}_{k}.wav")
+    if buf.tell() < 100:
+        return PlainTextResponse("Chưa có mẫu", status_code=404)
+    return HTMLResponse(buf.getvalue(), media_type="application/zip",
+                        headers={"Content-Disposition": 'attachment; filename="Co_Kim_giong_mau.zip"'})
 
 
 @app.post("/packages/{pid}/ghep")

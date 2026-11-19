@@ -89,6 +89,8 @@ class Settings:
     veo_model: str = field(default_factory=lambda: os.getenv("VEO_MODEL", "fast"))
     veo_resolution: str = field(default_factory=lambda: os.getenv("VEO_RESOLUTION", "720p"))
     veo_budget_usd: float = field(default_factory=lambda: float(os.getenv("VEO_BUDGET_USD", "20")))
+    # Giọng thương hiệu Cô Kim (khoá trong app/tts.VOICES), chọn ở trang /giong
+    tts_voice: str = field(default_factory=lambda: os.getenv("TTS_VOICE", ""))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
     export_dir: str = field(default_factory=lambda: os.getenv("EXPORT_DIR", "exports"))
@@ -141,6 +143,7 @@ EDITABLE_KEYS = {
     "veo_model": str,
     "veo_resolution": str,
     "veo_budget_usd": float,
+    "tts_voice": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
     "google_doc_id_strategy": str,

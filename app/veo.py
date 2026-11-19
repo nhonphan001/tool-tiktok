@@ -28,6 +28,8 @@ MODELS = {  # khoá: (model id, nhãn, {độ phân giải: USD/giây có âm th
     "fast": ("veo-3.1-fast-generate-001", "Veo 3.1 Fast", {"720p": 0.10, "1080p": 0.12}),
     "standard": ("veo-3.1-generate-001", "Veo 3.1", {"720p": 0.40, "1080p": 0.40}),
 }
+# Giá khi KHÔNG tạo âm thanh (generateAudio: false) — phương án B, giọng lồng bằng TTS
+SILENT = {"fast": {"720p": 0.08, "1080p": 0.10}, "standard": {"720p": 0.20, "1080p": 0.20}}
 NEGATIVE = "background music, soundtrack, singing, on-screen text, captions, subtitles, logo, distorted face, extra fingers"
 URL = "https://{loc}-aiplatform.googleapis.com/v1/projects/{proj}/locations/{loc}/publishers/google/models/{model}:{verb}"
 
@@ -44,8 +46,9 @@ def resolution() -> str:
     return settings.veo_resolution if settings.veo_resolution in ("720p", "1080p") else "720p"
 
 
-def price_per_clip() -> float:
-    return round(MODELS[model_key()][2][resolution()] * SECONDS, 4)
+def price_per_clip(audio: bool = True) -> float:
+    table = MODELS[model_key()][2] if audio else SILENT[model_key()]
+    return round(table[resolution()] * SECONDS, 4)
 
 
 def month_spent() -> float:
@@ -54,12 +57,12 @@ def month_spent() -> float:
     return float((r or {}).get("c") or 0)
 
 
-def estimate(n_clips: int) -> dict:
-    usd = round(price_per_clip() * n_clips, 2)
+def estimate(n_clips: int, audio: bool = True) -> dict:
+    usd = round(price_per_clip(audio) * n_clips, 2)
     spent = month_spent()
     budget = float(settings.veo_budget_usd or 0)
     return {"clips": n_clips, "usd": usd, "vnd": round(usd * settings.usd_vnd_rate), "model": MODELS[model_key()][1],
-            "resolution": resolution(), "per_clip": price_per_clip(), "spent": round(spent, 2), "budget": budget,
+            "resolution": resolution(), "per_clip": price_per_clip(audio), "audio": audio, "spent": round(spent, 2), "budget": budget,
             "over_budget": bool(budget) and spent + usd > budget}
 
 
@@ -83,12 +86,12 @@ def _url(verb: str) -> str:
     return URL.format(loc=LOCATION, proj=settings.gemini_vertex_project, model=MODELS[model_key()][0], verb=verb)
 
 
-def build_request(prompt: str, image_bytes: bytes, mime: str) -> dict:
+def build_request(prompt: str, image_bytes: bytes, mime: str, audio: bool = True) -> dict:
     return {
         "instances": [{"prompt": prompt, "image": {"bytesBase64Encoded": base64.b64encode(image_bytes).decode(),
                                                    "mimeType": mime}}],
         "parameters": {"aspectRatio": "9:16", "durationSeconds": SECONDS, "resolution": resolution(),
-                       "generateAudio": True, "sampleCount": 1, "personGeneration": "allow_adult",
+                       "generateAudio": bool(audio), "sampleCount": 1, "personGeneration": "allow_adult",
                        "resizeMode": "crop", "negativePrompt": NEGATIVE},
     }
 
@@ -106,9 +109,9 @@ def _extract_video(resp: dict) -> bytes:
     raise VeoError("Veo trả về link Cloud Storage (gcsUri) — tool chỉ hỗ trợ nhận video trực tiếp")
 
 
-def generate(prompt: str, image_bytes: bytes, mime: str, poll_every: float = 10, timeout: float = 600) -> bytes:
+def generate(prompt: str, image_bytes: bytes, mime: str, audio: bool = True, poll_every: float = 10, timeout: float = 600) -> bytes:
     h = {"Authorization": f"Bearer {_token()}", "Content-Type": "application/json"}
-    r = httpx.post(_url("predictLongRunning"), headers=h, json=build_request(prompt, image_bytes, mime), timeout=60)
+    r = httpx.post(_url("predictLongRunning"), headers=h, json=build_request(prompt, image_bytes, mime, audio), timeout=60)
     if r.status_code != 200:
         raise VeoError(f"Veo lỗi {r.status_code}: {r.text[:300]}")
     op = r.json().get("name")
@@ -143,7 +146,7 @@ def local_path(clip_id: str) -> str:
     return os.path.join(veo_dir(), name)
 
 
-def _run_scene(pid: int, scene: str) -> float:
+def _run_scene(pid: int, scene: str, audio: bool = True) -> float:
     """Tạo 1 cảnh; trả về chi phí USD (0 nếu lỗi trước khi Veo chạy)."""
     from . import clips, media, strategy
 
@@ -156,43 +159,44 @@ def _run_scene(pid: int, scene: str) -> float:
     with open(path, "rb") as f:
         img = f.read()
     mime = meta.get("mimeType") if meta.get("mimeType") in ("image/jpeg", "image/png") else "image/jpeg"
-    video = generate(prompt, img, mime)
-    cost = price_per_clip()
+    video = generate(prompt, img, mime, audio)
+    cost = price_per_clip(audio)
     strategy.record_usage("veo", pid, {"endpoint": "vertex_veo", "input_tokens": 0, "output_tokens": 0,
                                        "thinking_tokens": 0, "total_tokens": 0, "cost_usd": cost})
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    name = f"Goi_{p.get('goi')}_canh_{scene}_veo_{stamp}.mp4"
+    name = f"Goi_{p.get('goi')}_canh_{scene}_veo{'' if audio else '_khongtieng'}_{stamp}.mp4"
     with open(os.path.join(veo_dir(), name), "wb") as f:
         f.write(video)
     cl = clips.load(packages.get(pid))
     cur = cl.get(scene) or {}
     cl[scene] = {"id": f"veo:{name}", "name": name, "modified": db.now_iso(), "status": "cho_duyet",
                  "note": cur.get("note", "") if cur.get("status") == "lam_lai" else "", "source": "veo",
-                 "model": MODELS[model_key()][1] + " " + resolution(), "cost_usd": cost,
+                 "model": MODELS[model_key()][1] + " " + resolution() + ("" if audio else " · không tiếng"),
+                 "audio": audio, "cost_usd": cost,
                  "rounds": int(cur.get("rounds") or 0) + (1 if cur.get("id") else 0)}
     clips.save(pid, cl)
     return cost
 
 
-def start(pid: int, scenes: list[str]) -> int:
+def start(pid: int, scenes: list[str], audio: bool = True) -> int:
     """Chạy nền; thông báo qua jobs khi xong."""
     ok, why = ready()
     if not ok:
         raise VeoError(why)
-    est = estimate(len(scenes))
+    est = estimate(len(scenes), audio)
     if est["over_budget"]:
         raise VeoError(f"Vượt trần ngân sách Veo tháng này (${est['spent']} + ${est['usd']} > ${est['budget']})")
     p = packages.get(pid)
     with db.tx() as c:
         jid = c.execute("INSERT INTO jobs(kind, status, message, created_at, notified, link) VALUES('veo','pending',?,?,0,?)",
-                        (f"Veo đang tạo cảnh {', '.join(scenes)} Gói {p.get('goi')}", db.now_iso(),
+                        (f"Veo đang tạo cảnh {', '.join(scenes)} Gói {p.get('goi')}{'' if audio else ' (không tiếng)'}", db.now_iso(),
                          f"/packages/{pid}#clips")).lastrowid
 
     def _job():
         done, errs, cost = [], [], 0.0
         for s in scenes:
             try:
-                cost += _run_scene(pid, s)
+                cost += _run_scene(pid, s, audio)
                 done.append(s)
             except Exception as e:  # noqa: BLE001
                 log.exception("veo scene %s", s)

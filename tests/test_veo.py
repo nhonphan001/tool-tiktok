@@ -106,12 +106,21 @@ def test_route_requires_matching_confirmation(env, monkeypatch):
     from fastapi.testclient import TestClient
     from app.main import app
     started = []
-    monkeypatch.setattr(veo, "start", lambda pid, sc: started.append(sc))
+    monkeypatch.setattr(veo, "start", lambda pid, sc, au=True: started.append((sc, au)))
     c = TestClient(app)
     c.post("/login", data={"password": settings.app_password})
     c.post(f"/packages/{env}/veo", data={"scenes": "1,2,3,4", "confirm_usd": "1.00"})
     assert started == []  # giá xác nhận không khớp → không chạy
     c.post(f"/packages/{env}/veo", data={"scenes": "1,2,3,4", "confirm_usd": "3.20"})
-    assert started == [["1", "2", "3", "4"]]
+    assert started == [(["1", "2", "3", "4"], True)]
+    c.post(f"/packages/{env}/veo", data={"scenes": "1,2,3,4", "confirm_usd": "3.20", "audio": "0"})
+    assert len(started) == 1  # không tiếng có giá khác ($2.56) → phải xác nhận lại
+    c.post(f"/packages/{env}/veo", data={"scenes": "1,2,3,4", "confirm_usd": "2.56", "audio": "0"})
+    assert started[-1] == (["1", "2", "3", "4"], False)
     html = c.get(f"/packages/{env}").text
-    assert "Tạo cả 4 cảnh bằng Veo" in html and "3.20" in html
+    assert "4 cảnh không tiếng (PA B)" in html and "2.56" in html and "3.20" in html
+
+
+def test_silent_mode_price_and_request(env):
+    assert veo.estimate(4, False)["usd"] == 2.56 and veo.price_per_clip(False) == 0.64
+    assert veo.build_request("p", b"a", "image/jpeg", audio=False)["parameters"]["generateAudio"] is False
