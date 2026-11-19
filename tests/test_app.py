@@ -651,3 +651,19 @@ def test_system_report_renders():
     from app import system_report
     md = system_report.to_markdown()
     assert "BÁO CÁO TỰ ĐỘNG – TIKTOK MANAGER" in md and "| P1 |" in md and "P13" in md
+
+
+def test_docs_pages_require_login_and_serve_pdf():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    r = c.get("/tai-lieu/QUY_TRINH_CHOT_V2.pdf", follow_redirects=False)
+    assert r.status_code in (302, 303, 307) and "/login" in r.headers["location"]
+    c.post("/login", data={"password": os.environ.get("APP_PASSWORD", "admin")})
+    from app.config import settings
+    c.post("/login", data={"password": settings.app_password})
+    assert "Quy trình luồng tự động" in c.get("/tai-lieu").text
+    r = c.get("/tai-lieu/QUY_TRINH_CHOT_V2.pdf")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content[:4] == b"%PDF"
+    assert "P8a" in c.get("/tai-lieu/xem/QUY_TRINH_CHOT_V2.md").text
+    assert c.get("/tai-lieu/../../etc/passwd").status_code in (404, 307, 303, 302)

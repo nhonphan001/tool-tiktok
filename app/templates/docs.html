@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Tài liệu hệ thống</h1>
+<p class="muted">Tài liệu quy trình đã chốt giữa Claude, Gemini và chủ kênh. Chỉ xem được khi đã đăng nhập. Bản sao cũng nằm trong Drive <b>07_SAO_LUU_HE_THONG</b>.</p>
+{% for n in files %}<div class="card" style="margin-bottom:12px">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div style="flex:1;min-width:200px"><b>{{ titles[n][0] }}</b><div class="muted small" style="margin-top:4px">{{ titles[n][1] }}</div></div>
+    <div class="row" style="gap:6px"><a class="btn small" href="/tai-lieu/{{ n }}" target="_blank" rel="noopener">Xem</a>
+      <a class="btn sec small" href="/tai-lieu/{{ n }}?download=1">Tải về</a></div>
+  </div></div>{% else %}<p class="muted">Chưa có tài liệu.</p>{% endfor %}
+<div class="card"><b>Tình trạng hệ thống</b><div class="muted small" style="margin-top:4px">Báo cáo tự động P1–P13 của TikTok Manager (cập nhật theo dữ liệu thật).</div>
+  <p style="margin:8px 0 0"><a class="btn sec small" href="/system">Mở</a></p></div>
+{% endblock %}

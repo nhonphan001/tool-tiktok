@@ -651,6 +651,45 @@ def strategy_delete(request: Request, sid: int):
     return RedirectResponse("/strategy", status_code=303)
 
 
+FILES_DIR = os.path.join(BASE_DIR, "files")
+DOC_TITLES = {
+    "QUY_TRINH_CHOT_V2.pdf": ("Quy trình luồng tự động – bản chốt V2 (PDF, 10 trang)",
+                              "Kiến trúc, lịch tự động, luồng sản xuất, cổng tuân thủ, hộp thư, Gói 16, quy trình chốt P1–P13"),
+    "QUY_TRINH_CHOT_V2.md": ("Quy trình chốt V2 (văn bản)", "Bảng P1–P13, P8a/P8b, quy tắc C.10a, thư mục Drive"),
+    "SAO_LUU_VA_KHOI_PHUC.md": ("Sao lưu & khôi phục hệ thống", "Cách sao lưu VPS, khôi phục khi hỏng / mất GitHub"),
+}
+
+
+@app.get("/tai-lieu", response_class=HTMLResponse)
+def docs_page(request: Request):
+    files = [n for n in DOC_TITLES if os.path.exists(os.path.join(FILES_DIR, n))]
+    return render(request, "docs.html", files=files, titles=DOC_TITLES)
+
+
+@app.get("/tai-lieu/{name}")
+def docs_file(name: str, download: int = 0):
+    from fastapi.responses import FileResponse, PlainTextResponse
+
+    if name not in DOC_TITLES or not os.path.exists(os.path.join(FILES_DIR, name)):
+        return PlainTextResponse("Không có tài liệu này", status_code=404)
+    path = os.path.join(FILES_DIR, name)
+    if name.endswith(".md") and not download:
+        return RedirectResponse(f"/tai-lieu/xem/{name}", status_code=303)
+    media = "application/pdf" if name.endswith(".pdf") else "text/markdown; charset=utf-8"
+    disp = "attachment" if download else "inline"
+    return FileResponse(path, media_type=media, headers={"Content-Disposition": f'{disp}; filename="{name}"'})
+
+
+@app.get("/tai-lieu/xem/{name}", response_class=HTMLResponse)
+def docs_view(request: Request, name: str):
+    if name not in DOC_TITLES or not name.endswith(".md"):
+        return RedirectResponse("/tai-lieu", status_code=303)
+    with open(os.path.join(FILES_DIR, name), encoding="utf-8") as f:
+        text = f.read()
+    text = text.split("---", 2)[2] if text.startswith("---") else text
+    return render(request, "report.html", text=text, title=DOC_TITLES[name][0], md_url=f"/tai-lieu/{name}?download=1")
+
+
 @app.get("/system", response_class=HTMLResponse)
 def system_page(request: Request):
     from . import system_report

@@ -87,3 +87,13 @@ def test_report_only_adds_videos_and_keeps_script():
     d["clean_video"] = "https://drive.google.com/file/d/1bfaqlfXyZE4HTA9DHebUA9VBl9f5w-03/view?usp=drivesdk"
     q = packages.get(packages.save(d))
     assert q["final_video"] == "1FqS8hLpQsIyPyIpvn3JhcXTZ49rEbqJB" and q["clean_video"] == "1bfaqlfXyZE4HTA9DHebUA9VBl9f5w-03"
+
+
+def test_report_v2_table_format_newer_wins():
+    v1 = mailbox.parse_report((FX / "goi17_baocao.md").read_text(), "BAOCAO-1911-HOAN-TAT-GOI-17-VA-TOKEN__GUI_CLAUDE.md")
+    v2 = mailbox.parse_report((FX / "goi17_baocao_v2.md").read_text(), "BAOCAO-1911-HOAN-TAT-GOI-17-V2-GIU-LOGO__GUI_CLAUDE.md")
+    assert v2 == {"goi": "17", "final_video": "1DGLOjF813gO9DJoIDddsmum3j9dAo3RX",
+                  "clean_video": "1MRmxHwc5nEbyFGnxHNnWLLouO6WvUhJ4"}
+    m = mailbox.merge([{**v1, "source": {"id": "a", "name": "v1", "modified": "1"}},
+                       {**v2, "source": {"id": "b", "name": "v2", "modified": "2"}}])
+    assert m["final_video"] == "1DGLOjF813gO9DJoIDddsmum3j9dAo3RX"
