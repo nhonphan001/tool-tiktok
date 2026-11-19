@@ -161,7 +161,7 @@ def _package_section(limit: int = 12) -> list[str]:
     for p in items:
         chk = packages.check(p)
         lines.append(
-            f"| {p.get('goi') or p['id']} | {(p.get('title') or '').replace('|', '/')} | {'Lá số' if p['loai'] == 1 else 'Sản phẩm'}"
+            f"| {p.get('goi') or p['id']} | {(p.get('title') or '').replace('|', '/')} | {packages.LOAI_SHORT.get(p['loai'], p['loai'])}"
             f" | {p.get('sku') or '—'} | {'đạt' if not chk['errors'] else str(chk['errors']) + ' lỗi'}"
             f" | {'được' if chk['ads_ok'] else 'không'} | {packages.STATUS.get(p.get('status') or 'nhap')}"
             f" | {p.get('video_id') or '—'} |")
