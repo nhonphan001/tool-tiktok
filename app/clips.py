@@ -84,6 +84,14 @@ def sync(p: dict, files: list[dict]) -> tuple[dict, list[str]]:
     clips, found, new = load(p), match(p, files), []
     for k, f in found.items():
         cur = clips.get(k) or {}
+        if str(cur.get("id") or "").startswith("veo:"):
+            if f["name"] == cur.get("name"):
+                # anh Nhơn đã thả đúng clip Veo vào thư mục 02 → dùng bản trên Drive, GIỮ trạng thái duyệt
+                clips[k] = {**cur, "id": f["id"], "veo_local": cur["id"]}
+                new.append(k) if cur.get("status") == "cho_duyet" else None
+                continue
+            if (f.get("modifiedTime") or "") <= (cur.get("modified") or ""):
+                continue  # clip Veo mới hơn file trên Drive → giữ clip Veo
         if cur.get("id") != f["id"]:
             clips[k] = {"id": f["id"], "name": f["name"], "modified": f.get("modifiedTime", ""), "status": "cho_duyet",
                         "note": cur.get("note", "") if cur.get("status") == "lam_lai" else "",
@@ -125,6 +133,11 @@ def set_status(pid: int, scene: str, status: str, note: str = "") -> dict:
     clips[scene] = cur
     save(pid, clips)
     return clips
+
+
+def local_only(clips: dict) -> list[str]:
+    """Các cảnh còn là clip Veo chỉ nằm trên VPS (Gemini chưa đọc được)."""
+    return [k for k in sorted(clips) if str((clips.get(k) or {}).get("id") or "").startswith("veo:")]
 
 
 def all_ok(clips: dict) -> bool:

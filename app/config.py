@@ -84,6 +84,11 @@ class Settings:
     # Token cho API chỉ-đọc /api/public/* (bảng điều hành khác, Gemini...). Trống = tắt.
     api_token: str = field(default_factory=lambda: os.getenv("API_TOKEN", ""))
     auto_strategy: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_STRATEGY"), False))
+    # Veo (Vertex AI) tạo clip thô — mặc định TẮT; mỗi lần chạy phải xác nhận chi phí
+    veo_enabled: bool = field(default_factory=lambda: _bool(os.getenv("VEO_ENABLED"), False))
+    veo_model: str = field(default_factory=lambda: os.getenv("VEO_MODEL", "fast"))
+    veo_resolution: str = field(default_factory=lambda: os.getenv("VEO_RESOLUTION", "720p"))
+    veo_budget_usd: float = field(default_factory=lambda: float(os.getenv("VEO_BUDGET_USD", "20")))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
     export_dir: str = field(default_factory=lambda: os.getenv("EXPORT_DIR", "exports"))
@@ -132,6 +137,10 @@ EDITABLE_KEYS = {
     "gemini_price_output": float,
     "usd_vnd_rate": float,
     "auto_strategy": lambda v: _bool(str(v)),
+    "veo_enabled": lambda v: _bool(str(v)),
+    "veo_model": str,
+    "veo_resolution": str,
+    "veo_budget_usd": float,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
     "google_doc_id_strategy": str,

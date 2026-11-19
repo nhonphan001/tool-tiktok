@@ -73,6 +73,17 @@
       </div>
       <p class="muted" style="font-size:12px;margin:4px 0 0">Giá đang áp dụng cho <b>{{ s.gemini_model }}</b> ({{ s.gemini_backend }}): <b>${{ price_now[0] }}</b> input / <b>${{ price_now[1] }}</b> output mỗi 1 triệu token — {{ price_now[2] }}. Để trống 2 ô giá = tự động theo bảng giá Google (tự đổi từ 01/01/2027). Token suy luận tính theo giá output.</p>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="auto_strategy" value="1" style="width:auto" {{ 'checked' if s.auto_strategy }}> Tự tạo chiến lược sau mỗi lần quét</label>
+      <h2 style="margin-top:20px">Veo – tạo clip thô bằng API (trả phí)</h2>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="veo_enabled" value="1" style="width:auto" {{ 'checked' if s.veo_enabled }}> Bật nút “Tạo bằng Veo” trong tab Video thô (mỗi lần chạy vẫn phải xác nhận giá)</label>
+      <div class="row" style="gap:8px">
+        <div style="flex:1;min-width:150px"><label>Model</label><select name="veo_model">
+          <option value="fast" {{ 'selected' if s.veo_model=='fast' }}>Veo 3.1 Fast ($0,10–0,12/giây)</option>
+          <option value="standard" {{ 'selected' if s.veo_model=='standard' }}>Veo 3.1 ($0,40/giây)</option></select></div>
+        <div style="flex:1;min-width:120px"><label>Độ phân giải</label><select name="veo_resolution">
+          <option {{ 'selected' if s.veo_resolution=='720p' }}>720p</option><option {{ 'selected' if s.veo_resolution=='1080p' }}>1080p</option></select></div>
+        <div style="flex:1;min-width:130px"><label>Trần ngân sách/tháng (USD)</label><input type="number" step="1" min="0" name="veo_budget_usd" value="{{ s.veo_budget_usd|int }}"></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Gọi Veo trên Vertex AI (us-central1) bằng service account của project <b>{{ s.gemini_vertex_project or '—' }}</b>, clip 9:16 · 8 giây · có giọng nói. Giá theo bảng giá Google Cloud (tra 19/11/2026), tính theo giây video tạo ra.</p>
       <h2 style="margin-top:20px">NotebookLM</h2>
       <label>Chế độ đồng bộ (local, drive, enterprise, off — phân tách bằng dấu phẩy)</label><input name="notebooklm_mode" value="{{ s.notebooklm_mode }}">
       <p class="muted" style="font-size:12px;margin:4px 0 0">Để tool tự ghi vào thư mục 06_SO_LIEU_TU_DONG sau mỗi lần quét: đặt chế độ <code>drive,local</code>, điền ID 2 Doc dưới đây và chia sẻ quyền <b>Người chỉnh sửa</b> 2 Doc cho email service account.</p>

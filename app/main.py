@@ -480,6 +480,33 @@ def package_new(request: Request):
     return render(request, "package.html", **_package_ctx({"loai": 1 if birth else 2, "birth": birth}))
 
 
+@app.get("/media/{pid}/clips.zip")
+def media_clips_zip(pid: int):
+    import io as _io
+    import zipfile as _zip
+
+    from fastapi.responses import PlainTextResponse
+    from . import clips as _clips, media, veo as _veo
+
+    p = packages.get(pid)
+    if not p:
+        return PlainTextResponse("Không có gói", status_code=404)
+    buf = _io.BytesIO()
+    with _zip.ZipFile(buf, "w", _zip.ZIP_STORED) as z:
+        for k, c in sorted(_clips.load(p).items()):
+            cid = str(c.get("id") or "")
+            try:
+                path = _veo.local_path(cid) if cid.startswith("veo:") else (media.fetch(cid)[0] if cid else "")
+            except Exception:  # noqa: BLE001
+                path = ""
+            if path and os.path.exists(path):
+                z.write(path, c.get("name") or f"Goi_{p.get('goi')}_canh_{k}.mp4")
+    if buf.tell() < 100:
+        return PlainTextResponse("Chưa có clip nào", status_code=404)
+    return HTMLResponse(buf.getvalue(), media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="Goi_{p.get("goi")}_4_clip_tho.zip"'})
+
+
 @app.get("/media/{pid}/images.zip")
 def media_zip(pid: int):
     from fastapi.responses import PlainTextResponse
@@ -504,6 +531,16 @@ def media_file(pid: int, kind: str, download: int = 0):
     from . import media
 
     p = packages.get(pid)
+    if kind.startswith("clip") and p:
+        from . import clips as _clips, veo as _veo
+
+        cid = (_clips.load(p).get(kind[4:]) or {}).get("id") or ""
+        if cid.startswith("veo:"):
+            path = _veo.local_path(cid)
+            if not path or not os.path.exists(path):
+                return PlainTextResponse("Không còn file Veo trên máy chủ", status_code=404)
+            return FileResponse(path, media_type="video/mp4", headers={
+                "Content-Disposition": f'{"attachment" if download else "inline"}; filename="{os.path.basename(path)}"'})
     fid = media.file_id_for(p or {}, kind)
     if not fid:
         return PlainTextResponse("Không có file", status_code=404)
@@ -560,8 +597,12 @@ def package_detail(request: Request, pid: int):
     ctx = _package_ctx(p)
     ghep = next((r for r in gemini_requests.all_requests()
                  if str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "ghep"), None)
+    from . import veo
+
+    ok, why = veo.ready()
     ctx.update(clips=cl, clip_status=clips.STATUS, clips_ok=clips.all_ok(cl), raw_err=raw_err, ghep=ghep,
-               req_status=gemini_requests.STATUS)
+               req_status=gemini_requests.STATUS, veo_ok=ok, veo_why=why, veo_one=veo.estimate(1),
+               veo_all=veo.estimate(4), veo_running=veo.running(pid))
     return render(request, "package.html", **ctx)
 
 
@@ -585,6 +626,29 @@ def package_clip_status(request: Request, pid: int, scene: str, status: str = Fo
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
+@app.post("/packages/{pid}/veo")
+def package_veo(request: Request, pid: int, scenes: str = Form(...), confirm_usd: str = Form("")):
+    from . import veo
+
+    sc = [s for s in scenes.split(",") if s in ("1", "2", "3", "4")]
+    est = veo.estimate(len(sc))
+    if not sc:
+        flash(request, "Chưa chọn cảnh", "error")
+    elif confirm_usd != f"{est['usd']:.2f}":
+        flash(request, "Giá đã thay đổi, hãy xác nhận lại", "error")
+    elif veo.running(pid):
+        flash(request, "Veo đang chạy cho gói này, đợi xong rồi tạo tiếp", "info")
+    else:
+        try:
+            veo.start(pid, sc)
+            vnd = f"{est['vnd']:,}".replace(",", ".")
+            flash(request, f"Đã gửi Veo tạo cảnh {', '.join(sc)} ({est['model']} {est['resolution']}, ≈ ${est['usd']:.2f} ≈ "
+                           f"{vnd}đ). Mỗi clip mất khoảng 1–3 phút; tool sẽ báo khi xong.", "success")
+        except Exception as e:  # noqa: BLE001
+            flash(request, f"Không chạy được Veo: {e}", "error")
+    return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+
+
 @app.post("/packages/{pid}/ghep")
 def package_ghep(request: Request, pid: int):
     from . import clips
@@ -593,6 +657,10 @@ def package_ghep(request: Request, pid: int):
     cl = clips.load(p or {})
     if not p or not clips.all_ok(cl):
         flash(request, "Cần duyệt ĐẠT đủ 4 cảnh trước khi gửi Gemini ghép", "error")
+        return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
+    if clips.local_only(cl):
+        flash(request, f"Cảnh {', '.join(clips.local_only(cl))} là clip Veo chưa có trên Drive: bấm “Tải 4 clip (.zip)”, "
+                       "giải nén vào thư mục 02 rồi Quét lại thư mục 02.", "error")
         return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
     code, letter = clips.ghep_letter(p, cl)
     rid = gemini_requests.create_ghep(p["goi"], code, f"Ghép video Gói {p['goi']}", letter)
@@ -881,8 +949,8 @@ def settings_page(request: Request):
 async def settings_save(request: Request):
     form = await request.form()
     for key in EDITABLE_KEYS:
-        if key == "auto_strategy":
-            val = "true" if form.get("auto_strategy") else "false"
+        if key in ("auto_strategy", "veo_enabled"):
+            val = "true" if form.get(key) else "false"
         elif key in form:
             val = str(form.get(key)).strip()
             if key in DEFAULT_TEXT_KEYS and val == _default_text(*DEFAULT_TEXT_KEYS[key]).strip():
