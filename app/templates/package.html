@@ -3,11 +3,18 @@
 {% block content %}
 <p><a href="/packages">← Gói sản xuất</a></p>
 <h1>{{ ('Gói ' ~ p.goi) if p.goi else 'Gói mới' }}{% if p.title %} — {{ p.title }}{% endif %}</h1>
-{% if p.caption or p.prompt1 %}<p class="small"><a href="#kit">↓ Bộ đăng TikTok (chép caption, ghim, prompt video)</a></p>{% endif %}
+{% set has_kit = p.caption or p.pinned or p.on_screen or p.scene1 or p.prompt1 or p.final_video or plan %}
+{% set default_tab = "kit" if (p.id and has_kit) else "form" %}
 {% if imported %}<div class="flash success">Đã điền sẵn từ hộp thư Drive: {% for s in imported.sources %}<a href="https://drive.google.com/open?id={{ s.id }}" target="_blank" rel="noopener">{{ s.name }}</a>{{ ', ' if not loop.last }}{% endfor %}.
   <b>Chưa lưu</b> — xem lại các ô rồi bấm “Lưu &amp; kiểm tra”.{% if p.id %} Gói {{ p.goi }} đã có trong tool: lưu sẽ <b>cập nhật</b> gói cũ.{% endif %}
   {% if imported.images %}<div class="small" style="margin-top:6px">Ảnh cảnh: {% for i, fid in imported.images|dictsort %}<a href="https://drive.google.com/file/d/{{ fid }}/view" target="_blank" rel="noopener">Cảnh {{ i }}</a>{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}</div>{% endif %}
-<div class="side pkg">
+<div class="tabs-bar" role="tablist" data-default="{{ default_tab }}">
+  {% if has_kit %}<a href="#kit" role="tab" data-tab="kit">📦 Bộ đăng TikTok</a>{% endif %}
+  <a href="#form" role="tab" data-tab="form">✏️ Kịch bản</a>
+  <a href="#check" role="tab" data-tab="check">✅ Kiểm tra {% if chk.errors %}<span class="badge error">{{ chk.errors }}</span>{% elif p.id %}<span class="badge ok">Đạt</span>{% endif %}</a>
+  {% if p.id %}<a href="#posted" role="tab" data-tab="posted">🎬 Video đã đăng{% if p.video_id %} ✓{% endif %}</a>{% endif %}
+</div>
+<section class="tabpane" id="pane-form" data-pane="form">
 <div class="card">
   <form method="post" action="/packages/save">
     {% if p.id %}<input type="hidden" name="id" value="{{ p.id }}">{% endif %}
@@ -63,13 +70,17 @@
   </form>
   {% if p.id %}<form method="post" action="/packages/{{ p.id }}/delete" onsubmit="return confirm('Xoá gói này?')"><button class="btn sec small">Xoá gói</button></form>{% endif %}
 </div>
-<div>
+</section>
+<section class="tabpane" id="pane-check" data-pane="check">
   <div class="card"><h2>Kiểm tra {% if chk.errors %}<span class="badge error">{{ chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %} <span class="badge">{{ 'Được chạy quảng cáo' if chk.ads_ok else 'Không chạy quảng cáo' }}</span></h2>
     <ul class="chk">{% for i in chk['items'] %}<li class="{{ i.level }}"><b>{{ i.rule }}</b> — {{ i.msg }}</li>{% endfor %}</ul>
     {% if not p.id %}<p class="muted small">Bấm “Lưu &amp; kiểm tra” để chạy kiểm tra.</p>{% endif %}
   </div>
-  {% set has_kit = p.caption or p.pinned or p.on_screen or p.scene1 or p.prompt1 or p.final_video or plan %}
-  {% if has_kit %}<div class="card kit" id="kit" style="margin-top:16px"><h2>Bộ đăng TikTok <span class="muted small" style="font-weight:400">bấm Chép rồi dán</span></h2>
+  {% if chk.chart %}<div class="card" style="margin-top:16px"><h2>Lá số tính được</h2>{{ chart(chk.chart, True) }}</div>{% endif %}
+  {% if p.id %}<div class="card" style="margin-top:16px"><h2>Khối nhan_video</h2><pre class="block">{{ block }}</pre></div>{% endif %}
+</section>
+{% if has_kit %}<section class="tabpane" id="pane-kit" data-pane="kit">
+  {% if has_kit %}<div class="card kit" id="kit"><h2>Bộ đăng TikTok <span class="muted small" style="font-weight:400">bấm Chép rồi dán</span></h2>
     {% macro item(label, text, big=False) %}{% if text %}<div class="kit-item"><div class="kit-head"><b>{{ label }}</b><button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></div>
       <div class="kit-text{{ ' big' if big }}">{{ text }}</div></div>{% endif %}{% endmacro %}
     {% if plan %}<div class="kit-item kit-plan"><div class="kit-head"><b>📋 Thiết lập khi đăng</b>
@@ -105,9 +116,8 @@
     {{ item('Kế hoạch quảng cáo', p.ads_plan) }}
     {% if not p.id %}<p class="muted small">Đây là nội dung chưa lưu — bấm “Lưu &amp; kiểm tra” trước khi đăng.</p>{% endif %}
   </div>{% endif %}
-  {% if chk.chart %}<div class="card" style="margin-top:16px"><h2>Lá số tính được</h2>{{ chart(chk.chart, True) }}</div>{% endif %}
-  {% if p.id %}
-  <div class="card" style="margin-top:16px"><h2>Khối nhan_video</h2><pre class="block">{{ block }}</pre></div>
+</section>{% endif %}
+{% if p.id %}<section class="tabpane" id="pane-posted" data-pane="posted">
   <div class="card" style="margin-top:16px"><h2>Video đã đăng</h2>
     {% if p.video_id %}<p>Đã gắn: <a href="/videos/{{ p.video_id }}">{{ p.video_id }}</a> {% if p.link_source=='auto' %}(tự khớp theo caption){% endif %}. Nhãn video đã được ghi theo gói.</p>{% endif %}
     <form method="post" action="/packages/{{ p.id }}/link" class="row">
@@ -116,9 +126,7 @@
     </form>
     <p class="muted small">Sau mỗi lần quét, tool tự gắn nếu caption video mới khớp caption của gói.</p>
   </div>
-  {% endif %}
-</div>
-</div>
+</section>{% endif %}
 <script>
 function copyKit(btn){
   const t = btn.closest('.kit-item').querySelector('.kit-text').innerText.trim();
@@ -129,5 +137,24 @@ function copyKit(btn){
 }
 function syl(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; const s=document.querySelector('[data-syl="'+el.name+'"]'); if(s){ s.textContent='· '+n+' âm tiết'; s.style.color=(n&&(n<24||n>28))?'#b7791f':''; } }
 document.querySelectorAll('textarea[name^=scene]').forEach(syl);
+(function(){
+  const bar = document.querySelector('.tabs-bar'); if(!bar) return;
+  const tabs = [...bar.querySelectorAll('[data-tab]')].map(a => a.dataset.tab);
+  function show(name, push){
+    if(!tabs.includes(name)) name = bar.dataset.default;
+    document.querySelectorAll('.tabpane').forEach(x => x.hidden = x.dataset.pane !== name);
+    bar.querySelectorAll('[data-tab]').forEach(a => { const on = a.dataset.tab === name; a.classList.toggle('on', on); a.setAttribute('aria-selected', on); });
+    if(push) history.replaceState(null, '', '#' + name);
+    try { sessionStorage.setItem('pkgtab', name); } catch(e) {}
+  }
+  bar.addEventListener('click', e => { const a = e.target.closest('[data-tab]'); if(!a) return; e.preventDefault(); show(a.dataset.tab, true); window.scrollTo({top: bar.offsetTop - 70, behavior: 'smooth'}); });
+  window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+  let first = location.hash.slice(1);
+  if(!first){ try { first = sessionStorage.getItem('pkgtab') || ''; } catch(e) {} }
+  show(first || bar.dataset.default);
+  // Lưu xong vẫn ở tab đang mở
+  document.querySelectorAll('form[action="/packages/save"]').forEach(f => f.addEventListener('submit', () => {
+    try { sessionStorage.setItem('pkgtab', (location.hash || '#form').slice(1)); } catch(e) {} }));
+})();
 </script>
 {% endblock %}
