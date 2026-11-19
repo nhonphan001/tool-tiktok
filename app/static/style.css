@@ -118,3 +118,6 @@ table.prods td:nth-child(3){min-width:200px;max-width:320px}
 .btn.done{background:var(--ok);color:#fff;border-color:var(--ok)}
 details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 .kit-video{background:rgba(20,164,77,.08);border-color:var(--ok)}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 10px}
+.plan-grid input[readonly]{opacity:.8}
+.kit-plan{background:rgba(47,111,214,.07);border-color:#2f6fd6}

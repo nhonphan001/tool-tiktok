@@ -350,7 +350,14 @@ def _package_ctx(p: dict) -> dict:
     acc = db.get_active_account()
     chk = packages.check(p) if p.get("id") else {"items": [], "errors": 0, "warns": 0, "ads_ok": False,
                                                  "chart": packages.chart_of(p)[0], "hanh": "", "product": None}
-    return {"p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
+    from . import post_plan
+
+    req = next((r for r in gemini_requests.all_requests() if p.get("goi") and str(r["goi"]) == str(p.get("goi"))), None)
+    slots = sorted((kpi.summary(acc["open_id"]).get("slots") or []) if acc else [], key=lambda s: s.get("avg_views") or 0,
+                   reverse=True)
+    best = next((s["label"].replace("Khung ", "") for s in slots if s.get("label", "").startswith("Khung")), "")
+    plan = post_plan.suggest(p, chk, req, best)
+    return {"plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
 
@@ -448,6 +455,7 @@ def packages_import_one(request: Request, goi: str):
         return RedirectResponse("/packages/import", status_code=303)
     existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
     p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS)}
+    p["content_group"] = g.get("content_group") or ""
     p["loai"] = g.get("loai") or 2
     req = next((r for r in gemini_requests.all_requests() if str(r["goi"]) == str(goi)), None)
     p["birth"] = (req or {}).get("opts", {}).get("birth") or {}  # lá số đã gửi trong thư → để B.2 đối chiếu
@@ -455,7 +463,7 @@ def packages_import_one(request: Request, goi: str):
         p["id"] = existing["id"]
         p["status"] = existing.get("status")
         full = packages.get(existing["id"]) or {}
-        for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS, "content_group"):
+        for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS, "content_group", "post_plan_json"):
             if not p.get(k) and full.get(k):
                 p[k] = full[k]  # thư không có trường này → giữ giá trị đang lưu trong tool
     ctx = _package_ctx({**p, "id": None})
@@ -493,8 +501,12 @@ def package_detail(request: Request, pid: int):
 @app.post("/packages/save")
 async def package_save(request: Request):
     form = await request.form()
+    from . import post_plan
+
     data = {k: form.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS,
                                          "dd", "mm", "yy", "t", "lich", "nhuan", "gioi", "status")}
+    if any(k.startswith("plan_") for k in form.keys()):
+        data["post_plan_json"] = post_plan.from_form(form)
     pid = packages.save(data, int(form["id"]) if form.get("id") else None)
     if data.get("goi"):
         gemini_requests.mark_imported(data["goi"])

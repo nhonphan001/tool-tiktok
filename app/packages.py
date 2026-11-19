@@ -22,7 +22,7 @@ VIDEOS = ("final_video", "clean_video")                  # ID video thành phẩ
 LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
-STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "da_dang": "Đã đăng"}
+STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "len_lich": "Đã lên lịch đăng", "da_dang": "Đã đăng"}
 SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # 24–28 âm tiết / cảnh 8 giây (chuẩn của quy trình v2.5)
 
 SCHEMA = """
@@ -51,7 +51,7 @@ def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
         cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
-        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video"):
+        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json"):
             if col not in cols:
                 c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
 
@@ -97,6 +97,8 @@ def save(data: dict, pid: int | None = None) -> int:
                                       if str(data.get(f"prompt{i}") or "").strip()}, ensure_ascii=False)
     for k in VIDEOS:
         row[k] = _drive_id(str(data.get(k) or ""))
+    if "post_plan_json" in data:
+        row["post_plan_json"] = data["post_plan_json"]
     row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, 5)
                                      if str(data.get(f"image{i}") or "").strip()}, ensure_ascii=False)
     status = data.get("status") or None

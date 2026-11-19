@@ -56,9 +56,12 @@ def parse_videos(text: str) -> dict:
 
 
 def parse_report(text: str, name: str = "") -> dict:
-    """Thư BAOCAO-…: CHỈ lấy số gói + video thành phẩm, không ghi đè kịch bản đã duyệt."""
+    """Thư BAOCAO-…: CHỈ lấy số gói + video thành phẩm (+ nhóm nội dung), không ghi đè kịch bản đã duyệt."""
     t = _unescape(text)
     out = {}
+    m = re.search(r"^\s*nhom_noi_dung:\s*([1-6])\b", t, re.M)
+    if m:
+        out["content_group"] = int(m.group(1))
     m = re.search(r"GOI[-_ ]?(\d+)", name, re.I) or re.search(r"^\s*goi:\s*(\d+)", t, re.M)
     if m:
         out["goi"] = m.group(1)
@@ -90,6 +93,9 @@ def parse(text: str, name: str = "") -> dict:
         or re.search(rf"san_pham:\s*({SKU_RX})", t) or re.search(rf"\b({SKU_RX})\b", t)
     if m:
         out["sku"] = m.group(1).upper()
+    m = re.search(r"^\s*nhom_noi_dung:\s*([1-6])\b", t, re.M)
+    if m:
+        out["content_group"] = int(m.group(1))
     m = re.search(r"ten_san_pham:\s*(.+)$", t, re.M)
     if m:
         out["product_name"] = _clean(m.group(1))

@@ -667,3 +667,24 @@ def test_docs_pages_require_login_and_serve_pdf():
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content[:4] == b"%PDF"
     assert "P8a" in c.get("/tai-lieu/xem/QUY_TRINH_CHOT_V2.md").text
     assert c.get("/tai-lieu/../../etc/passwd").status_code in (404, 307, 303, 302)
+
+
+def test_post_plan_suggestions_goi17():
+    from app import post_plan
+    plan_txt = ("- Mục tiêu Quảng bá (Promote): Tăng người theo dõi (More followers), chạy liên tục 7 ngày (nội dung không gắn ngày). "
+                "- Giờ đăng & Giờ bật Quảng bá: - Đăng video tự nhiên lúc 07:00 sáng 19/11. - Chờ video lên kênh và bật chiến dịch "
+                "Quảng bá vào 11:00 – 11:30 trưa 19/11. - Đối tượng mục tiêu (Target Audience): - Giới tính: Nữ (70–80% hoặc chọn "
+                "Tất cả). - Độ tuổi: 25 – 44 tuổi (nhóm tương tác cao). - Khu vực: Việt Nam (toàn quốc). - Sở thích (Interests): "
+                "Trà đạo & Đồ uống, Sống chậm / Thiền định & Thư giãn, Trang trí nhà cửa. - Theo dõi KPI 7 ngày: CPF.")
+    g = post_plan.from_ads_plan(plan_txt)
+    assert g["gioi_tinh"] == "Nữ" and g["do_tuoi"] == "25 – 44 tuổi" and g["khu_vuc"] == "Việt Nam"
+    assert g["so_thich"].startswith("Trà đạo & Đồ uống") and g["so_ngay_qc"] == "7 ngày liên tục"
+    assert g["bat_qc_luc"] == "11:00 – 11:30" and g["muc_tieu_qc"].startswith("Người theo dõi")
+    p = {"id": 1, "loai": 3, "ads_plan": plan_txt, "post_plan_json": "{}"}
+    req = {"opts": {"loai": 3, "goal": "follow", "ads": True, "ads_days": 7, "publish": "Sáng 19/11, 07:00"}}
+    s = post_plan.suggest(p, {"ads_ok": True}, req, "12:00")
+    assert s["quang_cao"][0] == "Có" and s["gio_hang"][0] == "Không" and s["gioi_tinh"][0] == "Nữ"
+    assert s["gio_dang"][0] == "Sáng 19/11, 07:00" and "AI" in s["nhan_ai"][0]
+    # Loại 1 không bao giờ quảng cáo, kể cả khi đã lưu "Có"
+    s1 = post_plan.suggest({"id": 2, "loai": 1, "post_plan_json": '{"quang_cao": "Có"}'}, {"ads_ok": False}, None, "19:30")
+    assert s1["quang_cao"][0].startswith("Không") and s1["gio_dang"][0] == "19:30" and "do_tuoi" not in s1
