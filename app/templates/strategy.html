@@ -46,6 +46,22 @@
           {% if current.duration_sec %}<span>Thời gian: {{ current.duration_sec }}s</span>{% endif %}
         </div>{% endif %}
         {% if current.endpoint_note %}<div class="flash" style="font-size:13px">⚠ {{ current.endpoint_note }}</div>{% endif %}
+        {% if plan %}<div class="plan-box">
+          <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">⚡ Lịch 7 ngày → tạo gói nhanh</h2>
+            <span class="muted small">{{ plan|length }} video · {{ plan|selectattr('req')|list|length }} đã tạo gói</span></div>
+          <p class="muted small" style="margin:4px 0 8px">Bấm “Tạo gói” → form Yêu cầu Gemini được điền sẵn (chủ đề, hook, Loại, giờ đăng, lưu ý). Xem lại rồi gửi. Dòng có ⚠ nên sửa trước khi gửi.</p>
+          {% for r in plan %}<div class="plan-row {{ 'warn' if r.warnings }} {{ 'done' if r.req }}">
+            <div class="plan-when"><b>{{ r.ngay }}</b><span>{{ r.gio }}</span></div>
+            <div class="plan-body">
+              <div><span class="badge loai-{{ r.loai }}">L{{ r.loai }} · {{ loai_short[r.loai] }}</span>{% if r.nhom %} <span class="muted small">nhóm {{ r.nhom }}</span>{% endif %}
+                <b>{{ r.chu_de }}</b></div>
+              {% if r.hook %}<div class="small muted">Hook: “{{ r.hook }}”</div>{% endif %}
+              {% for w in r.warnings %}<div class="small plan-w">⚠ {{ w }}</div>{% endfor %}
+            </div>
+            <div class="plan-act">{% if r.req %}<a class="badge ok" href="/requests#r{{ r.req.id }}">Gói {{ r.req.goi }} ✓</a>
+              {% else %}<a class="btn small" href="/requests?sid={{ current.id }}&row={{ r.idx }}#moi">Tạo gói</a>{% endif %}</div>
+          </div>{% endfor %}
+        </div>{% endif %}
         {{ current.content_md|markdown|safe }}
       {% else %}<p class="muted">Bấm "Tạo chiến lược mới" để AI phân tích số liệu và đề xuất kế hoạch.</p>{% endif %}
     </div>

@@ -364,11 +364,19 @@ def _package_ctx(p: dict) -> dict:
 
 
 @app.get("/requests", response_class=HTMLResponse)
-def requests_page(request: Request):
+def requests_page(request: Request, sid: int | None = None, row: int | None = None):
+    from . import strategy_plan
+
     reqs = gemini_requests.all_requests()
+    pre = {}
+    if sid is not None and row is not None:  # "Tạo gói" từ lịch 7 ngày của chiến lược
+        st = db.query_one("SELECT content_md FROM strategies WHERE id=?", (sid,))
+        rows = strategy_plan.parse_schedule((st or {}).get("content_md") or "")
+        if 0 <= row < len(rows):
+            pre = {**strategy_plan.prefill(rows[row]), "plan_key": f"{sid}:{row}", "warnings": rows[row]["warnings"]}
     return render(request, "requests.html", reqs=reqs, status=gemini_requests.STATUS, goals=gemini_requests.GOALS,
                   loai=packages.LOAI, next_goi=gemini_requests.next_goi(), s=settings,
-                  sa=notebooklm.service_account_email())
+                  sa=notebooklm.service_account_email(), pre=pre)
 
 
 @app.post("/requests/new")
@@ -380,6 +388,8 @@ async def requests_new(request: Request):
         return RedirectResponse("/requests", status_code=303)
     opts = {"loai": int(f.get("loai") or 3), "goal": f.get("goal") or "follow", "ads": bool(f.get("ads")),
             "ads_days": int(f.get("ads_days") or 7), "publish": (f.get("publish") or "").strip()}
+    if f.get("plan_key"):
+        opts["plan_key"] = str(f.get("plan_key"))[:40]  # dòng lịch 7 ngày đã tạo gói
     birth = {k: (f.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "gioi")}
     if opts["loai"] == 1:
         opts["ads"] = False  # video lá số không bao giờ chạy quảng cáo
@@ -1005,8 +1015,15 @@ def strategy_page(request: Request, id: int | None = None):
     if items:
         sid = id or items[0]["id"]
         current = db.query_one("SELECT * FROM strategies WHERE id=? AND open_id=?", (sid, acc["open_id"]))
+    from . import strategy_plan
+
+    plan = strategy_plan.parse_schedule(current["content_md"]) if current and current.get("content_md") else []
+    made = {r["opts"].get("plan_key"): r for r in gemini_requests.all_requests() if r["opts"].get("plan_key")}
+    for r in plan:
+        r["req"] = made.get(f"{current['id']}:{r['idx']}")
     return render(
-        request, "strategy.html", items=items, current=current, gemini_ready=bool(settings.gemini_api_key),
+        request, "strategy.html", items=items, current=current, gemini_ready=bool(settings.gemini_api_key), plan=plan,
+        loai_short=packages.LOAI_SHORT, groups=tags.CONTENT_GROUPS,
         answer=request.session.pop("answer", None), usage=strategy.usage_summary(), rate=settings.usd_vnd_rate,
         endpoint_labels=strategy.ENDPOINT_LABELS, endpoint_now=strategy.ENDPOINT_LABELS[strategy.planned_endpoint()],
     )

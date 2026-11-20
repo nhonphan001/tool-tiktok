@@ -66,7 +66,8 @@ def _scan(text: str, rules, norm: str | None = None) -> list[dict]:
     norm = normalize(text) if norm is None else norm
     found = []
     for code, label, pattern in rules:
-        m = re.search(pattern, norm)
+        # ranh giới từ: tránh bắt nhầm "bàn thờ thanh" (→ "ho than"), "phù hợp" (→ "phu ho"), "trú tại" (→ "tru ta")
+        m = re.search(rf"(?<![a-z0-9])(?:{pattern})(?![a-z0-9])", norm)
         if m:
             found.append({"code": code, "label": label, "match": m.group(0).strip()})
     return found
