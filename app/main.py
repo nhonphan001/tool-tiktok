@@ -704,18 +704,21 @@ def voices_page(request: Request):
     return render(request, "voices.html", active="voices", voices=tts.VOICES, samples=samples, ok=ok, why=why,
                   chosen=tts.voice_key(), text=samples.get("_text") or tts.SAMPLE_TEXT, style=tts.style(),
                   ref=ref, order=order, ranked=bool(ref.get("f0")) and any(samples.get(k, {}).get("f0") for k in tts.VOICES),
-                  job=tts.job(),
+                  job=tts.job(), missing=tts.missing(samples.get("_text") or tts.SAMPLE_TEXT),
                   syl_min=tts.SYL_MIN, syl_max=tts.SYL_MAX, est=sum(tts.estimate_usd(tts.SAMPLE_TEXT, k) for k in tts.VOICES),
                   v=int(os.path.getmtime(tts.samples_path())) if os.path.exists(tts.samples_path()) else 0)
 
 
 @app.post("/giong/mau")
-def voices_make(request: Request, text: str = Form(...)):
+def voices_make(request: Request, text: str = Form(...), only_missing: str = Form("")):
     from . import tts
 
     text = text.strip()[:400]
-    if tts.start_samples(text):
-        flash(request, f"Đang tạo {len(tts.VOICES)} giọng mẫu (khoảng 1–2 phút). Trang tự tải lại khi xong.", "info")
+    keys = tts.missing(text) if only_missing else list(tts.VOICES)
+    if not keys:
+        flash(request, "Đủ giọng mẫu rồi.", "info")
+    elif tts.start_samples(text, keys):
+        flash(request, f"Đang tạo {len(keys)} giọng mẫu (khoảng 1–3 phút). Trang tự tải lại khi xong.", "info")
     else:
         flash(request, "Đang có lượt tạo giọng chạy, đợi xong rồi tạo tiếp.", "info")
     return RedirectResponse("/giong", status_code=303)

@@ -102,6 +102,25 @@ def test_speakable_numbers():
     assert packages.syllables("Cả nhà gửi lời chúc 20/11 nhé") == 11
 
 
+def test_retry_and_missing(env, monkeypatch):
+    calls = []
+
+    class R:
+        def __init__(self, code):
+            self.status_code, self.text = code, '{"error": {"code": %d}}' % code
+
+        def json(self):
+            return {"audioContent": base64.b64encode(_wav(7.0)).decode()}
+
+    seq = [429, 499, 200]
+    monkeypatch.setattr(tts.httpx, "post", lambda *a, **k: (calls.append(1), R(seq[len(calls) - 1] if len(calls) <= 3 else 200))[1])
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    assert tts.synthesize("Chào con", "g_kore")[:4] == b"RIFF" and len(calls) == 3
+    tts.make_samples("Câu thử", ["g_kore", "g_leda"])
+    assert set(tts.missing("Câu thử")) == set(tts.VOICES) - {"g_kore", "g_leda"}
+    assert tts.missing("Câu khác") == list(tts.VOICES)
+
+
 def test_reference_analyze():
     info = tts.analyze(tts.REF_DEFAULT)
     if info:  # có ffmpeg
@@ -124,7 +143,7 @@ def test_routes(env, monkeypatch):
     assert "AUDIO PROFILE" in tts.style()
     c.post("/giong/mau", data={"text": "Chào con, uống trà với Cô nhé."})
     import time
-    for _ in range(100):
+    for _ in range(600):
         if not tts.job().get("running"):
             break
         time.sleep(0.05)

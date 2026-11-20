@@ -33,6 +33,11 @@
 </div>
 {% if job.running %}<div class="flash info" style="margin-top:12px"><span class="spinner"></span> Đang tạo giọng mẫu: {{ job.done or 0 }}/{{ job.total }} xong… trang tự tải lại.</div>
 <script>setTimeout(() => location.reload(), 5000);</script>
+{% elif job.errors and missing and missing|length < voices|length %}<div class="flash error" style="margin-top:12px">
+  Lượt trước còn {{ missing|length }} giọng lỗi (Google báo quá hạn mức/phút — chờ 1 phút rồi tạo lại).
+  <form method="post" action="/giong/mau" style="margin:8px 0 0"><input type="hidden" name="text" value="{{ text }}"><input type="hidden" name="only_missing" value="1">
+    <button class="btn small">Tạo lại {{ missing|length }} giọng còn thiếu</button></form>
+  <details style="margin-top:6px"><summary class="small">Chi tiết lỗi</summary><div class="small">{{ job.errors|join(' · ') }}</div></details></div>
 {% elif job.errors %}<div class="flash error" style="margin-top:12px">Lượt tạo gần nhất có lỗi: {{ job.errors|join(' · ') }}</div>{% endif %}
 {% if ranked %}<p class="muted small" style="margin:12px 0 0">Đã xếp theo <b>độ gần giọng mẫu chuẩn</b> (lệch cao độ so với ~{{ ref.f0 }} Hz, tốc độ ngoài {{ syl_min }}–{{ syl_max }}, lặng đầu). Số đo chỉ để gợi ý, anh vẫn nghe và quyết.</p>{% endif %}
 {% for k in order %}{% set vv = voices[k] %}{% set s = samples.get(k) %}

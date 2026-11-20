@@ -48,6 +48,7 @@ VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả) — 14 giọng nữ
 SAMPLE_TEXT = ("Sáng 20/11, Cô Kim dọn trà ra vườn hoa đón nắng sớm. Mời cả nhà nhấp ngụm trà ấm, để lòng dịu lại "
                "giữa ngày bận rộn và chúc quý thầy cô mãi bình an nhé.")  # 40 âm tiết ≈ 10 giây (mẫu của Gemini 20/11)
 RATE = 24000
+RETRY_WAITS = (8.0, 20.0, 40.0)  # giây chờ trước mỗi lần thử lại khi Google báo hạn mức/quá tải
 REF_DEFAULT = os.path.join(os.path.dirname(__file__), "defaults", "co_kim_mau_chuan.mp3")
 
 
@@ -170,7 +171,15 @@ def synthesize(text: str, key: str, rate: float = 1.0) -> bytes:
         raise TTSError("Lời thoại trống")
     h = {"Authorization": f"Bearer {_token()}", "Content-Type": "application/json",
          "x-goog-user-project": settings.gemini_vertex_project}
-    r = httpx.post(URL, headers=h, json=build_request(text, key, rate), timeout=90)
+    import time
+
+    body = build_request(text, key, rate)
+    for wait in RETRY_WAITS + (None,):
+        r = httpx.post(URL, headers=h, json=body, timeout=90)
+        # 429 = vượt hạn mức/phút của Gemini TTS; 499/500/503 = Google huỷ hoặc quá tải → chờ rồi thử lại
+        if r.status_code not in (429, 499, 500, 503) or wait is None:
+            break
+        time.sleep(wait)
     if r.status_code != 200:
         msg = r.text[:300]
         if r.status_code == 403 and "texttospeech" in msg.lower():
@@ -311,7 +320,7 @@ def load_samples() -> dict:
         return {}
 
 
-def make_samples(text: str, keys: list[str] | None = None, workers: int = 4) -> dict:
+def make_samples(text: str, keys: list[str] | None = None, workers: int = 2) -> dict:
     """Tạo mẫu song song (4 luồng); giữ mẫu cũ của giọng không tạo lại nếu câu đọc không đổi."""
     from concurrent.futures import ThreadPoolExecutor
 
@@ -394,6 +403,14 @@ def start_samples(text: str, keys: list[str] | None = None) -> bool:
 
     threading.Thread(target=run, daemon=True).start()
     return True
+
+
+def missing(text: str) -> list[str]:
+    """Giọng chưa có mẫu cho câu đọc hiện tại (lượt trước lỗi)."""
+    smp = load_samples()
+    if smp.get("_text") != text:
+        return list(VOICES)
+    return [k for k in VOICES if k not in smp]
 
 
 def rank(samples: dict, ref: dict) -> list[str]:
