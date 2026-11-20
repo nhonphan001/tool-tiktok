@@ -43,7 +43,7 @@ REF_DEFAULT = os.path.join(os.path.dirname(__file__), "defaults", "co_kim_mau_ch
 def style() -> str:
     """Hồ sơ giọng Cô Kim (anh Nhơn soạn) — sửa được trên trang /giong."""
     return (settings.tts_style or "").strip() or STYLE_FALLBACK
-SYL_MIN, SYL_MAX = 3.5, 4.0  # 3,5–3,8 (phiếu gói) … 3,8–4,0 (hồ sơ giọng 20/11)
+SYL_MIN, SYL_MAX = 3.8, 4.0  # anh Nhơn chốt 20/11
 
 
 class TTSError(RuntimeError):
@@ -282,7 +282,7 @@ def _meta(text: str, data: bytes, path: str = "") -> dict:
     a = analyze(path) if path else {}
     speak = a.get("speech") or sec  # tốc độ tính trên phần có tiếng nói (bỏ lặng đầu/cuối)
     sps = round(n / speak, 2) if speak else 0
-    return {"seconds": sec, "syllables": n, "sps": sps, "speed_ok": SYL_MIN <= sps <= SYL_MAX + 0.2,
+    return {"seconds": sec, "syllables": n, "sps": sps, "speed_ok": SYL_MIN <= sps <= SYL_MAX,
             "fits_8s": sec <= 8.0, **{k: a[k] for k in ("lufs", "lead", "f0") if k in a},
             "lead_ok": a.get("lead", 0) <= 0.3}
 

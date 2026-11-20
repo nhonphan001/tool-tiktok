@@ -78,7 +78,7 @@ def get(rid: int) -> dict | None:
 # ----------------------------------------------------------------- soạn thư
 def _rules_for(loai: int, ads: bool) -> list[str]:
     common = [
-        "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết, hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
+        "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết (giọng TTS đọc 3,8–4,0 âm tiết/giây ≈ 6–7,4 giây), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
         "ảnh mặt chuẩn nhất CO_KIM_MASTER_FACE_CHUAN_NHAT_3957.png, ID Drive 1gnq18QukC1lCSC0py5Zmf18lR78r3CEH (từ Gói 19): "
         "khóa mặt trái xoan, mắt hạnh nhân, cười khép môi sau voan tím (không hở răng), trâm vàng ngọc đỏ + trâm tua rua trái; "
         "KHÔNG chép tư thế chắp tay, lá bồ đề, túi nhung đỏ). Kèm prompt video 8 giây cho từng cảnh.",
