@@ -136,7 +136,16 @@ def build(open_id: str, strategy_row: dict | None) -> tuple[str, str]:
 def _doc_text(latest_first: list[dict]) -> str:
     head = ("# TÓM TẮT TỰ ĐỘNG – TIKTOK MANAGER\n\nTool ghi sau mỗi lần quét + chiến lược thành công. "
             f"Bản mới nhất ở trên cùng, giữ {KEEP_IN_DOC} bản. Bản đầy đủ tải ở trang /tom-tat của tool.\n")
-    return head + "".join(f"\n\n---\n\n{r['md']}" for r in latest_first)
+    return head + "".join(f"\n\n---\n\n{_for_doc(r['md'])}" for r in latest_first)
+
+
+def _for_doc(md: str) -> str:
+    """Google Doc gộp các dòng front matter thành 1 đoạn → đổi thành danh sách để mỗi trường 1 dòng."""
+    m = re.match(r"---\n(.*?)\n---\n", md, re.S)
+    if not m:
+        return md
+    items = "\n".join(f"- {ln}" for ln in m.group(1).splitlines() if ln.strip())
+    return md[m.end():].lstrip("\n").replace("\n", "\n\n" + items + "\n", 1) if md[m.end():].lstrip().startswith("#") else items + "\n\n" + md[m.end():]
 
 
 def push(sid: int) -> dict:
