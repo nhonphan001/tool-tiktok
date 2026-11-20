@@ -311,7 +311,7 @@ def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]
         "gui: Gemini", f"goi: {goi}", f"ngay_tao: {vn:%Y-%m-%d %H:%M} (GMT+7)",
         f"file_tra_loi: 05_HOP_THU_CLAUDE_GEMINI/GUI_CLAUDE/{answer}", "---", "",
         f"# Sửa phiếu Gói {goi} theo kết quả kiểm tra của TikTok Manager", "",
-        f"Bộ kiểm tra báo **{chk.get('errors', 0)} lỗi, {chk.get('warns', 0)} cảnh báo**. Nhờ Gemini sửa đúng các mục dưới, "
+        f"Anh Nhơn chọn **{len(items)} mục** cần sửa{' và ghi chú thêm' if note.strip() else ''}. Nhờ Gemini sửa đúng các mục dưới, "
         "**giữ nguyên** những phần không bị nêu (ảnh, hook, caption… nếu không có lỗi).", "",
         "## Các mục cần sửa", issues, "",
         *(["## Ghi chú thêm của anh Nhơn", note.strip(), ""] if note.strip() else []),

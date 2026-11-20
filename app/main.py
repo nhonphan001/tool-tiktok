@@ -916,14 +916,20 @@ def voices_zip():
 
 
 @app.post("/packages/{pid}/sua")
-def package_sua(request: Request, pid: int, note: str = Form("")):
-    """Gửi Gemini thư sửa phiếu gói theo kết quả kiểm tra."""
+async def package_sua(request: Request, pid: int):
+    """Gửi Gemini thư sửa phiếu gói: chỉ các mục kiểm tra anh Nhơn đánh dấu ✓ + ghi chú."""
+    f = await request.form()
+    note = str(f.get("note") or "")
+    picked = {int(x) for x in f.getlist("items") if str(x).isdigit()}
     p = packages.get(pid)
     if not p:
         return RedirectResponse("/packages", status_code=303)
     chk = packages.check(p)
-    if not (chk["errors"] or chk["warns"] or note.strip()):
-        flash(request, "Gói không có lỗi/cảnh báo — không cần gửi sửa", "info")
+    chk = {**chk, "items": [i for k, i in enumerate(chk["items"]) if k in picked and i["level"] in ("error", "warn")]}
+    chk["errors"] = sum(1 for i in chk["items"] if i["level"] == "error")
+    chk["warns"] = sum(1 for i in chk["items"] if i["level"] == "warn")
+    if not (chk["items"] or note.strip()):
+        flash(request, "Chưa chọn mục nào và chưa có ghi chú — không gửi", "info")
         return RedirectResponse(f"/packages/{pid}#check", status_code=303)
     rid = gemini_requests.create_sua(p, chk, note[:2000])
     r = gemini_requests.get(rid)
