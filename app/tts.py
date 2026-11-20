@@ -13,6 +13,8 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import wave
 import zipfile
 
@@ -23,7 +25,7 @@ from .config import settings
 
 URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
 GEMINI_TTS_MODEL = "gemini-2.5-flash-tts"
-STYLE = ("Đọc bằng giọng nữ miền Nam (Sài Gòn), khoảng 25–30 tuổi, ấm áp, nhẹ nhàng, thân mật như đang rót trà tâm sự "
+STYLE_FALLBACK = ("Đọc bằng giọng nữ miền Nam (Sài Gòn), khoảng 25–30 tuổi, ấm áp, nhẹ nhàng, thân mật như đang rót trà tâm sự "
          "với người nghe. Tốc độ chậm rãi, khoảng 3,6 âm tiết mỗi giây, ngắt nghỉ tự nhiên ở dấu phẩy. Đọc đúng dấu "
          "tiếng Việt, không thêm từ, không nhạc nền.")
 VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả)
@@ -35,6 +37,12 @@ VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả)
 SAMPLE_TEXT = ("Chào con, Cô Kim pha sẵn ấm trà rồi đây. Ngồi xuống uống với Cô một chén, "
                "rồi kể Cô nghe hôm nay con thấy lòng mình thế nào nhé.")
 RATE = 24000
+REF_DEFAULT = os.path.join(os.path.dirname(__file__), "defaults", "co_kim_mau_chuan.mp3")
+
+
+def style() -> str:
+    """Hồ sơ giọng Cô Kim (anh Nhơn soạn) — sửa được trên trang /giong."""
+    return (settings.tts_style or "").strip() or STYLE_FALLBACK
 SYL_MIN, SYL_MAX = 3.5, 3.8
 
 
@@ -68,7 +76,7 @@ def build_request(text: str, key: str, rate: float = 1.0) -> dict:
     kind, name = VOICES[key][0], VOICES[key][1]
     audio = {"audioEncoding": "LINEAR16", "sampleRateHertz": RATE}
     if kind == "gemini":
-        return {"input": {"prompt": STYLE, "text": text},
+        return {"input": {"prompt": style(), "text": text},
                 "voice": {"languageCode": "vi-VN", "name": name, "modelName": GEMINI_TTS_MODEL}, "audioConfig": audio}
     return {"input": {"text": text}, "voice": {"languageCode": "vi-VN", "name": name},
             "audioConfig": {**audio, "speakingRate": rate}}
@@ -133,12 +141,106 @@ def tts_dir() -> str:
     return d
 
 
-def _meta(text: str, data: bytes) -> dict:
+def analyze(path: str) -> dict:
+    """Đo bằng ffmpeg: độ to (LUFS), khoảng lặng đầu/cuối, thời lượng nói, cao độ trung vị (Hz).
+    Không có ffmpeg/numpy thì trả về phần đo được."""
+    out: dict = {}
+    if not path or not os.path.exists(path) or not shutil.which("ffmpeg"):
+        return out
+    try:
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af",
+                            "silencedetect=n=-35dB:d=0.2,loudnorm=print_format=summary", "-f", "null", "-"],
+                           capture_output=True, text=True, timeout=60)
+        log = r.stderr
+        m = re.search(r"Input Integrated:\s*(-?[\d.]+)", log)
+        if m:
+            out["lufs"] = float(m.group(1))
+        m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", log)
+        dur = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3)) if m else 0
+        starts = [float(x) for x in re.findall(r"silence_start:\s*(-?[\d.]+)", log)]
+        ends = [float(x) for x in re.findall(r"silence_end:\s*([\d.]+)", log)]
+        lead = ends[0] if starts and starts[0] <= 0.01 and ends else 0.0
+        tail = dur - starts[-1] if starts and (len(starts) > len(ends) or (ends and ends[-1] >= dur - 0.15)) else 0.0
+        out.update(lead=round(lead, 2), tail=round(max(tail, 0), 2), speech=round(max(dur - lead - max(tail, 0), 0), 2))
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return out
+    try:
+        import numpy as np
+
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                             capture_output=True, timeout=60).stdout
+        x = np.frombuffer(raw, dtype=np.int16).astype(float)
+        sr, f0 = 16000, []
+        for i in range(0, len(x) - 640, 320):
+            fr = x[i:i + 640]
+            if np.sqrt((fr ** 2).mean()) < 500:
+                continue
+            fr = fr - fr.mean()
+            ac = np.correlate(fr, fr, "full")[639:]
+            lo, hi = sr // 400, sr // 80
+            k = lo + int(np.argmax(ac[lo:hi]))
+            if ac[k] > 0.4 * ac[0]:
+                f0.append(sr / k)
+        if len(f0) > 20:
+            out["f0"] = int(np.median(f0))
+    except Exception:  # noqa: BLE001  (numpy không có / file lạ)
+        pass
+    return out
+
+
+def reference_path() -> str:
+    for ext in ("mp3", "wav", "m4a"):
+        p = os.path.join(tts_dir(), f"mau_chuan.{ext}")
+        if os.path.exists(p):
+            return p
+    return REF_DEFAULT if os.path.exists(REF_DEFAULT) else ""
+
+
+def reference_info() -> dict:
+    p = reference_path()
+    if not p:
+        return {}
+    cache = os.path.join(tts_dir(), "mau_chuan.json")
+    key = f"{p}:{os.path.getmtime(p)}"
+    try:
+        with open(cache, encoding="utf-8") as f:
+            d = json.load(f)
+        if d.get("_key") == key:
+            return d
+    except (OSError, ValueError):
+        pass
+    d = {"_key": key, "name": os.path.basename(p), **analyze(p)}
+    try:
+        with open(cache, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+    except OSError:
+        pass
+    return d
+
+
+def save_reference(data: bytes, filename: str) -> str:
+    ext = (filename.rsplit(".", 1)[-1] or "").lower()
+    if ext not in ("mp3", "wav", "m4a") or len(data) > 10 * 1024 * 1024 or len(data) < 1000:
+        raise TTSError("Chỉ nhận file .mp3/.wav/.m4a, dưới 10 MB")
+    for e in ("mp3", "wav", "m4a"):
+        old = os.path.join(tts_dir(), f"mau_chuan.{e}")
+        if os.path.exists(old):
+            os.remove(old)
+    p = os.path.join(tts_dir(), f"mau_chuan.{ext}")
+    with open(p, "wb") as f:
+        f.write(data)
+    return p
+
+
+def _meta(text: str, data: bytes, path: str = "") -> dict:
     sec = round(wav_seconds(data), 2)
     n = syllables(text)
-    sps = round(n / sec, 2) if sec else 0
+    a = analyze(path) if path else {}
+    speak = a.get("speech") or sec  # tốc độ tính trên phần có tiếng nói (bỏ lặng đầu/cuối)
+    sps = round(n / speak, 2) if speak else 0
     return {"seconds": sec, "syllables": n, "sps": sps, "speed_ok": SYL_MIN <= sps <= SYL_MAX + 0.2,
-            "fits_8s": sec <= 8.0}
+            "fits_8s": sec <= 8.0, **{k: a[k] for k in ("lufs", "lead", "f0") if k in a},
+            "lead_ok": a.get("lead", 0) <= 0.3}
 
 
 # ---------- Mẫu nghe thử ----------
@@ -166,9 +268,10 @@ def make_samples(text: str, keys: list[str] | None = None) -> dict:
             errors.append(f"{VOICES[k][2]}: {str(e)[:200]}")
             out.pop(k, None)
             continue
-        with open(os.path.join(tts_dir(), f"mau_{k}.wav"), "wb") as f:
+        path = os.path.join(tts_dir(), f"mau_{k}.wav")
+        with open(path, "wb") as f:
             f.write(data)
-        out[k] = {**_meta(text, data), "created": db.now_iso()}
+        out[k] = {**_meta(text, data, path), "created": db.now_iso()}
     with open(samples_path(), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
     return {"samples": out, "errors": errors}
@@ -194,7 +297,7 @@ def scene_info(p: dict) -> dict:
         if os.path.exists(path):
             with open(path, "rb") as f:
                 data = f.read()
-            out[str(k)] = {"name": scene_name(p.get("goi"), k), **_meta(p.get(f"scene{k}") or "", data)}
+            out[str(k)] = {"name": scene_name(p.get("goi"), k), **_meta(p.get(f"scene{k}") or "", data, path)}
     return out
 
 

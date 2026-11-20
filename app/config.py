@@ -91,6 +91,8 @@ class Settings:
     veo_budget_usd: float = field(default_factory=lambda: float(os.getenv("VEO_BUDGET_USD", "20")))
     # Giọng thương hiệu Cô Kim (khoá trong app/tts.VOICES), chọn ở trang /giong
     tts_voice: str = field(default_factory=lambda: os.getenv("TTS_VOICE", ""))
+    # Hồ sơ giọng Cô Kim (lời dặn cho Gemini TTS) — trống = app/defaults/co_kim_voice.md
+    tts_style: str = field(default_factory=lambda: _default_text("co_kim_voice.md", "TTS_STYLE"))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
     export_dir: str = field(default_factory=lambda: os.getenv("EXPORT_DIR", "exports"))
@@ -144,6 +146,7 @@ EDITABLE_KEYS = {
     "veo_resolution": str,
     "veo_budget_usd": float,
     "tts_voice": str,
+    "tts_style": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
     "google_doc_id_strategy": str,
@@ -154,6 +157,7 @@ EDITABLE_KEYS = {
 DEFAULT_TEXT_KEYS = {
     "channel_context": ("channel_context.md", "CHANNEL_CONTEXT"),
     "content_rules": ("content_rules.md", "CONTENT_RULES"),
+    "tts_style": ("co_kim_voice.md", "TTS_STYLE"),
 }
 
 settings = Settings()

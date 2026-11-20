@@ -699,7 +699,8 @@ def voices_page(request: Request):
     ok, why = tts.ready()
     samples = tts.load_samples()
     return render(request, "voices.html", active="voices", voices=tts.VOICES, samples=samples, ok=ok, why=why,
-                  chosen=tts.voice_key(), text=samples.get("_text") or tts.SAMPLE_TEXT, style=tts.STYLE,
+                  chosen=tts.voice_key(), text=samples.get("_text") or tts.SAMPLE_TEXT, style=tts.style(),
+                  ref=tts.reference_info(),
                   syl_min=tts.SYL_MIN, syl_max=tts.SYL_MAX, est=sum(tts.estimate_usd(tts.SAMPLE_TEXT, k) for k in tts.VOICES),
                   v=int(os.path.getmtime(tts.samples_path())) if os.path.exists(tts.samples_path()) else 0)
 
@@ -717,6 +718,45 @@ def voices_make(request: Request, text: str = Form(...)):
     except Exception as e:  # noqa: BLE001
         flash(request, f"Không tạo được giọng mẫu: {e}", "error")
     return RedirectResponse("/giong", status_code=303)
+
+
+@app.post("/giong/ho-so")
+def voices_style(request: Request, style: str = Form("")):
+    val = style.strip()
+    if val == _default_text(*DEFAULT_TEXT_KEYS["tts_style"]).strip():
+        val = ""
+    db.save_setting("tts_style", val[:6000])
+    apply_overrides(db.load_settings())
+    flash(request, "Đã lưu hồ sơ giọng Cô Kim. Bấm “Tạo giọng mẫu” để nghe lại theo hồ sơ mới.", "success")
+    return RedirectResponse("/giong", status_code=303)
+
+
+@app.post("/giong/mau-chuan")
+async def voices_reference(request: Request):
+    from . import tts
+
+    form = await request.form()
+    f = form.get("file")
+    try:
+        if not f or not getattr(f, "filename", ""):
+            raise tts.TTSError("Chưa chọn file")
+        tts.save_reference(await f.read(), f.filename)
+        flash(request, "Đã thay giọng mẫu chuẩn.", "success")
+    except tts.TTSError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse("/giong", status_code=303)
+
+
+@app.get("/giong/mau-chuan")
+def voices_reference_file():
+    from fastapi.responses import FileResponse, PlainTextResponse
+    from . import tts
+
+    p = tts.reference_path()
+    if not p:
+        return PlainTextResponse("Chưa có giọng mẫu chuẩn", status_code=404)
+    mt = {"mp3": "audio/mpeg", "wav": "audio/wav", "m4a": "audio/mp4"}[p.rsplit(".", 1)[-1]]
+    return FileResponse(p, media_type=mt, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/giong/chon")
@@ -759,6 +799,9 @@ def voices_zip():
             path = tts.sample_file(k)
             if os.path.exists(path):
                 z.write(path, f"GIONG_MAU_{i}_{k}.wav")
+        ref = tts.reference_path()
+        if ref and buf.tell() > 100:
+            z.write(ref, "GIONG_MAU_CHUAN_CO_KIM." + ref.rsplit(".", 1)[-1])
     if buf.tell() < 100:
         return PlainTextResponse("Chưa có mẫu", status_code=404)
     return HTMLResponse(buf.getvalue(), media_type="application/zip",

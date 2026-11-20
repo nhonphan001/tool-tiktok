@@ -4,6 +4,24 @@
 <p class="muted">Phương án B: Veo tạo hình <b>không tiếng</b>, lời thoại 4 cảnh đọc bằng <b>một giọng TTS cố định</b> nên giọng đồng nhất 100%.
   Nghe thử các giọng dưới đây rồi chọn 1 giọng thương hiệu. Tiêu chí: giọng miền Nam, ấm, đọc đúng dấu, tốc độ {{ syl_min }}–{{ syl_max }} âm tiết/giây.</p>
 {% if not ok %}<div class="flash error">{{ why }} — <a href="/settings">Cài đặt</a></div>{% endif %}
+<div class="card voice-ref">
+  <b>🎧 Giọng mẫu chuẩn (anh Nhơn chọn)</b>
+  {% if ref %}<audio controls preload="none" src="/giong/mau-chuan?v={{ ref._key|length }}" style="width:100%;margin-top:8px"></audio>
+  <div class="small" style="margin-top:4px">{% if ref.lufs is defined %}Độ to <b>{{ ref.lufs }} LUFS</b>{% endif %}{% if ref.f0 is defined %} · cao độ <b>~{{ ref.f0 }} Hz</b>{% endif %}{% if ref.speech is defined %} · nói {{ ref.speech }}s · lặng đầu {{ ref.lead }}s{% endif %}
+    <span class="muted">· {{ ref.name }}</span></div>{% else %}<p class="muted small">Chưa có.</p>{% endif %}
+  <form method="post" action="/giong/mau-chuan" enctype="multipart/form-data" class="row" style="gap:6px;margin-top:8px">
+    <input type="file" name="file" accept=".mp3,.wav,.m4a,audio/*" style="flex:1;min-width:180px"><button class="btn sec small">Thay mẫu chuẩn</button></form>
+  <p class="muted small" style="margin:6px 0 0">Mỗi giọng TTS bên dưới được đo và so với mẫu này: cao độ lệch ≤ 25 Hz và lặng đầu ≤ 0,3 giây là đạt.</p>
+</div>
+<div class="card" style="margin-top:12px">
+  <form method="post" action="/giong/ho-so">
+    <label>Hồ sơ giọng Cô Kim (lời dặn gửi Gemini TTS — lời thoại tự chèn sau)</label>
+    <textarea name="style" rows="8" style="font-family:ui-monospace,monospace;font-size:12.5px">{{ style }}</textarea>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="btn sec small">Lưu hồ sơ giọng</button>
+      <span class="muted small">Áp dụng cho 3 giọng Gemini; giọng Chirp không nhận lời dặn.</span></div>
+  </form>
+</div>
+<div style="height:12px"></div>
 <div class="card">
   <form method="post" action="/giong/mau" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang tạo 4 giọng… (10–40 giây)'">
     <label>Câu đọc thử (giữ cùng 1 câu cho cả 4 giọng để so sánh)</label>
@@ -12,7 +30,6 @@
     <div class="row" style="gap:8px;margin-top:8px"><button class="btn" {{ 'disabled' if not ok }}>Tạo {{ voices|length }} giọng mẫu · ≈ ${{ '%.3f'|format(est) }}</button>
       {% if samples|length > 1 %}<a class="btn sec" href="/giong/mau.zip">Tải {{ voices|length }} mẫu (.zip) cho Gemini chấm</a>{% endif %}</div>
   </form>
-  <details style="margin-top:8px"><summary class="muted small">Lời dặn giọng gửi kèm cho Gemini TTS</summary><div class="kit-text small" style="margin-top:6px">{{ style }}</div></details>
 </div>
 {% for k, vv in voices.items() %}{% set s = samples.get(k) %}
 <div class="card voice-card {{ 'on' if chosen==k }}" style="margin-top:12px">
@@ -21,6 +38,10 @@
       <div class="muted small">{{ vv[3] }}</div></div>
     {% if s %}<span class="small">{{ s.seconds }}s · {{ s.syllables }} âm tiết · <b style="color:{{ 'var(--ok)' if s.speed_ok else '#b7791f' }}">{{ s.sps }} âm tiết/giây</b></span>{% endif %}
   </div>
+  {% if s and (s.f0 is defined or s.lufs is defined) %}<div class="small" style="margin-top:4px">
+    {% if s.f0 is defined %}Cao độ <b style="color:{{ 'var(--ok)' if not (ref.f0 is defined) or (s.f0 - ref.f0)|abs <= 25 else '#b7791f' }}">~{{ s.f0 }} Hz</b>{% if ref.f0 is defined %} (mẫu {{ ref.f0 }}){% endif %} · {% endif %}
+    {% if s.lead is defined %}lặng đầu <b style="color:{{ 'var(--ok)' if s.lead_ok else '#b7791f' }}">{{ s.lead }}s</b> · {% endif %}
+    {% if s.lufs is defined %}{{ s.lufs }} LUFS <span class="muted">(P8b chuẩn hoá −14)</span>{% endif %}</div>{% endif %}
   {% if s %}
     <audio controls preload="none" src="/giong/mau/{{ k }}.wav?v={{ v }}" style="width:100%;margin-top:8px"></audio>
     <div class="row" style="gap:6px;margin-top:6px">

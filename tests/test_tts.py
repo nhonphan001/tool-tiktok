@@ -59,7 +59,7 @@ def env(monkeypatch, tmp_path):
 def test_request_bodies():
     g = tts.build_request("Chào con", "g_sulafat")
     assert g["voice"] == {"languageCode": "vi-VN", "name": "Sulafat", "modelName": "gemini-2.5-flash-tts"}
-    assert "miền Nam" in g["input"]["prompt"] and g["input"]["text"] == "Chào con"
+    assert "Southern Vietnamese accent" in g["input"]["prompt"] and g["input"]["text"] == "Chào con"
     c = tts.build_request("Chào con", "chirp_aoede")
     assert c["voice"]["name"] == "vi-VN-Chirp3-HD-Aoede" and "prompt" not in c["input"]
     assert tts.syllables("Chào con, Cô Kim pha trà.") == 6
@@ -88,13 +88,26 @@ def test_samples_choose_and_scenes(env, monkeypatch):
     assert "Phương án B" in md and "Goi_19_canh_3_giong.wav" in md and "−14 LUFS" in md and "Gemini · Sulafat" in md
 
 
+def test_reference_analyze():
+    info = tts.analyze(tts.REF_DEFAULT)
+    if info:  # có ffmpeg
+        assert -16 < info["lufs"] < -13 and 0.5 < info["lead"] < 0.9 and 8 < info["speech"] < 9.5
+        assert 180 < info.get("f0", 219) < 260
+
+
 def test_routes(env, monkeypatch):
     from fastapi.testclient import TestClient
     from app.main import app
 
     c = TestClient(app)
     c.post("/login", data={"password": settings.app_password})
-    assert "Giọng Cô Kim" in c.get("/giong").text
+    page = c.get("/giong").text
+    assert "Giọng Cô Kim" in page and "Hồ sơ giọng" in page and "/giong/mau-chuan" in page
+    assert c.get("/giong/mau-chuan").headers["content-type"] == "audio/mpeg"
+    c.post("/giong/ho-so", data={"style": "Giọng nữ miền Nam, ấm."})
+    assert settings.tts_style == "Giọng nữ miền Nam, ấm." and tts.build_request("x", "g_kore")["input"]["prompt"] == settings.tts_style
+    c.post("/giong/ho-so", data={"style": ""})
+    assert "AUDIO PROFILE" in tts.style()
     c.post("/giong/mau", data={"text": "Chào con, uống trà với Cô nhé."})
     html = c.get("/giong").text
     assert "/giong/mau/g_aoede.wav" in html and "Chọn giọng này" in html

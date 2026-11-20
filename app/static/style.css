@@ -148,3 +148,4 @@ details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 .fix-orig{background:var(--bg);border-radius:8px;padding:8px;margin:4px 0}
 .voice-card.on{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
 .voice-box{border-color:var(--ok);background:rgba(34,160,90,.04)}
+.voice-ref{border-color:var(--accent)}
