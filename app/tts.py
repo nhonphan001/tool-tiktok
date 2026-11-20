@@ -374,14 +374,21 @@ def job() -> dict:
     return j
 
 
+def _write_job(j: dict) -> None:
+    """Ghi nguyên tử (file tạm rồi đổi tên) để trang đang tải lại không đọc phải file ghi dở."""
+    tmp = _job_path() + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(j, f, ensure_ascii=False)
+        os.replace(tmp, _job_path())
+    except OSError:
+        pass
+
+
 def _job_update(**kw) -> None:
     j = job()
     j.update(kw)
-    try:
-        with open(_job_path(), "w", encoding="utf-8") as f:
-            json.dump(j, f, ensure_ascii=False)
-    except OSError:
-        pass
+    _write_job(j)
 
 
 def start_samples(text: str, keys: list[str] | None = None) -> bool:
@@ -391,8 +398,7 @@ def start_samples(text: str, keys: list[str] | None = None) -> bool:
     if job().get("running"):
         return False
     keys = [k for k in (keys or list(VOICES)) if k in VOICES]
-    with open(_job_path(), "w", encoding="utf-8") as f:
-        json.dump({"running": True, "total": len(keys), "done": 0, "started": db.now_iso(), "errors": []}, f)
+    _write_job({"running": True, "total": len(keys), "done": 0, "started": db.now_iso(), "errors": []})
 
     def run():
         try:

@@ -74,6 +74,14 @@ def reschedule() -> None:
                 log.info(m)
         except Exception:  # noqa: BLE001
             log.exception("clips.sync_all")
+        try:
+            from . import mail_notes  # thư đánh giá/chốt của Claude & Gemini + khối cap_nhat_tool
+
+            got = mail_notes.scan()
+            if got:
+                log.info("mail notes: %s", [n["name"] for n in got])
+        except Exception:  # noqa: BLE001
+            log.exception("mail_notes.scan")
 
     _scheduler.add_job(_mail, IntervalTrigger(minutes=10), id="mailbox_check", replace_existing=True,
                        max_instances=1, coalesce=True)

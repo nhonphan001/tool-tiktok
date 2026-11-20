@@ -91,6 +91,8 @@ class Settings:
     veo_budget_usd: float = field(default_factory=lambda: float(os.getenv("VEO_BUDGET_USD", "20")))
     # Giọng thương hiệu Cô Kim (khoá trong app/tts.VOICES), chọn ở trang /giong
     tts_voice: str = field(default_factory=lambda: os.getenv("TTS_VOICE", ""))
+    # Thư Claude/Gemini có khối cap_nhat_tool: tự áp dụng khoá an toàn (giờ đăng, KPI). Mặc định TẮT = chờ duyệt.
+    auto_apply_updates: bool = field(default_factory=lambda: _bool(os.getenv("AUTO_APPLY_UPDATES"), False))
     # Doc nhận bản tóm tắt tự động sau mỗi lần quét + chiến lược (1 Doc trong GUI_GEMINI, 1 Doc trong GUI_CLAUDE)
     summary_doc_gemini: str = field(default_factory=lambda: os.getenv("SUMMARY_DOC_GEMINI", "13OTXOO8HYr_RqZYJnZj5uu40LWOZhXiQJzhGp_HxhM8"))
     summary_doc_claude: str = field(default_factory=lambda: os.getenv("SUMMARY_DOC_CLAUDE", "1U4g6gMgcNy5oaL6jtOmCp9FEF1QFWKLxG50cK6zCMVE"))
@@ -151,6 +153,7 @@ EDITABLE_KEYS = {
     "tts_voice": str,
     "tts_style": str,
     "summary_doc_gemini": str,
+    "auto_apply_updates": lambda v: _bool(str(v)),
     "summary_doc_claude": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,

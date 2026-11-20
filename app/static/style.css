@@ -158,3 +158,5 @@ details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 .plan-w{color:#b7791f;margin-top:2px}
 .badge.loai-1{color:#6b46c1;border-color:#6b46c1}.badge.loai-2{color:#c05621;border-color:#c05621}.badge.loai-3{color:var(--ok);border-color:var(--ok)}
 @media(max-width:600px){.plan-row{flex-wrap:wrap}.plan-when{min-width:0;flex-direction:row;gap:6px;width:100%}.plan-act{width:100%}}
+.upd-row{display:flex;gap:8px;align-items:flex-start;border-top:1px dashed var(--border);padding:8px 0 0;margin-top:8px;flex-wrap:wrap}
+.note-card.note-pending{border-color:var(--err)}

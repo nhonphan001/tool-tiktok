@@ -702,6 +702,61 @@ def package_voice(request: Request, pid: int):
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
+@app.get("/hop-thu")
+def mail_notes_page(request: Request, k: str = ""):
+    from . import mail_notes
+
+    notes = mail_notes.all_notes()
+    if k:
+        notes = [n for n in notes if n["kind"] == k or n["sender"].lower() == k]
+    return render(request, "mail_notes.html", active="mail", notes=notes, changes=mail_notes.changes(),
+                  kinds=mail_notes.KIND_LABELS, status=mail_notes.STATUS, whitelist=mail_notes.WHITELIST,
+                  auto=settings.auto_apply_updates, k=k)
+
+
+@app.post("/hop-thu/quet")
+def mail_notes_scan(request: Request):
+    from . import mail_notes
+
+    try:
+        got = mail_notes.scan()
+        flash(request, f"Đã đọc {len(got)} thư mới/vừa sửa." if got else "Không có thư mới.", "success" if got else "info")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Không đọc được hộp thư: {e}", "error")
+    return RedirectResponse("/hop-thu", status_code=303)
+
+
+@app.post("/hop-thu/{file_id}/{key}")
+def mail_notes_decide(request: Request, file_id: str, key: str, action: str = Form(...)):
+    from . import mail_notes
+
+    try:
+        flash(request, mail_notes.decide(file_id, key, action), "success")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse("/hop-thu#n-" + file_id, status_code=303)
+
+
+@app.post("/hop-thu/hoan-tac/{cid}")
+def mail_notes_revert(request: Request, cid: int):
+    from . import mail_notes
+
+    try:
+        flash(request, mail_notes.revert(cid), "success")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse("/hop-thu#nhat-ky", status_code=303)
+
+
+@app.post("/hop-thu/tu-dong")
+def mail_notes_toggle(request: Request, on: str = Form("")):
+    db.save_setting("auto_apply_updates", "true" if on else "false")
+    apply_overrides(db.load_settings())
+    flash(request, "Đã BẬT tự áp dụng cập nhật an toàn (giờ đăng, KPI)." if on else "Đã TẮT tự áp dụng — mọi cập nhật chờ anh duyệt.",
+          "success")
+    return RedirectResponse("/hop-thu", status_code=303)
+
+
 @app.get("/tom-tat")
 def summaries_page(request: Request):
     from . import cycle_summary
@@ -1200,7 +1255,7 @@ def settings_page(request: Request):
 async def settings_save(request: Request):
     form = await request.form()
     for key in EDITABLE_KEYS:
-        if key in ("auto_strategy", "veo_enabled"):
+        if key in ("auto_strategy", "veo_enabled", "auto_apply_updates"):
             val = "true" if form.get(key) else "false"
         elif key in form:
             val = str(form.get(key)).strip()

@@ -128,7 +128,8 @@ def build(open_id: str, strategy_row: dict | None) -> tuple[str, str]:
         pts.append(f"{len(issues)} bước quy trình chưa ✅ (mục 2).")
     L += [f"{i}. {x}" for i, x in enumerate(pts or ["Không có điểm bất thường."], 1)]
     L += ["", "_Gemini/Claude: khi anh Nhơn yêu cầu đánh giá chéo, đối chiếu bản này với QUY_TRINH_CHOT_V2 và kế hoạch 7 ngày "
-          "đã chốt (11:00 Loại 3 · 12:00 Loại 2 tối đa 2/tuần · 19:00 Loại 1). Tool tự sinh, không tốn token._"]
+          "đã chốt (11:00 Loại 3 · 12:00 Loại 2 tối đa 2/tuần · 19:00 Loại 1). Muốn tool tự sửa cấu hình (giờ đăng, KPI…), "
+          "thêm khối `cap_nhat_tool:` vào thư đánh giá — xem trang /hop-thu. Tool tự sinh, không tốn token._"]
     return code, "\n".join(L)
 
 
