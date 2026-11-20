@@ -95,7 +95,7 @@ def _classify(r: dict) -> dict:
         if re.search(r"\b(?:11|12):\d\d", r["gio"]) and re.match(r"11", r["gio"]):
             w.append("Video giỏ hàng chiếm khung 11:00 (khung kéo follow tốt nhất) → nên dời 12:00.")
     if loai == 1 and re.match(r"\s*1[01]:", r["gio"]):
-        w.append("Khung 11:00 nên dành cho Loại 3 (trà sáng kéo tim/follow, tim/view 11–14%); lá số nên dời 19:30.")
+        w.append("Khung 11:00 nên dành cho Loại 3 (trà sáng kéo tim/follow, tim/view 11–14%); lá số nên dời 19:00.")
     if loai == 3 and FORTUNE_RX.search(text):
         w.append("Loại 3 (được quảng cáo) không được nhắc lá số/tuổi.")
     if re.search(r"\bthỉnh\b", text, re.I):

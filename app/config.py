@@ -63,7 +63,7 @@ class Settings:
     kpi_target_2: int = field(default_factory=lambda: int(os.getenv("KPI_TARGET_2", "10000")))
     kpi_deadline_2: str = field(default_factory=lambda: os.getenv("KPI_DEADLINE_2", "2027-02-17"))
     kpi_like_view_min: float = field(default_factory=lambda: float(os.getenv("KPI_LIKE_VIEW_MIN", "4")))
-    posting_slots: str = field(default_factory=lambda: os.getenv("POSTING_SLOTS", "07:00,12:00,19:30"))
+    posting_slots: str = field(default_factory=lambda: os.getenv("POSTING_SLOTS", "11:00,12:00,19:00"))  # chốt 20/11: 11:00 L3 · 12:00 L2 · 19:00 L1
 
     # Bảng quản trị sản phẩm (Google Sheets, chỉ đọc bằng service account)
     product_sheet_id: str = field(default_factory=lambda: os.getenv("PRODUCT_SHEET_ID", ""))
@@ -91,6 +91,9 @@ class Settings:
     veo_budget_usd: float = field(default_factory=lambda: float(os.getenv("VEO_BUDGET_USD", "20")))
     # Giọng thương hiệu Cô Kim (khoá trong app/tts.VOICES), chọn ở trang /giong
     tts_voice: str = field(default_factory=lambda: os.getenv("TTS_VOICE", ""))
+    # Doc nhận bản tóm tắt tự động sau mỗi lần quét + chiến lược (1 Doc trong GUI_GEMINI, 1 Doc trong GUI_CLAUDE)
+    summary_doc_gemini: str = field(default_factory=lambda: os.getenv("SUMMARY_DOC_GEMINI", "13OTXOO8HYr_RqZYJnZj5uu40LWOZhXiQJzhGp_HxhM8"))
+    summary_doc_claude: str = field(default_factory=lambda: os.getenv("SUMMARY_DOC_CLAUDE", "1U4g6gMgcNy5oaL6jtOmCp9FEF1QFWKLxG50cK6zCMVE"))
     # Hồ sơ giọng Cô Kim (lời dặn cho Gemini TTS) — trống = app/defaults/co_kim_voice.md
     tts_style: str = field(default_factory=lambda: _default_text("co_kim_voice.md", "TTS_STYLE"))
 
@@ -147,6 +150,8 @@ EDITABLE_KEYS = {
     "veo_budget_usd": float,
     "tts_voice": str,
     "tts_style": str,
+    "summary_doc_gemini": str,
+    "summary_doc_claude": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
     "google_doc_id_strategy": str,

@@ -196,7 +196,7 @@ def test_tags_and_kpi(seeded):
     assert ta["tagged"] >= 1 and ta["by_element"][0]["key"] == "Thủy"
     k = kpi.summary(seeded)
     assert len(k["targets"]) == 2 and k["targets"][0]["current"] > 0
-    assert {s["label"] for s in k["slots"]} >= {"Khung 07:00", "Khung 12:00", "Khung 19:30", "Ngoài khung"}
+    assert {s["label"] for s in k["slots"]} >= {"Khung 11:00", "Khung 12:00", "Khung 19:00", "Ngoài khung"}
     md = report.build_report(seeded)
     assert "## KPI" in md and "không làm tròn" in md and "Kiểm tra tuân thủ" in md and "Hiệu quả theo nhãn" in md
     c = TestClient(app)

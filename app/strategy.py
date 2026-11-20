@@ -40,8 +40,8 @@ Trả lời bằng tiếng Việt, định dạng Markdown, gồm các mục:
 1. Chẩn đoán nhanh (điểm mạnh, điểm yếu, cơ hội — dẫn chứng bằng số liệu)
 2. Mô thức nội dung thắng (video nào/vì sao hiệu quả, nên lặp lại yếu tố gì)
 3. Lịch đăng đề xuất 7 ngày tới (bảng: ngày, giờ đăng, loại (1/2/3), chủ đề/ý tưởng, định dạng, độ dài, hook gợi ý, hashtag).
-   Ràng buộc đã chốt với chủ kênh: nhịp 2 video/ngày — 11:45 Loại 3 (trà sáng/chữa lành, kéo tim + follow),
-   19:30 Loại 1 (lá số; ưu tiên nhóm 4 trả lời bình luận thật). Loại 2 (giỏ hàng) TỐI ĐA 2 video/tuần, đăng 12:00,
+   Ràng buộc đã chốt với chủ kênh: nhịp 2 video/ngày — 11:00 Loại 3 (trà sáng/chữa lành, kéo tim + follow),
+   19:00 Loại 1 (lá số; ưu tiên nhóm 4 trả lời bình luận thật). Loại 2 (giỏ hàng) TỐI ĐA 2 video/tuần, đăng 12:00,
    chỉ dùng sản phẩm đã sẵn sàng; video Loại 2 KHÔNG nhắc lá số/tuổi/Bát Tự, KHÔNG hashtag #battu #tutru #phongthuy #tuvi…,
    không dùng từ "thỉnh"; CTA duy nhất "bấm giỏ hàng góc trái". Mỗi video 4 cảnh × 8 giây (~32s).
 4. 10 ý tưởng video mới kèm hook 3 giây đầu
@@ -281,6 +281,10 @@ def run(sid: int) -> dict:
                 round(time.monotonic() - t0, 1), usage.get("endpoint") or "", usage.get("endpoint_note") or "", sid,
             ),
         )
+    if status == "done" and source == "gemini":
+        from . import cycle_summary  # gửi bản tóm tắt vào hộp thư Gemini + Claude (đánh giá chéo)
+
+        cycle_summary.after_strategy(sid)
     return {"id": sid, "source": source, "status": status, "content_md": content, **usage}
 
 

@@ -702,6 +702,42 @@ def package_voice(request: Request, pid: int):
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
+@app.get("/tom-tat")
+def summaries_page(request: Request):
+    from . import cycle_summary
+
+    return render(request, "summaries.html", active="strategy", rows=cycle_summary.all_rows(),
+                  doc_g=settings.summary_doc_gemini, doc_c=settings.summary_doc_claude)
+
+
+@app.get("/tom-tat/{sid}.md")
+def summaries_md(sid: int, download: int = 0):
+    from . import cycle_summary
+
+    r = cycle_summary.get(sid)
+    if not r:
+        return RedirectResponse("/tom-tat", status_code=303)
+    disp = "attachment" if download else "inline"
+    return HTMLResponse(r["md"], media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f"{disp}; filename={r['code']}.md"})
+
+
+@app.post("/tom-tat/gui-lai")
+def summaries_resend(request: Request):
+    from . import cycle_summary
+
+    acc = db.get_active_account()
+    st = db.query_one("SELECT id FROM strategies WHERE status='done' ORDER BY id DESC LIMIT 1")
+    sid = cycle_summary.after_strategy(st["id"]) if st and acc else None
+    r = cycle_summary.get(sid) if sid else None
+    if not r:
+        flash(request, "Chưa có chiến lược nào để tóm tắt", "error")
+    else:
+        flash(request, f"Đã tạo {r['code']}" + (f" · gửi: {r['pushed']}" if r["pushed"] else "")
+              + (f" · lỗi: {r['error']}" if r["error"] else ""), "success" if not r["error"] else "info")
+    return RedirectResponse("/tom-tat", status_code=303)
+
+
 @app.get("/giong")
 def voices_page(request: Request):
     from . import tts

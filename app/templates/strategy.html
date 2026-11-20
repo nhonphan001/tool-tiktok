@@ -19,6 +19,7 @@
       <div class="muted" style="margin-top:8px">Từ trước tới nay: {{ usage.total.cost_vnd|num }} ₫ · {{ usage.total.tokens|num }} token</div>
       <div class="muted" style="margin-top:8px;font-size:12px">Ước tính theo bảng giá Google của model đang dùng (xem Cài đặt). Số tiền thực tế xem ở Google Cloud → Billing.</div>
     </div>
+    <p style="margin:12px 0 0"><a class="btn sec small" href="/tom-tat" style="width:100%;text-align:center">📨 Bản tóm tắt gửi hộp thư Gemini + Claude</a></p>
     <div class="card list" style="margin-top:16px"><h2>Lịch sử</h2>
       {% for it in items %}<a class="{{ 'on' if current and current.id==it.id }}" href="/strategy?id={{ it.id }}">{{ it.created_at|localtime }}
         {% if it.status=='pending' %}<span class="badge">đang tạo…</span>{% elif it.status=='error' %}<span class="badge error">lỗi</span>{% else %}<span class="badge {{ 'ok' if it.source=='gemini' }}">{{ it.source }}</span>{% endif %}
