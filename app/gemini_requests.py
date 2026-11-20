@@ -79,8 +79,9 @@ def get(rid: int) -> dict | None:
 def _rules_for(loai: int, ads: bool) -> list[str]:
     common = [
         "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết, hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
-        "ảnh MASTER CO_KIM_25_30_TUOI_V3_3_MASTER_GOI_17_CANH_1.jpg, ID Drive 1R-eg5lKwn_8rHbMNXGPnmf3na-4K0njV, chỉ khóa "
-        "gương mặt/trang phục/phòng trà). Kèm prompt video 8 giây cho từng cảnh.",
+        "ảnh mặt chuẩn nhất CO_KIM_MASTER_FACE_CHUAN_NHAT_3957.png, ID Drive 1gnq18QukC1lCSC0py5Zmf18lR78r3CEH (từ Gói 19): "
+        "khóa mặt trái xoan, mắt hạnh nhân, cười khép môi sau voan tím (không hở răng), trâm vàng ngọc đỏ + trâm tua rua trái; "
+        "KHÔNG chép tư thế chắp tay, lá bồ đề, túi nhung đỏ). Kèm prompt video 8 giây cho từng cảnh.",
         "Không nhắc web, Link Bio, tên miền, Zalo, Shopee, Lazada, link (B.1).",
         "Không hứa may mắn, tài lộc, rước lộc, bình an, phù hộ; không hù dọa; không hứa chữa bệnh, giàu có (B.4).",
         "Hình ảnh: không lửa, hào quang, linh vật phát sáng; không chắp tay khấn vái, nhang, mâm cúng (C.7, C.8).",

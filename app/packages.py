@@ -141,7 +141,10 @@ def chart_of(p: dict) -> tuple[dict | None, str | None]:
 
 
 def syllables(text: str) -> int:
-    return len(re.findall(r"[^\W\d_]+", text or ""))
+    """Đếm theo cách đọc: '20/11' = 'hai mươi tháng mười một' (4 âm tiết)."""
+    from .tts import speakable
+
+    return len(re.findall(r"[^\W\d_]+", speakable(text or "")))
 
 
 def all_text(p: dict) -> str:

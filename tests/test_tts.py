@@ -78,7 +78,7 @@ def test_samples_choose_and_scenes(env, monkeypatch):
         tts.make_scenes(packages.get(pid))  # chưa chọn giọng
     monkeypatch.setattr(settings, "tts_voice", "g_sulafat")
     out = tts.make_scenes(packages.get(pid))
-    assert out["done"] == ["1", "2", "3", "4"] and env[-1][2]["input"]["text"] == "Lời cảnh 4 nhé con"
+    assert out["done"] == ["1", "2", "3", "4"] and env[-1][2]["input"]["text"] == "Lời cảnh bốn nhé con"
     info = tts.scene_info(packages.get(pid))
     assert info["1"]["name"] == "Goi_19_canh_1_giong.wav" and info["1"]["fits_8s"]
     # thư GHEP kèm phần lồng giọng khi clip không tiếng
@@ -86,6 +86,16 @@ def test_samples_choose_and_scenes(env, monkeypatch):
           for k in range(1, 5)}
     _, md = clips.ghep_letter(packages.get(pid), cl)
     assert "Phương án B" in md and "Goi_19_canh_3_giong.wav" in md and "−14 LUFS" in md and "Gemini · Sulafat" in md
+
+
+def test_speakable_numbers():
+    sp = tts.speakable
+    assert sp("Sáng 20/11, chúc") == "Sáng hai mươi tháng mười một, chúc"
+    assert sp("ngày 1/1/2026") == "ngày một tháng một năm hai nghìn không trăm hai mươi sáu"
+    assert sp("giảm 15%") == "giảm mười lăm phần trăm"
+    assert sp("21, 24, 25, 105, 2005") == "hai mươi mốt, hai mươi tư, hai mươi lăm, một trăm lẻ năm, hai nghìn không trăm lẻ năm"
+    from app import packages
+    assert packages.syllables("Cả nhà gửi lời chúc 20/11 nhé") == 11
 
 
 def test_reference_analyze():

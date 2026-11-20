@@ -34,8 +34,8 @@ VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả)
     "g_kore": ("gemini", "Kore", "Gemini · Kore", "chắc, rõ chữ"),
     "chirp_aoede": ("chirp", "vi-VN-Chirp3-HD-Aoede", "Chirp 3 HD · Aoede", "giọng có sẵn tiếng Việt, không chỉnh được vùng miền"),
 }
-SAMPLE_TEXT = ("Chào con, Cô Kim pha sẵn ấm trà rồi đây. Ngồi xuống uống với Cô một chén, "
-               "rồi kể Cô nghe hôm nay con thấy lòng mình thế nào nhé.")
+SAMPLE_TEXT = ("Sáng 20/11, Cô Kim dọn trà ra vườn hoa đón nắng sớm. Mời cả nhà nhấp ngụm trà ấm, để lòng dịu lại "
+               "giữa ngày bận rộn và chúc quý thầy cô mãi bình an nhé.")  # 40 âm tiết ≈ 10 giây (mẫu của Gemini 20/11)
 RATE = 24000
 REF_DEFAULT = os.path.join(os.path.dirname(__file__), "defaults", "co_kim_mau_chuan.mp3")
 
@@ -43,7 +43,7 @@ REF_DEFAULT = os.path.join(os.path.dirname(__file__), "defaults", "co_kim_mau_ch
 def style() -> str:
     """Hồ sơ giọng Cô Kim (anh Nhơn soạn) — sửa được trên trang /giong."""
     return (settings.tts_style or "").strip() or STYLE_FALLBACK
-SYL_MIN, SYL_MAX = 3.5, 3.8
+SYL_MIN, SYL_MAX = 3.5, 4.0  # 3,5–3,8 (phiếu gói) … 3,8–4,0 (hồ sơ giọng 20/11)
 
 
 class TTSError(RuntimeError):
@@ -62,8 +62,52 @@ def voice_key() -> str:
     return settings.tts_voice if settings.tts_voice in VOICES else ""
 
 
+_DIGITS = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
+
+
+def _num_vi(n: int) -> str:
+    """Đọc số nguyên 0–999999 thành chữ (giọng miền Nam: 'không' cho hàng chục 0 → 'lẻ')."""
+    if n < 10:
+        return _DIGITS[n]
+    if n < 100:
+        t, u = divmod(n, 10)
+        head = "mười" if t == 1 else _DIGITS[t] + " mươi"
+        if u == 0:
+            return head
+        tail = {1: "mốt" if t > 1 else "một", 4: "tư" if t > 1 else "bốn", 5: "lăm"}.get(u, _DIGITS[u])
+        return f"{head} {tail}"
+    if n < 1000:
+        h, r = divmod(n, 100)
+        if r == 0:
+            return f"{_DIGITS[h]} trăm"
+        return f"{_DIGITS[h]} trăm " + (f"lẻ {_DIGITS[r]}" if r < 10 else _num_vi(r))
+    k, r = divmod(n, 1000)
+    if r == 0:
+        return f"{_num_vi(k)} nghìn"
+    if r < 10:
+        return f"{_num_vi(k)} nghìn không trăm lẻ {_DIGITS[r]}"
+    return f"{_num_vi(k)} nghìn " + (f"không trăm {_num_vi(r)}" if r < 100 else _num_vi(r))
+
+
+def speakable(text: str) -> str:
+    """Đổi số, ngày tháng, % sang chữ trước khi gửi TTS (phụ đề vẫn giữ số).
+    '20/11' → 'hai mươi tháng mười một'; '20/11/2026' → '… năm hai nghìn không trăm hai mươi sáu'."""
+    t = text or ""
+
+    def _date(m):
+        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        out = f"{_num_vi(d)} tháng {_num_vi(mo)}"
+        return out + (f" năm {_num_vi(int(y))}" if y else "")
+
+    t = re.sub(r"(?<![\d/])(\d{1,2})/(\d{1,2})(?:/(\d{4}))?(?![\d/])",
+               lambda m: _date(m) if 1 <= int(m.group(1)) <= 31 and 1 <= int(m.group(2)) <= 12 else m.group(0), t)
+    t = re.sub(r"(\d+)\s*%", lambda m: f"{_num_vi(int(m.group(1)))} phần trăm", t)
+    t = re.sub(r"(?<![\d.,])(\d{1,6})(?![\d])", lambda m: _num_vi(int(m.group(1))), t)
+    return re.sub(r"[ \t]{2,}", " ", t)
+
+
 def syllables(text: str) -> int:
-    return len(re.findall(r"[^\s\d.,!?;:\"“”()…–\-]+", text or ""))
+    return len(re.findall(r"[^\s\d.,!?;:\"“”()…–\-]+", speakable(text or "")))
 
 
 def estimate_usd(text: str, key: str, seconds: float = 8) -> float:
@@ -76,9 +120,9 @@ def build_request(text: str, key: str, rate: float = 1.0) -> dict:
     kind, name = VOICES[key][0], VOICES[key][1]
     audio = {"audioEncoding": "LINEAR16", "sampleRateHertz": RATE}
     if kind == "gemini":
-        return {"input": {"prompt": style(), "text": text},
+        return {"input": {"prompt": style(), "text": speakable(text)},
                 "voice": {"languageCode": "vi-VN", "name": name, "modelName": GEMINI_TTS_MODEL}, "audioConfig": audio}
-    return {"input": {"text": text}, "voice": {"languageCode": "vi-VN", "name": name},
+    return {"input": {"text": speakable(text)}, "voice": {"languageCode": "vi-VN", "name": name},
             "audioConfig": {**audio, "speakingRate": rate}}
 
 
