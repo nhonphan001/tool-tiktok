@@ -76,9 +76,16 @@ def get(rid: int) -> dict | None:
 
 
 # ----------------------------------------------------------------- soạn thư
+# Khối giọng dán NGUYÊN VĂN vào cuối mọi prompt video (P8a thủ công có giọng, chốt 20/11)
+VOICE_BLOCK = ("Voice (identical in every scene): a 26-year-old Southern Vietnamese woman (polite Saigon accent, never Northern "
+               "or Central), warm mezzo-soprano around 222Hz, calm and soothing with a gentle smile in her voice, steady pace of "
+               "about 4 syllables per second, crisp Vietnamese tones, even volume. She starts speaking right at 0.0s. Dry "
+               "close-mic voice only: NO background music, NO ambient sound, NO sound effects.")
+
+
 def _rules_for(loai: int, ads: bool) -> list[str]:
     common = [
-        "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết (giọng TTS đọc 3,8–4,0 âm tiết/giây ≈ 6–7,4 giây), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
+        "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết (giọng đọc 3,8–4,0 âm tiết/giây ≈ 6–7,4 giây), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
         "ảnh mặt chuẩn nhất CO_KIM_MASTER_FACE_CHUAN_NHAT_3957.png, ID Drive 1gnq18QukC1lCSC0py5Zmf18lR78r3CEH (từ Gói 19): "
         "khóa mặt trái xoan, mắt hạnh nhân, cười khép môi sau voan tím (không hở răng), trâm vàng ngọc đỏ + trâm tua rua trái; "
         "KHÔNG chép tư thế chắp tay, lá bồ đề, túi nhung đỏ). Kèm prompt video 8 giây cho từng cảnh.",
@@ -231,7 +238,10 @@ def build_letter(req: dict) -> str:
         "<mục tiêu, đối tượng, giờ bật, số ngày>" if ads else "",
         "",
         "## Prompt tạo video 8 giây (Veo / Flow)",
-        "1. **Cảnh 1 (0–8s | ảnh …)**: <prompt tiếng Anh; chứa NGUYÊN VĂN lời thoại cảnh 1 trong ngoặc kép; giọng nữ miền Nam vào ngay giây 0; NO background music>",
+        "Clip tạo TAY trên app Gemini/Flow, CÓ GIỌNG ĐỌC (anh Nhơn chốt 20/11). Mỗi prompt = hình + câu thoại + KHỐI GIỌNG giống hệt nhau từng chữ ở cả 4 cảnh:",
+        f"> {VOICE_BLOCK}",
+        "Lời thoại trong prompt viết số/ngày bằng chữ (vd. “hai mươi tháng mười một”), đặt trong ngoặc kép, nguyên văn phiếu gói.",
+        "1. **Cảnh 1 (0–8s | ảnh …)**: <hình + chuyển động; She speaks softly in Vietnamese through her veil: \"<lời cảnh 1>\" + KHỐI GIỌNG>",
         "2. **Cảnh 2 (8–16s | ảnh …)**: <prompt cảnh 2>",
         "3. **Cảnh 3 (16–24s | ảnh …)**: <prompt cảnh 3>",
         "4. **Cảnh 4 (24–32s | ảnh …)**: <prompt cảnh 4>",

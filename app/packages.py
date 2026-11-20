@@ -296,9 +296,11 @@ def check(p: dict) -> dict:
         scene, prompt = (p.get(s) or "").strip(), (p.get(f"prompt{i}") or "").strip()
         if not scene or not prompt:
             continue
-        ns = re.sub(r"[^a-z0-9]+", " ", compliance.normalize(scene)).strip()
+        from .tts import speakable
+
         np_ = re.sub(r"[^a-z0-9]+", " ", compliance.normalize(prompt))
-        if ns and ns not in np_:
+        forms = {re.sub(r"[^a-z0-9]+", " ", compliance.normalize(x)).strip() for x in (scene, speakable(scene))}
+        if all(f and f not in np_ for f in forms):  # chấp nhận "20/11" hoặc "hai mươi tháng mười một"
             add("warn", "Prompt", f"Prompt video cảnh {i} không chứa đúng lời thoại cảnh {i} — sửa cho khớp để giọng đọc đúng kịch bản.")
         if re.search(r"\bmusic\b", prompt, re.I) and not re.search(r"no\s+(background\s+)?music", prompt, re.I):
             add("warn", "Prompt", f"Prompt cảnh {i} có nhạc nền — định dạng kênh là không nhạc nền.")
