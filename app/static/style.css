@@ -160,3 +160,4 @@ details.sub{margin:4px 0 6px}details.sub summary{cursor:pointer;padding:4px 0}
 @media(max-width:600px){.plan-row{flex-wrap:wrap}.plan-when{min-width:0;flex-direction:row;gap:6px;width:100%}.plan-act{width:100%}}
 .upd-row{display:flex;gap:8px;align-items:flex-start;border-top:1px dashed var(--border);padding:8px 0 0;margin-top:8px;flex-wrap:wrap}
 .note-card.note-pending{border-color:var(--err)}
+.sua-box{margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px}

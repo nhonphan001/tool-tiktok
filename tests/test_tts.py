@@ -158,3 +158,16 @@ def test_routes(env, monkeypatch):
     c.post(f"/packages/{pid}/giong")
     assert c.get(f"/media/{pid}/giong2").headers["content-type"] == "audio/wav"
     db.save_setting("tts_voice", "")
+
+
+def test_time_year_and_loose_prompt_match():
+    from app import packages
+    assert tts.speakable("Tối nay 19h00, Cô Kim") == "Tối nay mười chín giờ, Cô Kim"
+    assert tts.speakable("lúc 19:30") == "lúc mười chín giờ ba mươi"
+    assert tts.speakable("Đinh Mão 1987", year_digits=True) == "Đinh Mão một chín tám bảy"
+    assert packages.syllables("tuổi Đinh Mão 1987") == 7
+    p = {"goi": "1", "loai": 3, "scene1": "Tối nay 19h00 Cô Kim gửi chị em tuổi Đinh Mão 1987 lời chúc",
+         "prompt1": 'she says: "Tối nay mười chín giờ Cô Kim gửi chị em tuổi Đinh Mão mười chín tám mươi bảy lời chúc"'}
+    assert not [i for i in packages.check(p)["items"] if i["rule"] == "Prompt"]
+    p["prompt1"] = 'she says: "Tối nay Cô Kim gửi bạn bè lời chúc"'
+    assert [i for i in packages.check(p)["items"] if i["rule"] == "Prompt"]

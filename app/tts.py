@@ -101,10 +101,16 @@ def _num_vi(n: int) -> str:
     return f"{_num_vi(k)} nghìn " + (f"không trăm {_num_vi(r)}" if r < 100 else _num_vi(r))
 
 
-def speakable(text: str) -> str:
-    """Đổi số, ngày tháng, % sang chữ trước khi gửi TTS (phụ đề vẫn giữ số).
-    '20/11' → 'hai mươi tháng mười một'; '20/11/2026' → '… năm hai nghìn không trăm hai mươi sáu'."""
+def speakable(text: str, year_digits: bool = False) -> str:
+    """Đổi số, ngày tháng, giờ, % sang chữ trước khi gửi TTS (phụ đề vẫn giữ số).
+    '20/11' → 'hai mươi tháng mười một'; '19h00' → 'mười chín giờ'; '20/11/2026' → '… năm hai nghìn không trăm hai mươi sáu'.
+    year_digits=True: năm sinh 1900–2099 đọc từng số ('1987' → 'một chín tám bảy') — cách nói thường gặp, dùng khi đếm âm tiết."""
     t = text or ""
+    t = re.sub(r"(?<!\d)([01]?\d|2[0-3])\s*(?:h|giờ|:)\s*([0-5]\d)?(?![\d])(?!\s*(?:%|/))",
+               lambda m: f"{_num_vi(int(m.group(1)))} giờ" + (f" {_num_vi(int(m.group(2)))}" if m.group(2) and int(m.group(2)) else ""),
+               t) if re.search(r"\d\s*(?:h|:)\s*\d|\d+h\b", t) else t
+    if year_digits:
+        t = re.sub(r"(?<![\d/.,])(19\d\d|20\d\d)(?![\d])", lambda m: " ".join(_DIGITS[int(c)] for c in m.group(1)), t)
 
     def _date(m):
         d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
@@ -119,7 +125,7 @@ def speakable(text: str) -> str:
 
 
 def syllables(text: str) -> int:
-    return len(re.findall(r"[^\s\d.,!?;:\"“”()…–\-]+", speakable(text or "")))
+    return len(re.findall(r"[^\s\d.,!?;:\"“”()…–\-]+", speakable(text or "", year_digits=True)))
 
 
 def estimate_usd(text: str, key: str, seconds: float = 8) -> float:

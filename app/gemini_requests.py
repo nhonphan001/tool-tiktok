@@ -278,6 +278,71 @@ def create_ghep(goi: str, code: str, title: str, letter: str) -> int:
         ).lastrowid
 
 
+def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]:
+    """Thư nhờ Gemini sửa phiếu gói theo kết quả kiểm tra của tool (nút “Gửi Gemini sửa”)."""
+    vn = datetime.now(timezone.utc) + timedelta(hours=7)
+    goi = p.get("goi")
+    code = f"SUA-{vn:%d%m}-GOI-{goi}-L{n}"
+    answer = f"SANXUAT-{vn:%d%m}-GOI-{goi}-SUA{n}__XONG.md"
+    items = [i for i in chk.get("items") or [] if i.get("level") in ("error", "warn")]
+    issues = "\n".join(f"{k}. **{'LỖI' if i['level'] == 'error' else 'Cảnh báo'} · {i['rule']}**: {i['msg']}"
+                       for k, i in enumerate(items, 1)) or "(không có)"
+    scenes = []
+    for k in range(1, 5):
+        t = (p.get(f"scene{k}") or "").strip()
+        scenes.append(f"{k}. ({packages.syllables(t)} âm tiết) {t or '—'}")
+    bad_prompts = sorted({int(m) for i in items if i["rule"] == "Prompt" for m in re.findall(r"cảnh (\d)", i["msg"])})
+    prompts = "\n\n".join(f"**Cảnh {k} (hiện tại):** {p.get(f'prompt{k}') or '—'}" for k in bad_prompts)
+    birth = p.get("birth") or {}
+    chart = chart_lines(birth)
+    hints = []
+    rules = {i["rule"] for i in items}
+    if "Nhịp 8s" in rules:
+        hints.append(f"Mỗi cảnh **{packages.SYLLABLE_MIN}–{packages.SYLLABLE_MAX} âm tiết** (giọng 3,8–4,0 âm tiết/giây "
+                     "≈ 6–7,4 giây). Số và ngày được tính theo cách đọc (“20/11” = 4 âm tiết).")
+    if "Prompt" in rules:
+        hints.append("Prompt video của mỗi cảnh phải chứa **nguyên văn** lời thoại cảnh đó trong ngoặc kép (số/ngày có thể "
+                     f"viết bằng chữ), kết thúc bằng khối giọng cố định:\n> {VOICE_BLOCK}")
+    if "B.2" in rules:
+        hints.append("Video lá số: ghi rõ ở đầu phiếu `la_so: <ngày>/<tháng>/<năm dương lịch> <giờ nếu có>, <giới tính>` "
+                     "và dùng **đúng** tứ trụ tool tính (bên dưới, nếu có). Không tự tính can chi.")
+    letter = "\n".join([
+        "---", f"ma_yeu_cau: {code}", "loai: yeu_cau_sua_phieu_goi", "tu: TikTok Manager (anh Nhơn bấm “Gửi Gemini sửa”)",
+        "gui: Gemini", f"goi: {goi}", f"ngay_tao: {vn:%Y-%m-%d %H:%M} (GMT+7)",
+        f"file_tra_loi: 05_HOP_THU_CLAUDE_GEMINI/GUI_CLAUDE/{answer}", "---", "",
+        f"# Sửa phiếu Gói {goi} theo kết quả kiểm tra của TikTok Manager", "",
+        f"Bộ kiểm tra báo **{chk.get('errors', 0)} lỗi, {chk.get('warns', 0)} cảnh báo**. Nhờ Gemini sửa đúng các mục dưới, "
+        "**giữ nguyên** những phần không bị nêu (ảnh, hook, caption… nếu không có lỗi).", "",
+        "## Các mục cần sửa", issues, "",
+        *(["## Ghi chú thêm của anh Nhơn", note.strip(), ""] if note.strip() else []),
+        "## Yêu cầu khi sửa", *[f"- {h}" for h in hints], "",
+        "## Lời thoại hiện tại", *scenes, "",
+        *(["## Prompt video đang lệch lời thoại", prompts, ""] if prompts else []),
+        *(["## Lá số do tool tính (dùng nguyên văn)", *chart, ""] if chart else []),
+        "## Trả lời",
+        f"Tạo **{answer}** trong GUI_CLAUDE với **toàn bộ phiếu gói đã sửa**, đúng định dạng phiếu gói (lời thoại 4 cảnh "
+        "“1. (NN âm tiết) …”, chữ trên hình, caption, bình luận ghim, ảnh 4 cảnh, “## Prompt tạo video 8 giây”, khối "
+        "nhan_video). Tool tự phát hiện thư, anh Nhơn bấm Nhập lại → Lưu & kiểm tra.",
+    ])
+    return code, letter
+
+
+def create_sua(p: dict, chk: dict, note: str = "") -> int:
+    init()
+    n = 1 + (db.query_one("SELECT COUNT(*) AS c FROM gemini_requests WHERE goi=? AND code LIKE 'SUA-%'",
+                          (str(p.get("goi")),)) or {}).get("c", 0)
+    code, letter = build_sua(p, chk, note, n)
+    now = db.now_iso()
+    with db.tx() as c:
+        return c.execute(
+            "INSERT INTO gemini_requests(goi, code, title, brief, opts_json, letter_md, status, created_at)"
+            " VALUES(?,?,?,?,?,?, 'draft', ?)",
+            (str(p.get("goi")), code, f"Sửa phiếu Gói {p.get('goi')} (lần {n})",
+             f"Sửa {chk.get('errors', 0)} lỗi, {chk.get('warns', 0)} cảnh báo theo bộ kiểm tra",
+             json.dumps({"kind": "sua", "loai": int(p.get("loai") or 0)}, ensure_ascii=False), letter, now),
+        ).lastrowid
+
+
 def create(brief: str, title: str, opts: dict) -> int:
     init()
     goi = str(next_goi())

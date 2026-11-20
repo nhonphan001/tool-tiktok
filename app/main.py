@@ -358,7 +358,9 @@ def _package_ctx(p: dict) -> dict:
                    reverse=True)
     best = next((s["label"].replace("Khung ", "") for s in slots if s.get("label", "").startswith("Khung")), "")
     plan = post_plan.suggest(p, chk, req, best)
-    return {"clips": None, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
+    sua = [r for r in gemini_requests.all_requests()
+           if p.get("goi") and str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "sua"]
+    return {"clips": None, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
 
@@ -911,6 +913,25 @@ def voices_zip():
         return PlainTextResponse("Chưa có mẫu", status_code=404)
     return HTMLResponse(buf.getvalue(), media_type="application/zip",
                         headers={"Content-Disposition": 'attachment; filename="Co_Kim_giong_mau.zip"'})
+
+
+@app.post("/packages/{pid}/sua")
+def package_sua(request: Request, pid: int, note: str = Form("")):
+    """Gửi Gemini thư sửa phiếu gói theo kết quả kiểm tra."""
+    p = packages.get(pid)
+    if not p:
+        return RedirectResponse("/packages", status_code=303)
+    chk = packages.check(p)
+    if not (chk["errors"] or chk["warns"] or note.strip()):
+        flash(request, "Gói không có lỗi/cảnh báo — không cần gửi sửa", "info")
+        return RedirectResponse(f"/packages/{pid}#check", status_code=303)
+    rid = gemini_requests.create_sua(p, chk, note[:2000])
+    r = gemini_requests.get(rid)
+    try:
+        flash(request, f"{r['code']}: {gemini_requests.send(rid)}", "success")
+    except Exception as e:  # noqa: BLE001
+        flash(request, f"Đã soạn thư {r['code']} nhưng chưa gửi được: {e}", "error")
+    return RedirectResponse(f"/packages/{pid}#check", status_code=303)
 
 
 @app.post("/packages/{pid}/ghep")

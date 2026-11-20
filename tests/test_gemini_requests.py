@@ -149,3 +149,34 @@ def test_loai1_letter_includes_tool_chart():
     L = r["letter_md"]
     assert "Ất Hợi – Kỷ Mão – Nhâm Dần – Giáp Thìn" in L and "Nhật chủ Nhâm Thủy" in L
     assert "không tự tính can chi" in L and "quang_cao: khong" in L
+
+
+def test_sua_letter_and_route(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app import gemini_requests as gr, packages
+    from app.config import settings
+    from app.main import app
+
+    packages.init()
+    gr.init()
+    pid = packages.save({"goi": "20", "loai": 1, "title": "Đinh Mão 1987",
+                         "scene1": "Tối nay mười chín giờ Cô Kim pha ấm trà nóng gửi riêng đến những chị em tuổi Đinh Mão một chín tám bảy luôn biết nghĩ",
+                         "scene2": "a b c", "scene3": "x", "scene4": "y",
+                         "prompt1": "Photorealistic video, she says: \"khác hẳn lời thoại\"", "caption": "Cô Kim"})
+    p = packages.get(pid)
+    chk = packages.check(p)
+    code, md = gr.build_sua(p, chk, "giữ hook cũ", 1)
+    assert code.startswith("SUA-") and code.endswith("-GOI-20-L1")
+    assert "Nhịp 8s" in md and "Prompt" in md and "khác hẳn lời thoại" in md and "giữ hook cũ" in md
+    assert "SANXUAT-" in md and "-GOI-20-SUA1__XONG.md" in md and "Voice (identical in every scene)" in md
+    sent = []
+    monkeypatch.setattr(gr, "send", lambda rid: sent.append(rid) or "đã gửi")
+    c = TestClient(app)
+    c.post("/login", data={"password": settings.app_password})
+    assert "Gửi Gemini sửa" in c.get(f"/packages/{pid}").text
+    c.post(f"/packages/{pid}/sua", data={"note": ""})
+    r = gr.get(sent[0])
+    assert r["opts"]["kind"] == "sua" and r["code"].endswith("-GOI-20-L1")
+    c.post(f"/packages/{pid}/sua", data={"note": ""})
+    assert gr.get(sent[1])["code"].endswith("-GOI-20-L2")
+    assert "SUA-" in c.get(f"/packages/{pid}").text

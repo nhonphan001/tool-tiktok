@@ -140,11 +140,19 @@ def chart_of(p: dict) -> tuple[dict | None, str | None]:
         return None, str(e)
 
 
+_NUMWORDS = {"khong", "mot", "hai", "ba", "bon", "nam", "sau", "bay", "tam", "chin", "muoi", "moi", "tu", "lam", "le",
+             "linh", "tram", "nghin", "ngan", "gio", "phut", "h"}
+
+
+def _no_numbers(norm: str) -> str:
+    return " ".join(w for w in norm.split() if not w.isdigit() and w not in _NUMWORDS and not re.fullmatch(r"\d+h\d*", w))
+
+
 def syllables(text: str) -> int:
     """Đếm theo cách đọc: '20/11' = 'hai mươi tháng mười một' (4 âm tiết)."""
     from .tts import speakable
 
-    return len(re.findall(r"[^\W\d_]+", speakable(text or "")))
+    return len(re.findall(r"[^\W\d_]+", speakable(text or "", year_digits=True)))
 
 
 def all_text(p: dict) -> str:
@@ -299,8 +307,11 @@ def check(p: dict) -> dict:
         from .tts import speakable
 
         np_ = re.sub(r"[^a-z0-9]+", " ", compliance.normalize(prompt))
-        forms = {re.sub(r"[^a-z0-9]+", " ", compliance.normalize(x)).strip() for x in (scene, speakable(scene))}
-        if all(f and f not in np_ for f in forms):  # chấp nhận "20/11" hoặc "hai mươi tháng mười một"
+        forms = {re.sub(r"[^a-z0-9]+", " ", compliance.normalize(x)).strip()
+                 for x in (scene, speakable(scene), speakable(scene, year_digits=True))}
+        # so lỏng: bỏ số và chữ số đọc ("1987" / "một chín tám bảy" / "mười chín tám mươi bảy" đều khớp)
+        loose = _no_numbers(" ".join(sorted(forms, key=len)[:1])) if forms else ""
+        if all(f and f not in np_ for f in forms) and not (loose and loose in _no_numbers(np_)):
             add("warn", "Prompt", f"Prompt video cảnh {i} không chứa đúng lời thoại cảnh {i} — sửa cho khớp để giọng đọc đúng kịch bản.")
         if re.search(r"\bmusic\b", prompt, re.I) and not re.search(r"no\s+(background\s+)?music", prompt, re.I):
             add("warn", "Prompt", f"Prompt cảnh {i} có nhạc nền — định dạng kênh là không nhạc nền.")

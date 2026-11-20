@@ -78,6 +78,15 @@
   <div class="card"><h2>Kiểm tra {% if chk.errors %}<span class="badge error">{{ chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %} <span class="badge">{{ 'Được chạy quảng cáo' if chk.ads_ok else 'Không chạy quảng cáo' }}</span></h2>
     <ul class="chk">{% for i in chk['items'] %}<li class="{{ i.level }}"><b>{{ i.rule }}</b> — {{ i.msg }}</li>{% endfor %}</ul>
     {% if not p.id %}<p class="muted small">Bấm “Lưu &amp; kiểm tra” để chạy kiểm tra.</p>{% endif %}
+    {% if p.id %}
+    {% for r in sua_reqs %}<div class="small" style="margin-top:6px">✉ <b>{{ r.code }}</b> · {{ req_status.get(r.status, r.status) }}{% if r.answer_name %} · {{ r.answer_name }} — <a href="/packages/import/{{ p.goi }}">Nhập lại bản sửa</a>{% endif %}</div>{% endfor %}
+    {% if chk.errors or chk.warns %}
+    <form method="post" action="/packages/{{ p.id }}/sua" class="sua-box" onsubmit="return confirm('Gửi Gemini thư sửa {{ chk.errors }} lỗi, {{ chk.warns }} cảnh báo của Gói {{ p.goi }}?')">
+      <label class="small">Ghi chú thêm cho Gemini (tuỳ chọn)</label>
+      <textarea name="note" rows="2" placeholder="VD: giữ hook cũ, rút gọn cảnh 1 và 4, ghi ngày sinh 12/03/1987 nữ"></textarea>
+      <button class="btn">✉ Gửi Gemini sửa {{ chk.errors + chk.warns }} mục</button>
+      <span class="muted small">Tool soạn thư kèm danh sách lỗi, lời thoại, prompt lệch{% if p.loai|int == 1 %}, lá số{% endif %} → Gemini trả phiếu đã sửa → bấm “Nhập lại”.</span>
+    </form>{% endif %}{% endif %}
   </div>
   {% if chk.chart %}<div class="card" style="margin-top:16px"><h2>Lá số tính được</h2>{{ chart(chk.chart, True) }}</div>{% endif %}
   {% if p.id %}<div class="card" style="margin-top:16px"><h2>Khối nhan_video</h2><pre class="block">{{ block }}</pre></div>{% endif %}
