@@ -28,10 +28,21 @@ GEMINI_TTS_MODEL = "gemini-2.5-flash-tts"
 STYLE_FALLBACK = ("Đọc bằng giọng nữ miền Nam (Sài Gòn), khoảng 25–30 tuổi, ấm áp, nhẹ nhàng, thân mật như đang rót trà tâm sự "
          "với người nghe. Tốc độ chậm rãi, khoảng 3,6 âm tiết mỗi giây, ngắt nghỉ tự nhiên ở dấu phẩy. Đọc đúng dấu "
          "tiếng Việt, không thêm từ, không nhạc nền.")
-VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả)
-    "g_sulafat": ("gemini", "Sulafat", "Gemini · Sulafat", "ấm, tròn giọng"),
+VOICES = {  # khoá: (loại, tên giọng, nhãn, mô tả) — 14 giọng nữ Gemini TTS + 1 giọng Chirp tiếng Việt
+    "g_sulafat": ("gemini", "Sulafat", "Gemini · Sulafat", "ấm"),
     "g_aoede": ("gemini", "Aoede", "Gemini · Aoede", "nhẹ, thoáng"),
     "g_kore": ("gemini", "Kore", "Gemini · Kore", "chắc, rõ chữ"),
+    "g_vindemiatrix": ("gemini", "Vindemiatrix", "Gemini · Vindemiatrix", "dịu dàng"),
+    "g_achernar": ("gemini", "Achernar", "Gemini · Achernar", "mềm, nhỏ nhẹ"),
+    "g_despina": ("gemini", "Despina", "Gemini · Despina", "mượt"),
+    "g_callirrhoe": ("gemini", "Callirrhoe", "Gemini · Callirrhoe", "thoải mái, tự nhiên"),
+    "g_erinome": ("gemini", "Erinome", "Gemini · Erinome", "trong, rõ"),
+    "g_gacrux": ("gemini", "Gacrux", "Gemini · Gacrux", "chín chắn, trầm"),
+    "g_leda": ("gemini", "Leda", "Gemini · Leda", "trẻ trung"),
+    "g_autonoe": ("gemini", "Autonoe", "Gemini · Autonoe", "sáng"),
+    "g_zephyr": ("gemini", "Zephyr", "Gemini · Zephyr", "tươi, sáng"),
+    "g_laomedeia": ("gemini", "Laomedeia", "Gemini · Laomedeia", "vui, nhiều năng lượng"),
+    "g_pulcherrima": ("gemini", "Pulcherrima", "Gemini · Pulcherrima", "dứt khoát"),
     "chirp_aoede": ("chirp", "vi-VN-Chirp3-HD-Aoede", "Chirp 3 HD · Aoede", "giọng có sẵn tiếng Việt, không chỉnh được vùng miền"),
 }
 SAMPLE_TEXT = ("Sáng 20/11, Cô Kim dọn trà ra vườn hoa đón nắng sớm. Mời cả nhà nhấp ngụm trà ấm, để lòng dịu lại "
@@ -300,25 +311,107 @@ def load_samples() -> dict:
         return {}
 
 
-def make_samples(text: str, keys: list[str] | None = None) -> dict:
+def make_samples(text: str, keys: list[str] | None = None, workers: int = 4) -> dict:
+    """Tạo mẫu song song (4 luồng); giữ mẫu cũ của giọng không tạo lại nếu câu đọc không đổi."""
+    from concurrent.futures import ThreadPoolExecutor
+
     keys = [k for k in (keys or list(VOICES)) if k in VOICES]
-    out = load_samples() if keys != list(VOICES) else {}
+    old = load_samples()
+    out = old if old.get("_text") == text else {}
     out["_text"] = text
     errors = []
-    for k in keys:
-        try:
-            data = synthesize(text, k)
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"{VOICES[k][2]}: {str(e)[:200]}")
-            out.pop(k, None)
-            continue
+
+    def one(k):
+        data = synthesize(text, k)
         path = os.path.join(tts_dir(), f"mau_{k}.wav")
         with open(path, "wb") as f:
             f.write(data)
-        out[k] = {**_meta(text, data, path), "created": db.now_iso()}
+        return {**_meta(text, data, path), "created": db.now_iso()}
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {k: ex.submit(one, k) for k in keys}
+        for k, fu in futs.items():
+            try:
+                out[k] = fu.result()
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{VOICES[k][2]}: {str(e)[:200]}")
+                out.pop(k, None)
+            _job_update(done=len([x for x in futs if futs[x].done()]))
     with open(samples_path(), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
     return {"samples": out, "errors": errors}
+
+
+# ---------- chạy nền (15 giọng mất 1–2 phút, tránh quá thời gian chờ của trình duyệt) ----------
+def _job_path() -> str:
+    return os.path.join(tts_dir(), "samples_job.json")
+
+
+def job() -> dict:
+    try:
+        with open(_job_path(), encoding="utf-8") as f:
+            j = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if j.get("running"):
+        from datetime import datetime, timezone
+
+        try:
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(j["started"])).total_seconds()
+        except (KeyError, ValueError):
+            age = 0
+        if age > 600:  # tiến trình chết giữa chừng
+            j["running"] = False
+    return j
+
+
+def _job_update(**kw) -> None:
+    j = job()
+    j.update(kw)
+    try:
+        with open(_job_path(), "w", encoding="utf-8") as f:
+            json.dump(j, f, ensure_ascii=False)
+    except OSError:
+        pass
+
+
+def start_samples(text: str, keys: list[str] | None = None) -> bool:
+    """Chạy nền; False nếu đang có lượt khác chạy."""
+    import threading
+
+    if job().get("running"):
+        return False
+    keys = [k for k in (keys or list(VOICES)) if k in VOICES]
+    with open(_job_path(), "w", encoding="utf-8") as f:
+        json.dump({"running": True, "total": len(keys), "done": 0, "started": db.now_iso(), "errors": []}, f)
+
+    def run():
+        try:
+            r = make_samples(text, keys)
+            _job_update(running=False, done=len(keys), errors=r["errors"], finished=db.now_iso())
+        except Exception as e:  # noqa: BLE001
+            _job_update(running=False, errors=[str(e)[:300]], finished=db.now_iso())
+
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+
+def rank(samples: dict, ref: dict) -> list[str]:
+    """Xếp giọng theo độ gần giọng mẫu chuẩn: lệch cao độ (Hz) + phạt tốc độ ngoài 3,8–4,0 + phạt lặng đầu."""
+    keys = [k for k in VOICES if k in samples]
+    rf = ref.get("f0")
+
+    def score(k):
+        s = samples[k]
+        sc = abs(s["f0"] - rf) if rf and s.get("f0") else 60.0
+        sps = s.get("sps") or 0
+        sc += 0 if SYL_MIN <= sps <= SYL_MAX else 40 * min(abs(sps - SYL_MIN), abs(sps - SYL_MAX))
+        sc += max(0.0, (s.get("lead") or 0) - 0.3) * 30
+        return sc
+
+    for k in keys:
+        samples[k]["score"] = round(score(k), 1)
+    return sorted(keys, key=lambda k: samples[k]["score"])
 
 
 def sample_file(key: str) -> str:

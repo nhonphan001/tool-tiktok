@@ -23,18 +23,23 @@
 </div>
 <div style="height:12px"></div>
 <div class="card">
-  <form method="post" action="/giong/mau" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang tạo 4 giọng… (10–40 giây)'">
-    <label>Câu đọc thử (giữ cùng 1 câu cho cả 4 giọng để so sánh)</label>
+  <form method="post" action="/giong/mau" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang gửi…'">
+    <label>Câu đọc thử (cùng 1 câu cho mọi giọng để so sánh)</label>
     <textarea name="text" rows="3" maxlength="400" oninput="sylc(this)">{{ text }}</textarea>
     <div class="muted small" id="sylc"></div>
-    <div class="row" style="gap:8px;margin-top:8px"><button class="btn" {{ 'disabled' if not ok }}>Tạo {{ voices|length }} giọng mẫu · ≈ ${{ '%.3f'|format(est) }}</button>
+    <div class="row" style="gap:8px;margin-top:8px"><button class="btn" {{ 'disabled' if not ok or job.running }}>Tạo {{ voices|length }} giọng mẫu · ≈ ${{ '%.3f'|format(est) }}</button>
       {% if samples|length > 1 %}<a class="btn sec" href="/giong/mau.zip">Tải {{ voices|length }} mẫu (.zip) cho Gemini chấm</a>{% endif %}</div>
   </form>
 </div>
-{% for k, vv in voices.items() %}{% set s = samples.get(k) %}
+{% if job.running %}<div class="flash info" style="margin-top:12px"><span class="spinner"></span> Đang tạo giọng mẫu: {{ job.done or 0 }}/{{ job.total }} xong… trang tự tải lại.</div>
+<script>setTimeout(() => location.reload(), 5000);</script>
+{% elif job.errors %}<div class="flash error" style="margin-top:12px">Lượt tạo gần nhất có lỗi: {{ job.errors|join(' · ') }}</div>{% endif %}
+{% if ranked %}<p class="muted small" style="margin:12px 0 0">Đã xếp theo <b>độ gần giọng mẫu chuẩn</b> (lệch cao độ so với ~{{ ref.f0 }} Hz, tốc độ ngoài {{ syl_min }}–{{ syl_max }}, lặng đầu). Số đo chỉ để gợi ý, anh vẫn nghe và quyết.</p>{% endif %}
+{% for k in order %}{% set vv = voices[k] %}{% set s = samples.get(k) %}
 <div class="card voice-card {{ 'on' if chosen==k }}" style="margin-top:12px">
   <div class="row" style="justify-content:space-between;align-items:center">
     <div><b>{{ loop.index }}. {{ vv[2] }}</b> {% if chosen==k %}<span class="badge ok">Giọng thương hiệu ✓</span>{% endif %}
+      {% if ranked and s and loop.index <= 3 %}<span class="badge" style="color:var(--accent);border-color:var(--accent)">Gần mẫu #{{ loop.index }}</span>{% endif %}
       <div class="muted small">{{ vv[3] }}</div></div>
     {% if s %}<span class="small">{{ s.seconds }}s · {{ s.syllables }} âm tiết · <b style="color:{{ 'var(--ok)' if s.speed_ok else '#b7791f' }}">{{ s.sps }} âm tiết/giây</b></span>{% endif %}
   </div>

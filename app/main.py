@@ -698,9 +698,13 @@ def voices_page(request: Request):
 
     ok, why = tts.ready()
     samples = tts.load_samples()
+    ref = tts.reference_info()
+    order = tts.rank(samples, ref)
+    order += [k for k in tts.VOICES if k not in order]  # giọng chưa có mẫu xếp cuối
     return render(request, "voices.html", active="voices", voices=tts.VOICES, samples=samples, ok=ok, why=why,
                   chosen=tts.voice_key(), text=samples.get("_text") or tts.SAMPLE_TEXT, style=tts.style(),
-                  ref=tts.reference_info(),
+                  ref=ref, order=order, ranked=bool(ref.get("f0")) and any(samples.get(k, {}).get("f0") for k in tts.VOICES),
+                  job=tts.job(),
                   syl_min=tts.SYL_MIN, syl_max=tts.SYL_MAX, est=sum(tts.estimate_usd(tts.SAMPLE_TEXT, k) for k in tts.VOICES),
                   v=int(os.path.getmtime(tts.samples_path())) if os.path.exists(tts.samples_path()) else 0)
 
@@ -710,13 +714,10 @@ def voices_make(request: Request, text: str = Form(...)):
     from . import tts
 
     text = text.strip()[:400]
-    try:
-        r = tts.make_samples(text)
-        n = len([k for k in r["samples"] if not k.startswith("_")])
-        flash(request, f"Đã tạo {n}/{len(tts.VOICES)} giọng mẫu." + (" Lỗi: " + " · ".join(r["errors"]) if r["errors"] else ""),
-              "success" if not r["errors"] else ("info" if n else "error"))
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Không tạo được giọng mẫu: {e}", "error")
+    if tts.start_samples(text):
+        flash(request, f"Đang tạo {len(tts.VOICES)} giọng mẫu (khoảng 1–2 phút). Trang tự tải lại khi xong.", "info")
+    else:
+        flash(request, "Đang có lượt tạo giọng chạy, đợi xong rồi tạo tiếp.", "info")
     return RedirectResponse("/giong", status_code=303)
 
 

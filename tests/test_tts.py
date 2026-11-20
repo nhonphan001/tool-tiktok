@@ -71,7 +71,11 @@ def test_samples_choose_and_scenes(env, monkeypatch):
     s = r["samples"]["g_kore"]
     assert s["seconds"] == 7.5 and s["sps"] == round(tts.syllables(tts.SAMPLE_TEXT) / 7.5, 2)
     assert env[0][1]["x-goog-user-project"] == "nangtam-gemini"
-    assert db.query_one("SELECT COUNT(*) n FROM ai_usage WHERE kind='tts'")["n"] == 4
+    assert db.query_one("SELECT COUNT(*) n FROM ai_usage WHERE kind='tts'")["n"] == len(tts.VOICES) == 15
+    # xếp hạng theo độ gần cao độ mẫu chuẩn
+    smp = {"g_kore": {"f0": 300, "sps": 3.9, "lead": 0.1}, "g_leda": {"f0": 225, "sps": 3.9, "lead": 0.1},
+           "g_aoede": {"f0": 219, "sps": 4.6, "lead": 0.1}}
+    assert tts.rank(smp, {"f0": 219}) == ["g_leda", "g_aoede", "g_kore"]
 
     pid = packages.save({"goi": "19", "loai": 3, **{f"scene{i}": f"Lời cảnh {i} nhé con" for i in range(1, 5)}})
     with pytest.raises(tts.TTSError):
@@ -119,6 +123,12 @@ def test_routes(env, monkeypatch):
     c.post("/giong/ho-so", data={"style": ""})
     assert "AUDIO PROFILE" in tts.style()
     c.post("/giong/mau", data={"text": "Chào con, uống trà với Cô nhé."})
+    import time
+    for _ in range(100):
+        if not tts.job().get("running"):
+            break
+        time.sleep(0.05)
+    assert tts.job()["done"] == len(tts.VOICES)
     html = c.get("/giong").text
     assert "/giong/mau/g_aoede.wav" in html and "Chọn giọng này" in html
     assert c.get("/giong/mau/g_aoede.wav").headers["content-type"] == "audio/wav"
