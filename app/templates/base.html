@@ -10,18 +10,18 @@
 <nav>
   <a class="brand" href="/">Tik<span>Tok</span> Manager</a>
   <div class="tabs" id="navtabs">
-  <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan</a>
+  <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan{% if badges.get('dashboard') %}<span class="nav-dot" title="{{ badges['dashboard'] }} mục mới chưa xem">{{ badges['dashboard'] }}</span>{% endif %}</a>
   <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
   <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
-  <a class="tab {{ 'on' if active=='strategy' }}" href="/strategy">Chiến lược</a>
-  <a class="tab {{ 'on' if active in ('packages','package') }}" href="/packages">Gói SX</a>
-  <a class="tab {{ 'on' if active=='requests' }}" href="/requests">Yêu cầu Gemini</a>
-  <a class="tab {{ 'on' if active=='mail' }}" href="/hop-thu">Hộp thư</a>
+  <a class="tab {{ 'on' if active=='strategy' }}" href="/strategy">Chiến lược{% if badges.get('strategy') %}<span class="nav-dot" title="{{ badges['strategy'] }} mục mới chưa xem">{{ badges['strategy'] }}</span>{% endif %}</a>
+  <a class="tab {{ 'on' if active in ('packages','package') }}" href="/packages">Gói SX{% if badges.get('packages') %}<span class="nav-dot" title="{{ badges['packages'] }} mục mới chưa xem">{{ badges['packages'] }}</span>{% endif %}</a>
+  <a class="tab {{ 'on' if active=='requests' }}" href="/requests">Yêu cầu Gemini{% if badges.get('requests') %}<span class="nav-dot" title="{{ badges['requests'] }} mục mới chưa xem">{{ badges['requests'] }}</span>{% endif %}</a>
+  <a class="tab {{ 'on' if active=='mail' }}" href="/hop-thu">Hộp thư{% if badges.get('mail') %}<span class="nav-dot" title="{{ badges['mail'] }} mục mới chưa xem">{{ badges['mail'] }}</span>{% endif %}</a>
   <a class="tab {{ 'on' if active=='laso' }}" href="/laso">Lá số</a>
   <a class="tab {{ 'on' if active=='voices' }}" href="/giong">Giọng</a>
   <a class="tab {{ 'on' if active=='compliance' }}" href="/compliance">Tuân thủ</a>
   <a class="tab {{ 'on' if active=='products' }}" href="/products">Sản phẩm</a>
-  <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo</a>
+  <a class="tab {{ 'on' if active=='report' }}" href="/report">Báo cáo{% if badges.get('report') %}<span class="nav-dot" title="{{ badges['report'] }} mục mới chưa xem">{{ badges['report'] }}</span>{% endif %}</a>
   <a class="tab {{ 'on' if active=='docs' }}" href="/tai-lieu">Tài liệu</a>
   <a class="tab {{ 'on' if active=='settings' }}" href="/settings">Cài đặt</a>
   <a class="tab only-m" href="/logout">Đăng xuất</a>
@@ -31,7 +31,7 @@
     <form method="post" action="/scan" style="margin:0"><button class="btn small">Quét ngay</button></form>
     <a href="/logout" class="no-m">Đăng xuất</a>
     <button type="button" class="menu-btn" aria-label="Mở menu" aria-expanded="false" aria-controls="navtabs"
-      onclick="const n=this.closest('nav');const o=n.classList.toggle('open');this.setAttribute('aria-expanded',o);this.textContent=o?'✕':'☰'">☰</button>
+      onclick="const n=this.closest('nav');const o=n.classList.toggle('open');this.setAttribute('aria-expanded',o);this.firstChild.textContent=o?'✕':'☰'">☰{% if badges and badges.values()|sum %}<span class="nav-dot menu-dot"></span>{% endif %}</button>
   </div>
 </nav>
 <main>

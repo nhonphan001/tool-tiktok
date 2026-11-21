@@ -10,7 +10,7 @@
 </div>
 <div class="card">
 {% for r in rows %}<div class="row" style="justify-content:space-between;border-top:1px solid var(--border);padding:8px 0">
-  <div><b>{{ r.code }}</b> <span class="muted small">{{ r.created_at|localtime }} · chiến lược #{{ r.strategy_id }}</span>
+  <div>{% if is_new(r.created_at) %}<span class="new-dot"></span> {% endif %}<b>{{ r.code }}</b> <span class="muted small">{{ r.created_at|localtime }} · chiến lược #{{ r.strategy_id }}</span>
     <div class="small">{% if r.pushed %}<span class="badge ok">đã gửi: {{ r.pushed }}</span>{% endif %}
       {% if r.error %}<span class="small" style="color:var(--err)">{{ r.error }}</span>{% endif %}</div></div>
   <div class="row" style="gap:6px"><a class="btn sec small" href="/tom-tat/{{ r.id }}.md" target="_blank">Xem</a>

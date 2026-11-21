@@ -75,6 +75,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
+log = logging.getLogger(__name__)
 app = FastAPI(title="TikTok Channel Manager", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
@@ -97,6 +98,20 @@ app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, max_age=60
 
 def render(request: Request, name: str, **ctx):
     flash = request.session.pop("flash", None)
+    from . import unread
+
+    try:
+        badges, seen_before = unread.visit(request.url.path)
+    except Exception:  # noqa: BLE001
+        log.exception("unread")
+        badges, seen_before = {}, ""
+
+    def is_new(ts) -> bool:  # mục mới hơn lần xem trước của khu đang mở → chấm đỏ
+        return bool(seen_before and ts and str(ts)[:19].replace(" ", "T") > seen_before[:19])
+
+    ctx.setdefault("badges", badges)
+    ctx.setdefault("seen_before", seen_before)
+    ctx.setdefault("is_new", is_new)
     return templates.TemplateResponse(
         request,
         name,
@@ -342,9 +357,18 @@ def laso_comments(request: Request, text: str = Form("")):
 @app.get("/packages", response_class=HTMLResponse)
 def packages_page(request: Request):
     items = packages.all_packages()
+    events: dict[str, str] = {}  # gói → lần cuối Gemini gửi phiếu / sửa / video
+    for r in gemini_requests.all_requests():
+        t = max(str(r.get(k) or "")[:19] for k in ("answered_at", "answer_modified", "video_seen"))
+        if t > events.get(str(r["goi"]), ""):
+            events[str(r["goi"])] = t
     for p in items:
         p["chk"] = packages.check(p)
-    return render(request, "packages.html", items=items, status=packages.STATUS, loai_short=packages.LOAI_SHORT)
+        p["event_at"] = events.get(str(p.get("goi")), "")
+    known = {str(p.get("goi")) for p in items}
+    waiting = sorted((g for g in events if g not in known), key=lambda x: int(x) if x.isdigit() else 0)
+    return render(request, "packages.html", items=items, status=packages.STATUS, loai_short=packages.LOAI_SHORT,
+                  events=events, waiting=waiting)
 
 
 def _package_ctx(p: dict) -> dict:

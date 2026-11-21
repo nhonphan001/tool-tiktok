@@ -30,7 +30,7 @@
 
 {% for n in notes %}<div class="card note-card note-{{ n.status }}" id="n-{{ n.file_id }}" style="margin-top:10px">
   <div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
-    <div style="flex:1;min-width:0"><span class="badge {{ 'loai-1' if n.sender=='Gemini' else 'loai-3' }}">{{ n.sender }}</span>
+    <div style="flex:1;min-width:0">{% if is_new(n.read_at) %}<span class="new-dot" title="Thư mới chưa xem"></span> {% endif %}<span class="badge {{ 'loai-1' if n.sender=='Gemini' else 'loai-3' }}">{{ n.sender }}</span>
       <span class="badge">{{ kinds.get(n.kind, n.kind) }}</span>
       {% if n.updates %}<span class="badge {{ 'ok' if n.status=='applied' else ('error' if n.status=='pending' else '') }}">{{ status.get(n.status, n.status) }}</span>{% endif %}
       <div style="margin-top:4px"><b>{{ n.title }}</b></div>

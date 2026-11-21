@@ -41,7 +41,7 @@
 <div class="card"><h2>Đã gửi ({{ reqs|length }})</h2>
 {% for r in reqs %}<div id="r{{ r.id }}" style="border-top:1px solid var(--border);padding:10px 0">
   <div class="row" style="justify-content:space-between">
-    <b>Gói {{ r.goi }} · {{ r.title }}</b>
+    <b>{% if is_new(r.answered_at) or is_new(r.answer_modified) %}<span class="new-dot" title="Gemini vừa trả lời"></span> {% endif %}Gói {{ r.goi }} · {{ r.title }}</b>
     <span class="badge {{ 'ok' if r.status in ('answered','imported','updated') else ('error' if r.status=='error' else '') }}">{{ status[r.status] }}</span></div>
   <div class="small muted" style="margin-top:4px">{{ r.created_at|localtime }} · {{ loai[r.opts.loai] if r.opts.loai in loai else '' }}{% if r.opts.ads %} · QC {{ r.opts.ads_days }} ngày{% endif %}{% if r.opts.publish %} · đăng {{ r.opts.publish }}{% endif %}</div>
   <div class="small" style="margin-top:4px">{{ r.brief[:220] }}</div>
