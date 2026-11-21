@@ -92,6 +92,8 @@ def _rules_for(loai: int, ads: bool) -> list[str]:
         "Không nhắc web, Link Bio, tên miền, Zalo, Shopee, Lazada, link (B.1).",
         "Không hứa may mắn, tài lộc, rước lộc, bình an, phù hộ; không hù dọa; không hứa chữa bệnh, giàu có (B.4).",
         "Hình ảnh: không lửa, hào quang, linh vật phát sáng; không chắp tay khấn vái, nhang, mâm cúng (C.7, C.8).",
+        "4 cảnh cùng 1 gói phải THỐNG NHẤT bối cảnh, ánh sáng và thời điểm trong ngày (không để 1 cảnh sáng hơn/khác giờ "
+        "so với 3 cảnh còn lại) — quy tắc anh Nhơn chốt 20/11.",
         "Bật nhãn “Nội dung do AI tạo” khi đăng.",
     ]
     if loai == 3:

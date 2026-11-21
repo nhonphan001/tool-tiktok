@@ -12,7 +12,7 @@ from . import compliance
 CART_RX = re.compile(r"có giỏ hàng|giỏ hàng|gói 16|sp-[a-z]{3}-\d+|khăn lau|ấm tử sa|đèn đá muối", re.I)
 FORTUNE_RX = re.compile(r"lá số|bát tự|nhật chủ|nhật can|can chi|tứ trụ|dụng thần|trả lời bình luận|giải mã (?:lá số|tuổi|ngày sinh)|"
                         r"tuổi\s|\b(?:giáp|ất|bính|đinh|mậu|kỷ|canh|tân|nhâm|quý)\s+(?:tý|sửu|dần|mão|thìn|tỵ|ngọ|mùi|thân|dậu|tuất|hợi)\b|"
-                        r"\b19[5-9]\d\b|\b20[0-2]\d\b", re.I)
+                        r"\b19[3-9]\d\b|\b20(?:0\d|1\d|2[0-4])\b", re.I)  # năm sinh; không bắt năm hiện tại 2025–2029 ("khép lại 2026")
 FORTUNE_TAG_RX = re.compile(r"#(?:battu|tutru|dungthan|tuvi\w*|phongthuy|xemboi|laso)", re.I)
 GROUP_HINTS = [(4, r"trả lời bình luận"), (2, r"tuổi|con giáp|19[5-9]\d|20[0-2]\d"),
                (3, r"nhân duyên|gia đạo|vợ chồng|hôn nhân|mẫu tử"), (6, r"kiến thức|nhập môn|dụng thần"),
