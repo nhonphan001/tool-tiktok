@@ -53,3 +53,9 @@ def test_gemini_rewrite_retries(monkeypatch):
     monkeypatch.setattr(strategy, "record_usage", lambda *a: None)
     r = fixer.viet_lai_gemini("Năm mới rước lộc, mang lại may mắn #CoKim")
     assert len(calls) == 2 and "ruoc loc" in calls[1] and r["after"]["level"] == "ok" and r["usage"]["total_tokens"] == 100
+
+
+def test_item_advice_accent_aware():
+    from app import packages
+    assert not packages.ITEM_ADVICE.search("giống như đất dày kiên nhẫn nuôi dưỡng viên ngọc")
+    assert packages.ITEM_ADVICE.search("nên đeo vòng đá thạch anh hồng")

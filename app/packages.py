@@ -9,6 +9,7 @@ from __future__ import annotations
 import difflib
 import json
 import re
+import unicodedata
 
 from . import analytics, battu, compliance, db, products, tags
 from .products import real_link
@@ -37,8 +38,10 @@ CREATE TABLE IF NOT EXISTS packages (
 
 LA_SO_TERMS = re.compile(r"la\s*so|bat\s*tu|nhat\s*chu|tu\s*tru|dung\s*than|hy\s*than|can\s*chi"
                          r"|thieu\s*(hut\s*)?(kim|moc|thuy|hoa|tho)\b|menh\s*(kim|moc|thuy|hoa|tho)\b")
-ITEM_ADVICE = re.compile(r"\b(mang|deo|dat|dung|treo|chung|sam|mua)\b.{0,30}\b(vong|da|tram|am|den|chuong|vat\s*pham"
-                         r"|san\s*pham|lac|nhan|day\s*chuyen|tuong|ho\s*lo|ty\s*huu|thach\s*anh)\b")
+# So CÓ DẤU (chữ thường) để không bắt nhầm "đất dày kiên nhẫn" (= "đặt … nhẫn" khi bỏ dấu)
+_W = r"[\wÀ-ỹ]"
+ITEM_ADVICE = re.compile(rf"(?<!{_W})(mang|đeo|đặt|dùng|treo|chưng|sắm|mua)(?!{_W}).{{0,30}}?(?<!{_W})(vòng|đá|trầm|ấm|đèn|chuông|"
+                         rf"vật\s*phẩm|sản\s*phẩm|lắc|nhẫn|dây\s*chuyền|tượng|hồ\s*lô|tỳ\s*hưu|thạch\s*anh)(?!{_W})")
 CAN_RX = "|".join(battu.CAN)
 CHI_RX = "|".join(battu.CHI)
 PILLAR = rf"(?:{CAN_RX})\s+(?:{CHI_RX})"
@@ -209,7 +212,7 @@ def check(p: dict) -> dict:
 
     # Quy tắc 2 loại video
     if loai == 1:
-        m = ITEM_ADVICE.search(norm)
+        m = ITEM_ADVICE.search(unicodedata.normalize("NFC", text).lower())
         if m:
             add("warn", "B.4.1", f"Video lá số đang khuyên dùng vật phẩm (“{m.group(0)}”): không nối lá số với vật phẩm.")
     product = None

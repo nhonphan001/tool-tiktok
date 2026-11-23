@@ -114,7 +114,7 @@ def sua_nhanh(text: str, has_cart: bool | None = None) -> dict:
     from .packages import ITEM_ADVICE
 
     notes = []
-    m = ITEM_ADVICE.search(compliance.normalize(out))
+    m = ITEM_ADVICE.search(unicodedata.normalize("NFC", out).lower())
     if m:
         notes.append(f"Câu còn khuyên dùng vật phẩm (“{m.group(0)}”): nếu video nói về lá số, nên bỏ câu này (B.4.1).")
     after = compliance.check(out, has_cart)
