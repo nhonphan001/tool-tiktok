@@ -417,7 +417,9 @@ def _package_ctx(p: dict) -> dict:
     plan = post_plan.suggest(p, chk, req, best)
     sua = [r for r in gemini_requests.all_requests()
            if p.get("goi") and str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "sua"]
-    return {"clips": None, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
+    syl_lo, syl_hi = packages.syllable_range()
+    return {"clips": None, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "clip_s": packages.clip_seconds(),
+            "syl_lo": syl_lo, "syl_hi": syl_hi, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
 

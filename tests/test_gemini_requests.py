@@ -167,7 +167,7 @@ def test_sua_letter_and_route(monkeypatch):
     chk = packages.check(p)
     code, md = gr.build_sua(p, chk, "giữ hook cũ", 1)
     assert code.startswith("SUA-") and code.endswith("-GOI-20-L1")
-    assert "Nhịp 8s" in md and "Prompt" in md and "khác hẳn lời thoại" in md and "giữ hook cũ" in md
+    assert "Nhịp cảnh" in md and "Prompt" in md and "khác hẳn lời thoại" in md and "giữ hook cũ" in md
     assert "SANXUAT-" in md and "-GOI-20-SUA1__XONG.md" in md and "Voice (identical in every scene)" in md
     sent = []
     monkeypatch.setattr(gr, "send", lambda rid: sent.append(rid) or "đã gửi")
@@ -188,7 +188,7 @@ def test_sua_letter_and_route(monkeypatch):
     wait(1)
     r = gr.get(sent[0])
     assert r["opts"]["kind"] == "sua" and r["code"].endswith("-GOI-20-L1")
-    assert "Prompt" in r["letter_md"] and "Nhịp 8s" not in r["letter_md"].split("## Các mục cần sửa")[1].split("##")[0]
+    assert "Prompt" in r["letter_md"] and "Nhịp cảnh" not in r["letter_md"].split("## Các mục cần sửa")[1].split("##")[0]
     c.post(f"/packages/{pid}/sua", data={"note": "đổi hook mạnh hơn"})
     wait(2)
     r2 = gr.get(sent[1])

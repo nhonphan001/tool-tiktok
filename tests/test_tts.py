@@ -171,3 +171,14 @@ def test_time_year_and_loose_prompt_match():
     assert not [i for i in packages.check(p)["items"] if i["rule"] == "Prompt"]
     p["prompt1"] = 'she says: "Tối nay Cô Kim gửi bạn bè lời chúc"'
     assert [i for i in packages.check(p)["items"] if i["rule"] == "Prompt"]
+
+
+def test_syllable_range_follows_clip_seconds(monkeypatch):
+    from app import packages
+    monkeypatch.setattr(settings, "clip_seconds", 10)
+    assert packages.syllable_range() == (24, 34)
+    p = {"goi": "1", "loai": 3, "scene1": " ".join(["trà"] * 32)}
+    assert not [i for i in packages.check(p)["items"] if i["rule"] == "Nhịp cảnh"]
+    monkeypatch.setattr(settings, "clip_seconds", 8)
+    assert packages.syllable_range() == (24, 28)
+    assert [i for i in packages.check(p)["items"] if i["rule"] == "Nhịp cảnh"]

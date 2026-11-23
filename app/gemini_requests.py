@@ -84,11 +84,14 @@ VOICE_BLOCK = ("Voice (identical in every scene): a 26-year-old Southern Vietnam
 
 
 def _rules_for(loai: int, ads: bool) -> list[str]:
+    cs = packages.clip_seconds()
+    lo, hi = packages.syllable_range()
     common = [
-        "Định dạng: 4 cảnh × 8 giây, dọc 9:16, mỗi cảnh 24–28 âm tiết (giọng đọc 3,8–4,0 âm tiết/giây ≈ 6–7,4 giây), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
+        f"Định dạng: 4 cảnh × {cs} giây (clip Gemini/Flow {cs} giây), dọc 9:16, mỗi cảnh {lo}–{hi} âm tiết (giọng đọc 3,8–4,0 âm tiết/giây "
+        f"≈ {lo / 4:.0f}–{hi / 3.9:.1f} giây, chừa khoảng 0,7 giây vào/ra giọng), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
         "ảnh mặt chuẩn nhất CO_KIM_MASTER_FACE_CHUAN_NHAT_3957.png, ID Drive 1gnq18QukC1lCSC0py5Zmf18lR78r3CEH (từ Gói 19): "
         "khóa mặt trái xoan, mắt hạnh nhân, cười khép môi sau voan tím (không hở răng), trâm vàng ngọc đỏ + trâm tua rua trái; "
-        "KHÔNG chép tư thế chắp tay, lá bồ đề, túi nhung đỏ). Kèm prompt video 8 giây cho từng cảnh.",
+        f"KHÔNG chép tư thế chắp tay, lá bồ đề, túi nhung đỏ). Kèm prompt video {cs} giây cho từng cảnh.",
         "Không nhắc web, Link Bio, tên miền, Zalo, Shopee, Lazada, link (B.1).",
         "Không hứa may mắn, tài lộc, rước lộc, bình an, phù hộ; không hù dọa; không hứa chữa bệnh, giàu có (B.4).",
         "Hình ảnh: không lửa, hào quang, linh vật phát sáng; không chắp tay khấn vái, nhang, mâm cúng (C.7, C.8).",
@@ -221,7 +224,7 @@ def build_letter(req: dict) -> str:
         "",
         f"# Phiếu gói {goi} — <tiêu đề>",
         "",
-        "## Lời thoại 4 cảnh × 8 giây",
+        f"## Lời thoại 4 cảnh × {packages.clip_seconds()} giây",
         "1. (26 âm tiết) <lời thoại cảnh 1>",
         "2. (27 âm tiết) <lời thoại cảnh 2>",
         "3. (26 âm tiết) <lời thoại cảnh 3>",
@@ -239,7 +242,7 @@ def build_letter(req: dict) -> str:
         "## Kế hoạch quảng cáo" if ads else "",
         "<mục tiêu, đối tượng, giờ bật, số ngày>" if ads else "",
         "",
-        "## Prompt tạo video 8 giây (Veo / Flow)",
+        f"## Prompt tạo video {packages.clip_seconds()} giây (Veo / Flow)",
         "Clip tạo TAY trên app Gemini/Flow, CÓ GIỌNG ĐỌC (anh Nhơn chốt 20/11). Mỗi prompt = hình + câu thoại + KHỐI GIỌNG giống hệt nhau từng chữ ở cả 4 cảnh:",
         f"> {VOICE_BLOCK}",
         "Lời thoại trong prompt viết số/ngày bằng chữ (vd. “hai mươi tháng mười một”), đặt trong ngoặc kép, nguyên văn phiếu gói.",
@@ -299,9 +302,10 @@ def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]
     chart = chart_lines(birth)
     hints = []
     rules = {i["rule"] for i in items}
-    if "Nhịp 8s" in rules:
-        hints.append(f"Mỗi cảnh **{packages.SYLLABLE_MIN}–{packages.SYLLABLE_MAX} âm tiết** (giọng 3,8–4,0 âm tiết/giây "
-                     "≈ 6–7,4 giây). Số và ngày được tính theo cách đọc (“20/11” = 4 âm tiết).")
+    if "Nhịp cảnh" in rules or "Nhịp 8s" in rules:
+        lo, hi = packages.syllable_range()
+        hints.append(f"Mỗi cảnh **{lo}–{hi} âm tiết** (clip {packages.clip_seconds()} giây, giọng 3,8–4,0 âm tiết/giây). "
+                     "Số và ngày được tính theo cách đọc (“20/11” = 4 âm tiết).")
     if "Prompt" in rules:
         hints.append("Prompt video của mỗi cảnh phải chứa **nguyên văn** lời thoại cảnh đó trong ngoặc kép (số/ngày có thể "
                      f"viết bằng chữ), kết thúc bằng khối giọng cố định:\n> {VOICE_BLOCK}")
@@ -323,7 +327,7 @@ def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]
         *(["## Lá số do tool tính (dùng nguyên văn)", *chart, ""] if chart else []),
         "## Trả lời",
         f"Tạo **{answer}** trong GUI_CLAUDE với **toàn bộ phiếu gói đã sửa**, đúng định dạng phiếu gói (lời thoại 4 cảnh "
-        "“1. (NN âm tiết) …”, chữ trên hình, caption, bình luận ghim, ảnh 4 cảnh, “## Prompt tạo video 8 giây”, khối "
+        "“1. (NN âm tiết) …”, chữ trên hình, caption, bình luận ghim, ảnh 4 cảnh, “## Prompt tạo video … giây”, khối "
         "nhan_video). Tool tự phát hiện thư, anh Nhơn bấm Nhập lại → Lưu & kiểm tra.",
     ])
     return code, letter

@@ -43,7 +43,7 @@ Trả lời bằng tiếng Việt, định dạng Markdown, gồm các mục:
    Ràng buộc đã chốt với chủ kênh: nhịp 2 video/ngày — 11:00 Loại 3 (trà sáng/chữa lành, kéo tim + follow),
    19:00 Loại 1 (lá số; ưu tiên nhóm 4 trả lời bình luận thật). Loại 2 (giỏ hàng) TỐI ĐA 2 video/tuần, đăng 12:00,
    chỉ dùng sản phẩm đã sẵn sàng; video Loại 2 KHÔNG nhắc lá số/tuổi/Bát Tự, KHÔNG hashtag #battu #tutru #phongthuy #tuvi…,
-   không dùng từ "thỉnh"; CTA duy nhất "bấm giỏ hàng góc trái". Mỗi video 4 cảnh × 8 giây (~32s).
+   không dùng từ "thỉnh"; CTA duy nhất "bấm giỏ hàng góc trái". Mỗi video 4 cảnh × 10 giây (clip Gemini 10 giây, sau khi cắt lặng ~32–40 giây).
 4. 10 ý tưởng video mới kèm hook 3 giây đầu
 5. Tối ưu caption, hashtag, CTA (CTA chỉ dùng các câu được phép trong QUY TẮC NỘI DUNG BẮT BUỘC bên dưới)
 6. KPI mục tiêu 7 ngày và 30 ngày (follower, view TB, tim/view, bình luận/video) — đặt theo tốc độ thực tế, nói rõ mốc nào khả thi

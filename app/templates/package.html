@@ -47,11 +47,11 @@
         {% else %}<input name="sku" value="{{ p.sku or '' }}" placeholder="SP-THUY-02 (chưa đồng bộ bảng sản phẩm)">{% endif %}</div>
       <div style="flex:2;min-width:200px"><label>Tên sản phẩm dùng trong kịch bản</label><input name="product_name" value="{{ p.product_name or '' }}" placeholder="chép đúng tên trong bảng quản trị"></div>
     </div>
-    <h2 style="margin-top:16px">Lời thoại 4 cảnh × 8 giây <span class="muted small">(24–28 âm tiết / cảnh)</span></h2>
+    <h2 style="margin-top:16px">Lời thoại 4 cảnh × {{ clip_s }} giây <span class="muted small">({{ syl_lo }}–{{ syl_hi }} âm tiết / cảnh)</span></h2>
     {% for i in range(1, 5) %}<label>Cảnh {{ i }} <span class="muted" data-syl="scene{{ i }}"></span></label><textarea name="scene{{ i }}" rows="2" oninput="syl(this)">{{ p['scene' ~ i] or '' }}</textarea>
     <details class="sub" {{ 'open' if not p.id and (p['prompt' ~ i] or p['image' ~ i]) }}><summary class="small muted">Ảnh + prompt video cảnh {{ i }}{% if p['prompt' ~ i] %} ✓{% endif %}</summary>
       <label>ID / link ảnh Drive cảnh {{ i }}</label><input name="image{{ i }}" value="{{ p['image' ~ i] or '' }}">
-      <label>Prompt video 8 giây cảnh {{ i }} (Veo / Flow)</label><textarea name="prompt{{ i }}" rows="4">{{ p['prompt' ~ i] or '' }}</textarea>
+      <label>Prompt video {{ clip_s }} giây cảnh {{ i }} (Veo / Flow)</label><textarea name="prompt{{ i }}" rows="4">{{ p['prompt' ~ i] or '' }}</textarea>
     </details>{% endfor %}
     <label>Chữ trên hình (hook, phụ đề nổi bật)</label><textarea name="on_screen" rows="2">{{ p.on_screen or '' }}</textarea>
     <label>Caption + hashtag</label><textarea name="caption" rows="3">{{ p.caption or '' }}</textarea>
@@ -131,7 +131,7 @@
 {% endif %}{% endfor %}{% endset %}
     {{ item('Lời thoại cả 4 cảnh', all_lines.strip()) }}
     {% for i in range(1, 5) %}{% if p['scene' ~ i] or p['prompt' ~ i] or p['image' ~ i] %}
-    <div class="kit-scene"><div class="kit-head"><b>Cảnh {{ i }} · {{ (i-1)*8 }}–{{ i*8 }}s</b>
+    <div class="kit-scene"><div class="kit-head"><b>Cảnh {{ i }} · clip {{ clip_s }}s</b>
       {% if p['image' ~ i] and p.id %}<a class="btn sec small" href="/media/{{ p.id }}/image{{ i }}?download=1">Tải ảnh</a>
       {% elif p['image' ~ i] %}<a class="btn sec small" href="https://drive.google.com/file/d/{{ p['image' ~ i] }}/view" target="_blank" rel="noopener">Mở ảnh</a>{% endif %}</div>
       {% if p['image' ~ i] and p.id %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener" class="kit-img">
@@ -194,7 +194,7 @@
 </div>
 {% for i in range(1, 5) %}{% set c = clips[i|string] %}
 <div class="card clip-card clip-{{ c.status }}" style="margin-top:12px">
-  <div class="row" style="justify-content:space-between"><b>Cảnh {{ i }} · {{ (i-1)*8 }}–{{ i*8 }}s</b>
+  <div class="row" style="justify-content:space-between"><b>Cảnh {{ i }} · clip {{ clip_s }}s</b>
     <span class="badge {{ 'ok' if c.status=='dat' else ('error' if c.status in ('lam_lai','cho_duyet') else '') }}">{{ clip_status.get(c.status, c.status) }}{% if c.rounds %} · lần {{ c.rounds + 1 }}{% endif %}</span></div>
   {% if c.id %}
     <video src="/media/{{ p.id }}/clip{{ i }}" controls preload="metadata" playsinline class="clip-video"></video>
@@ -240,7 +240,7 @@ function copyKit(btn){
   function fallback(){ const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { alert('Không chép được, hãy chọn và chép tay.'); } ta.remove(); }
 }
-function syl(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; const s=document.querySelector('[data-syl="'+el.name+'"]'); if(s){ s.textContent='· '+n+' âm tiết'; s.style.color=(n&&(n<24||n>28))?'#b7791f':''; } }
+function syl(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; const s=document.querySelector('[data-syl="'+el.name+'"]'); if(s){ s.textContent='· '+n+' âm tiết'; s.style.color=(n&&(n<{{ syl_lo }}||n>{{ syl_hi }}))?'#b7791f':''; } }
 document.querySelectorAll('textarea[name^=scene]').forEach(syl);
 (function(){
   const bar = document.querySelector('.tabs-bar'); if(!bar) return;

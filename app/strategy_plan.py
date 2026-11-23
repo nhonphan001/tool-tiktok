@@ -122,7 +122,7 @@ def prefill(r: dict) -> dict:
     if r.get("hook"):
         parts.append(f"Hook gợi ý (3 giây đầu): \"{r['hook']}\".")
     if r.get("dinh_dang") or r.get("do_dai"):
-        parts.append(f"Định dạng: {r.get('dinh_dang') or '—'}, độ dài {r.get('do_dai') or '32s'} (4 cảnh × 8 giây).")
+        parts.append(f"Định dạng: {r.get('dinh_dang') or '—'}, độ dài {r.get('do_dai') or '32s'} (4 cảnh, clip 10 giây).")
     tags = FORTUNE_TAG_RX.sub("", r.get("hashtag") or "") if r["loai"] == 2 else (r.get("hashtag") or "")
     if tags.strip():
         parts.append(f"Hashtag gợi ý: {' '.join(tags.split())}.")

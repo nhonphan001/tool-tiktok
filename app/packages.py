@@ -24,7 +24,21 @@ LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)"
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
 STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "len_lich": "Đã lên lịch đăng", "da_dang": "Đã đăng"}
-SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # 24–28 âm tiết / cảnh 8 giây (chuẩn của quy trình v2.5)
+SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # mặc định cũ (clip 8 giây); dùng syllable_range() theo Cài đặt
+
+
+def clip_seconds() -> int:
+    from .config import settings
+
+    s = int(settings.clip_seconds or 10)
+    return s if 6 <= s <= 15 else 10
+
+
+def syllable_range() -> tuple[int, int]:
+    """Số âm tiết/cảnh theo độ dài clip: giọng 3,8–4,0 âm tiết/giây, chừa ~0,7 giây vào/ra giọng.
+    8 giây → 24–28 · 10 giây → 24–34."""
+    s = clip_seconds()
+    return SYLLABLE_MIN, int(round(s * 3.45))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS packages (
@@ -325,8 +339,9 @@ def check(p: dict) -> dict:
         if not t:
             continue
         n = syllables(t)
-        if not SYLLABLE_MIN <= n <= SYLLABLE_MAX:
-            add("warn", "Nhịp 8s", f"Cảnh {i + 1}: {n} âm tiết (chuẩn {SYLLABLE_MIN}–{SYLLABLE_MAX} cho 8 giây).")
+        lo, hi = syllable_range()
+        if not lo <= n <= hi:
+            add("warn", "Nhịp cảnh", f"Cảnh {i + 1}: {n} âm tiết (chuẩn {lo}–{hi} cho clip {clip_seconds()} giây).")
 
     # CTA
     cap_norm = compliance.normalize((p.get("caption") or "") + " " + (p.get("pinned") or "") + " " + (p.get("scene4") or ""))
@@ -376,7 +391,7 @@ def to_markdown(p: dict, chk: dict) -> str:
         c = chk["chart"]
         out += ["## Lá số (TikTok Manager tính, Nhật chủ = can trụ Ngày)", f"- {battu.mo_ta_ngan(c)}",
                 f"- Âm lịch: {c['am_lich']}"] + [f"- ⚠ {x}" for x in c["canh_bao"]] + [""]
-    out.append("## Lời thoại 4 cảnh × 8 giây")
+    out.append(f"## Lời thoại 4 cảnh × {clip_seconds()} giây")
     for i, s in enumerate(SCENES):
         t = (p.get(s) or "").strip()
         out.append(f"{i + 1}. ({syllables(t)} âm tiết) {t or '—'}")
