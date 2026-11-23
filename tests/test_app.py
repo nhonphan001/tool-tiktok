@@ -530,7 +530,16 @@ def test_check_drive_without_key(monkeypatch, tmp_path):
     c = TestClient(app)
     c.post("/login", data={"password": "pw"})
     r = c.post("/settings/test-drive")
-    assert r.status_code == 200 and "Không đọc được file service account" in r.text
+    assert r.status_code == 200 and "chạy ngầm" in r.text  # trả trang ngay, kết quả báo qua /api/jobs
+    import time
+    for _ in range(100):
+        j = db.query_one("SELECT * FROM jobs WHERE kind='drive_test' ORDER BY id DESC LIMIT 1")
+        if j and j["status"] != "pending":
+            break
+        time.sleep(0.05)
+    assert j["status"] == "error" and "Không đọc được file service account" in j["message"]
+    fin = c.get("/api/jobs").json()["finished"]
+    assert any(f.get("title") == "Kiểm tra Drive" for f in fin)
 
 
 def test_drive_check_and_push_mocked(seeded, monkeypatch, tmp_path):

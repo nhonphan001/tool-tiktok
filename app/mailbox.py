@@ -207,36 +207,63 @@ def _read(token: str, f: dict) -> str:
     return r.content.decode("utf-8-sig", errors="replace")
 
 
-def scan() -> list[dict]:
-    """Liệt kê các gói tìm thấy trong hộp thư (mới nhất trước)."""
-    from .notebooklm import _credentials
+# Đệm kết quả đọc từng thư theo (id, modifiedTime): lần sau chỉ đọc thư mới/vừa sửa → trang Nhập từ hộp thư mở nhanh
+_PARSED: dict[str, tuple[str, dict | None]] = {}
 
+
+def _parse_file(token: str, f: dict) -> dict | None:
+    hit = _PARSED.get(f["id"])
+    if hit and hit[0] == (f.get("modifiedTime") or ""):
+        return hit[1]
+    try:
+        raw = _read(token, f)
+        p = parse_report(raw, f["name"]) if f["name"].upper().startswith("BAOCAO-") else parse(raw, f["name"])
+    except httpx.HTTPError:
+        return None
+    if p.get("goi"):
+        p["source"] = {"id": f["id"], "name": f["name"], "modified": f.get("modifiedTime", "")}
+    else:
+        p = None
+    _PARSED[f["id"]] = (f.get("modifiedTime") or "", p)
+    return p
+
+
+def _files(token: str) -> list[dict]:
     folders = folder_ids()
     if not folders:
         raise RuntimeError("Chưa cấu hình ID thư mục hộp thư trong Cài đặt")
-    token = _credentials(["https://www.googleapis.com/auth/drive.readonly"]).token
     files = []
     for folder in folders:
         files += _list_files(token, folder)
     files.sort(key=lambda f: f.get("modifiedTime") or "")
+    return files
+
+
+def _group(parsed: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
-    for f in files:
-        try:
-            raw = _read(token, f)
-            p = parse_report(raw, f["name"]) if f["name"].upper().startswith("BAOCAO-") else parse(raw, f["name"])
-        except httpx.HTTPError:
-            continue
-        if not p.get("goi"):
-            continue
-        p["source"] = {"id": f["id"], "name": f["name"], "modified": f.get("modifiedTime", "")}
+    for p in parsed:
         groups.setdefault(p["goi"], []).append(p)
     out = [g for g in (merge(v) for v in groups.values()) if g["fields"]]  # bỏ nhóm chỉ có thư báo cáo cũ, không nội dung
     out.sort(key=lambda g: max(s["modified"] for s in g["sources"]), reverse=True)
     return out
 
 
+def scan() -> list[dict]:
+    """Liệt kê các gói tìm thấy trong hộp thư (mới nhất trước)."""
+    from .notebooklm import _credentials
+
+    token = _credentials(["https://www.googleapis.com/auth/drive.readonly"]).token
+    parsed = [p for p in (_parse_file(token, f) for f in _files(token)) if p]
+    return _group(parsed)
+
+
 def get(goi: str) -> dict | None:
-    for g in scan():
-        if g.get("goi") == str(goi):
-            return g
-    return None
+    """Phiếu 1 gói: chỉ đọc các thư có tên chứa GOI-<n> (nhanh); không thấy thì quét toàn bộ."""
+    from .notebooklm import _credentials
+
+    token = _credentials(["https://www.googleapis.com/auth/drive.readonly"]).token
+    files = _files(token)
+    rx = re.compile(rf"GOI[-_ ]?0*{re.escape(str(goi))}(?!\d)", re.I)
+    named = [f for f in files if rx.search(f["name"])]
+    parsed = [p for p in (_parse_file(token, f) for f in (named or files)) if p and p.get("goi") == str(goi)]
+    return next(iter(_group(parsed)), None)

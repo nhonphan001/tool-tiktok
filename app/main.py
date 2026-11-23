@@ -427,33 +427,33 @@ async def requests_new(request: Request):
             opts["birth"] = birth
     rid = gemini_requests.create(brief, f.get("title") or "", opts)
     r = gemini_requests.get(rid)
-    try:
-        msg = gemini_requests.send(rid)
-        flash(request, f"Gói {r['goi']}: {msg}", "success")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Đã soạn thư Gói {r['goi']} nhưng chưa gửi được: {e}", "error")
+    _send_bg(rid, f"/requests#r{rid}")
+    flash(request, f"Đã giữ số Gói {r['goi']} và soạn thư — đang gửi cho Gemini chạy ngầm, xong tool sẽ báo.", "success")
     return RedirectResponse(f"/requests#r{rid}", status_code=303)
+
+
+def _send_bg(rid: int, link: str) -> int:
+    """Gửi thư yêu cầu vào hộp thư Gemini ở luồng nền."""
+    r = gemini_requests.get(rid) or {}
+    return jobs.start("send", lambda: f"{r.get('code', '')}: {gemini_requests.send(rid)}", link=link)
 
 
 @app.post("/requests/{rid}/send")
 def requests_send(request: Request, rid: int):
-    try:
-        flash(request, gemini_requests.send(rid), "success")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Chưa gửi được: {e}", "error")
+    _send_bg(rid, f"/requests#r{rid}")
+    flash(request, "Đang gửi lại thư chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse(f"/requests#r{rid}", status_code=303)
 
 
 @app.post("/requests/check")
 def requests_check(request: Request):
-    try:
+    def _check():
         done = gemini_requests.check_replies()
-        flash(request, ("Thư mới / cập nhật từ Gemini: " + ", ".join(
+        return ("Thư mới / cập nhật từ Gemini: " + ", ".join(
             f"Gói {d['goi']}" + (" (video thành phẩm)" if d.get("video") else " (đã sửa)" if d.get("updated") else "")
-            for d in done)) if done
-              else "Chưa có thư trả lời mới.", "success" if done else "info")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Không kiểm tra được hộp thư: {e}", "error")
+            for d in done)) if done else "Chưa có thư trả lời mới."
+    jobs.start("mail_check", _check, link="/requests")
+    flash(request, "Đang kiểm tra hộp thư chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse("/requests", status_code=303)
 
 
@@ -717,14 +717,14 @@ def package_voice(request: Request, pid: int):
     p = packages.get(pid)
     if not p:
         return RedirectResponse("/packages", status_code=303)
-    try:
+    def _tts():
         r = tts.make_scenes(p)
-        msg = (f"Đã tạo giọng {r['voice']} cho cảnh {', '.join(r['done'])}." if r["done"] else "Chưa tạo được giọng.")
-        if r["errors"]:
-            msg += " Lỗi: " + " · ".join(r["errors"])
-        flash(request, msg, "success" if r["done"] and not r["errors"] else ("info" if r["done"] else "error"))
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Không tạo được giọng: {e}", "error")
+        if not r["done"]:
+            raise RuntimeError("Chưa tạo được giọng. " + " · ".join(r["errors"]))
+        return (f"Đã tạo giọng {r['voice']} cho cảnh {', '.join(r['done'])} Gói {p.get('goi')}."
+                + (" Lỗi: " + " · ".join(r["errors"]) if r["errors"] else ""))
+    jobs.start("tts", _tts, link=f"/packages/{pid}#clips")
+    flash(request, "Đang tạo giọng 4 cảnh chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
@@ -744,11 +744,11 @@ def mail_notes_page(request: Request, k: str = ""):
 def mail_notes_scan(request: Request):
     from . import mail_notes
 
-    try:
+    def _scan():
         got = mail_notes.scan()
-        flash(request, f"Đã đọc {len(got)} thư mới/vừa sửa." if got else "Không có thư mới.", "success" if got else "info")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Không đọc được hộp thư: {e}", "error")
+        return f"Đã đọc {len(got)} thư mới/vừa sửa." if got else "Không có thư mới."
+    jobs.start("mail_notes", _scan, link="/hop-thu")
+    flash(request, "Đang đọc hộp thư chạy ngầm — xong tool sẽ báo, tải lại trang để xem.", "info")
     return RedirectResponse("/hop-thu", status_code=303)
 
 
@@ -807,15 +807,21 @@ def summaries_md(sid: int, download: int = 0):
 def summaries_resend(request: Request):
     from . import cycle_summary
 
-    acc = db.get_active_account()
     st = db.query_one("SELECT id FROM strategies WHERE status='done' ORDER BY id DESC LIMIT 1")
-    sid = cycle_summary.after_strategy(st["id"]) if st and acc else None
-    r = cycle_summary.get(sid) if sid else None
-    if not r:
+    if not st:
         flash(request, "Chưa có chiến lược nào để tóm tắt", "error")
-    else:
-        flash(request, f"Đã tạo {r['code']}" + (f" · gửi: {r['pushed']}" if r["pushed"] else "")
-              + (f" · lỗi: {r['error']}" if r["error"] else ""), "success" if not r["error"] else "info")
+        return RedirectResponse("/tom-tat", status_code=303)
+
+    def _sum():
+        sid = cycle_summary.after_strategy(st["id"])
+        r = cycle_summary.get(sid) if sid else None
+        if not r:
+            raise RuntimeError("Không tạo được bản tóm tắt")
+        if r["error"] and not r["pushed"]:
+            raise RuntimeError(f"{r['code']}: {r['error']}")
+        return f"Đã tạo {r['code']}" + (f" · gửi: {r['pushed']}" if r["pushed"] else "") + (f" · lỗi: {r['error']}" if r["error"] else "")
+    jobs.start("summary", _sum, link="/tom-tat")
+    flash(request, "Đang tạo và gửi bản tóm tắt chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse("/tom-tat", status_code=303)
 
 
@@ -957,10 +963,8 @@ async def package_sua(request: Request, pid: int):
         return RedirectResponse(f"/packages/{pid}#check", status_code=303)
     rid = gemini_requests.create_sua(p, chk, note[:2000])
     r = gemini_requests.get(rid)
-    try:
-        flash(request, f"{r['code']}: {gemini_requests.send(rid)}", "success")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Đã soạn thư {r['code']} nhưng chưa gửi được: {e}", "error")
+    _send_bg(rid, f"/packages/{pid}#check")
+    flash(request, f"Đã soạn thư {r['code']} — đang gửi cho Gemini chạy ngầm, xong tool sẽ báo.", "success")
     return RedirectResponse(f"/packages/{pid}#check", status_code=303)
 
 
@@ -979,10 +983,8 @@ def package_ghep(request: Request, pid: int):
         return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
     code, letter = clips.ghep_letter(p, cl)
     rid = gemini_requests.create_ghep(p["goi"], code, f"Ghép video Gói {p['goi']}", letter)
-    try:
-        flash(request, "Đã gửi yêu cầu ghép cho Gemini: " + gemini_requests.send(rid), "success")
-    except Exception as e:  # noqa: BLE001
-        flash(request, f"Đã soạn thư ghép nhưng chưa gửi được: {e}", "error")
+    _send_bg(rid, f"/packages/{pid}#clips")
+    flash(request, f"Đã soạn thư {code} — đang gửi cho Gemini ghép chạy ngầm, xong tool sẽ báo.", "success")
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
@@ -1166,9 +1168,27 @@ def strategy_page(request: Request, id: int | None = None):
     return render(
         request, "strategy.html", items=items, current=current, gemini_ready=bool(settings.gemini_api_key), plan=plan,
         loai_short=packages.LOAI_SHORT, groups=tags.CONTENT_GROUPS,
-        answer=request.session.pop("answer", None), usage=strategy.usage_summary(), rate=settings.usd_vnd_rate,
+        answer=request.session.pop("answer", None) or _ask_answer(request.query_params.get("ans")),
+        usage=strategy.usage_summary(), rate=settings.usd_vnd_rate,
         endpoint_labels=strategy.ENDPOINT_LABELS, endpoint_now=strategy.ENDPOINT_LABELS[strategy.planned_endpoint()],
     )
+
+
+def _ask_answer(jid) -> dict | None:
+    import json as _json
+
+    if not (jid and str(jid).isdigit()):
+        return None
+    j = db.query_one("SELECT * FROM jobs WHERE id=? AND kind='ask'", (int(jid),))
+    if not j or j["status"] == "pending":
+        return None
+    if j["status"] == "error":
+        return {"q": "", "a": f"Lỗi: {j['message']}", "usage": None}
+    try:
+        d = _json.loads(j["message"])
+    except ValueError:
+        return None
+    return {"q": d.get("q", ""), "a": d.get("a", ""), "usage": None}
 
 
 @app.post("/strategy/generate")
@@ -1184,15 +1204,23 @@ def strategy_generate(request: Request, goal: str = Form("")):
 
 @app.post("/strategy/ask")
 def strategy_ask(request: Request, question: str = Form(...)):
+    """Hỏi Gemini chạy ngầm; câu trả lời lưu ở bảng jobs (kind=ask), xem tại /strategy?ans=<id>."""
+    import json as _json
+
     acc = db.get_active_account()
-    try:
-        if acc:
-            answer, usage = strategy.ask(acc["open_id"], question.strip())
-        else:
-            answer, usage = "Chưa kết nối kênh", None
-    except strategy.StrategyError as e:
-        answer, usage = f"Lỗi: {e}", None
-    request.session["answer"] = {"q": question, "a": answer, "usage": usage}
+    if not acc:
+        flash(request, "Chưa kết nối kênh", "error")
+        return RedirectResponse("/strategy#ask", status_code=303)
+    q = question.strip()
+    holder = {}
+
+    def _ask():
+        answer, usage = strategy.ask(acc["open_id"], q)
+        with db.tx() as c:
+            c.execute("UPDATE jobs SET link=? WHERE id=?", (f"/strategy?ans={holder['id']}#ask", holder["id"]))
+        return _json.dumps({"q": q, "a": answer}, ensure_ascii=False), usage
+    holder["id"] = jobs.start("ask", _ask, link="/strategy#ask")
+    flash(request, "Đã gửi câu hỏi cho Gemini chạy ngầm — xong tool sẽ báo, bấm “Xem” để đọc câu trả lời.", "info")
     return RedirectResponse("/strategy#ask", status_code=303)
 
 
@@ -1323,19 +1351,24 @@ async def settings_save(request: Request):
 
 @app.post("/settings/test-drive")
 def settings_test_drive(request: Request):
-    res = notebooklm.check_drive()
-    ok = all(r["ok"] for r in res)
-    msg = " · ".join(("✓ " if r["ok"] else "✗ ") + r["msg"] for r in res)
-    acc = db.get_active_account()
-    if ok and acc:
-        synced = notebooklm.sync_all(acc["open_id"])
-        drive = [x for x in synced if x["target"].startswith("drive:")]
-        if not drive:
-            msg += " · Chế độ đồng bộ chưa có “drive” nên chưa ghi thử."
-        else:
-            msg += " · Ghi thử: " + ", ".join(f"{x['target']} {x['status']}" for x in drive)
-            ok = all(x["status"] == "ok" for x in drive)
-    flash(request, msg, "success" if ok else "error")
+    def _test():
+        res = notebooklm.check_drive()
+        ok = all(r["ok"] for r in res)
+        msg = " · ".join(("✓ " if r["ok"] else "✗ ") + r["msg"] for r in res)
+        acc = db.get_active_account()
+        if ok and acc:
+            synced = notebooklm.sync_all(acc["open_id"])
+            drive = [x for x in synced if x["target"].startswith("drive:")]
+            if not drive:
+                msg += " · Chế độ đồng bộ chưa có “drive” nên chưa ghi thử."
+            else:
+                msg += " · Ghi thử: " + ", ".join(f"{x['target']} {x['status']}" for x in drive)
+                ok = all(x["status"] == "ok" for x in drive)
+        if not ok:
+            raise RuntimeError(msg)
+        return msg
+    jobs.start("drive_test", _test, link="/settings")
+    flash(request, "Đang kiểm tra Drive chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse("/settings", status_code=303)
 
 
@@ -1348,8 +1381,16 @@ def settings_recompute_costs(request: Request):
 
 @app.post("/scan")
 def scan_now(request: Request):
-    res = scanner.run_scan("manual")
-    flash(request, res["message"], "success" if res["status"] == "ok" else "error")
+    if jobs.running("scan"):
+        flash(request, "Đang quét rồi — tool sẽ báo khi xong.", "info")
+    else:
+        def _scan():
+            res = scanner.run_scan("manual")
+            if res["status"] != "ok":
+                raise RuntimeError(res["message"])
+            return res["message"] + (" · đã lập chiến lược mới" if settings.auto_strategy else "")
+        jobs.start("scan", _scan, link="/")
+        flash(request, "Đang quét TikTok chạy ngầm (kèm lập chiến lược nếu bật) — anh cứ làm việc khác, xong tool sẽ báo.", "info")
     return RedirectResponse(request.headers.get("referer") or "/", status_code=303)
 
 
@@ -1359,12 +1400,16 @@ def sync_now(request: Request):
     if not acc:
         flash(request, "Chưa kết nối kênh", "error")
     else:
-        res = notebooklm.sync_all(acc["open_id"])
-        if not res:
-            flash(request, "NOTEBOOKLM_MODE đang tắt", "info")
-        else:
+        def _sync():
+            res = notebooklm.sync_all(acc["open_id"])
+            if not res:
+                return "NOTEBOOKLM_MODE đang tắt"
             ok = sum(r["status"] == "ok" for r in res)
-            flash(request, f"Đồng bộ NotebookLM: {ok}/{len(res)} thành công", "success" if ok == len(res) else "error")
+            if ok < len(res):
+                raise RuntimeError(f"Đồng bộ: {ok}/{len(res)} thành công")
+            return f"Đồng bộ: {ok}/{len(res)} thành công"
+        jobs.start("sync", _sync, link="/settings")
+        flash(request, "Đang đồng bộ chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse(request.headers.get("referer") or "/settings", status_code=303)
 
 
@@ -1401,6 +1446,13 @@ def api_jobs():
         f["cost_vnd"] = round((f["cost_usd"] or 0) * settings.usd_vnd_rate)
     links = {"classify": "/videos", "products": "/products"}
     for j in done_jobs:
+        if j["kind"] == "ask" and j["status"] == "done":
+            import json as _json
+
+            try:
+                j["message"] = "Hỏi: " + _json.loads(j["message"]).get("q", "")[:120] + " — bấm Xem để đọc câu trả lời"
+            except ValueError:
+                pass
         finished.append({
             "type": "job", "id": j["id"], "status": j["status"], "title": jobs.KIND_LABELS.get(j["kind"], j["kind"]),
             "message": j["message"], "link": j.get("link") or links.get(j["kind"], "/"), "total_tokens": j["total_tokens"],

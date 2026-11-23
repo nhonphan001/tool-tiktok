@@ -178,10 +178,19 @@ def test_sua_letter_and_route(monkeypatch):
     assert sent == []  # chưa chọn mục, chưa ghi chú → không gửi
     idx = [k for k, i in enumerate(chk["items"]) if i["rule"] == "Prompt"]
     c.post(f"/packages/{pid}/sua", data={"items": [str(x) for x in idx], "note": ""})
+    import time
+
+    def wait(n):  # thư gửi ở luồng nền
+        for _ in range(100):
+            if len(sent) >= n:
+                return
+            time.sleep(0.02)
+    wait(1)
     r = gr.get(sent[0])
     assert r["opts"]["kind"] == "sua" and r["code"].endswith("-GOI-20-L1")
     assert "Prompt" in r["letter_md"] and "Nhịp 8s" not in r["letter_md"].split("## Các mục cần sửa")[1].split("##")[0]
     c.post(f"/packages/{pid}/sua", data={"note": "đổi hook mạnh hơn"})
+    wait(2)
     r2 = gr.get(sent[1])
     assert r2["code"].endswith("-GOI-20-L2") and "đổi hook mạnh hơn" in r2["letter_md"]
     assert "SUA-" in c.get(f"/packages/{pid}").text
