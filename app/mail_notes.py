@@ -98,6 +98,9 @@ def init() -> None:
         c.execute("""CREATE TABLE IF NOT EXISTS mail_notes (
             file_id TEXT PRIMARY KEY, name TEXT, folder TEXT, sender TEXT, modified TEXT, kind TEXT, title TEXT,
             excerpt TEXT, updates_json TEXT DEFAULT '[]', status TEXT DEFAULT 'none', read_at TEXT)""")
+        cols = {r[1] for r in c.execute("PRAGMA table_info(mail_notes)").fetchall()}
+        if "body" not in cols:
+            c.execute("ALTER TABLE mail_notes ADD COLUMN body TEXT DEFAULT ''")
         c.execute("""CREATE TABLE IF NOT EXISTS setting_changes (
             id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, key TEXT, old_value TEXT, new_value TEXT,
             source TEXT, mode TEXT, reverted_at TEXT)""")
@@ -266,13 +269,20 @@ def revert(change_id: int) -> str:
     return f"Đã hoàn tác {WHITELIST.get(ch['key'], (ch['key'],))[0]}"
 
 
+_BACKFILLED: list[str] = []
+
+
 # ---------------------------------------------------------------- đọc hộp thư
 def ingest(file: dict, text: str, folder: str, first_run: bool = False) -> dict | None:
     """Ghi nhận 1 thư (đã đọc nội dung). Trả về bản ghi nếu là thư mới/vừa sửa.
     first_run: lần đọc đầu tiên (nạp thư cũ) → không tự áp dụng, không bắn thông báo."""
     init()
-    old = db.query_one("SELECT modified, status FROM mail_notes WHERE file_id=?", (file["id"],))
+    old = db.query_one("SELECT modified, status, body FROM mail_notes WHERE file_id=?", (file["id"],))
     if old and (old["modified"] or "") >= (file.get("modifiedTime") or ""):
+        if not old.get("body"):  # thư đã đọc trước bản cập nhật: chỉ bổ sung nội dung, không xử lý lại cap_nhat_tool
+            with db.tx() as c:
+                c.execute("UPDATE mail_notes SET body=? WHERE file_id=?", (_clean(text)[:20000], file["id"]))
+            _BACKFILLED.append(file["id"])
         return None
     claude_inbox = folder == (settings.mailbox_folder_ids or "").split(",")[-1].strip()
     ups = parse_updates(text)
@@ -286,12 +296,12 @@ def ingest(file: dict, text: str, folder: str, first_run: bool = False) -> dict 
             u["status"] = "applied"
     sender = sender_of(text, claude_inbox)
     with db.tx() as c:
-        c.execute("INSERT INTO mail_notes(file_id, name, folder, sender, modified, kind, title, excerpt, read_at)"
-                  " VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(file_id) DO UPDATE SET name=excluded.name,"
+        c.execute("INSERT INTO mail_notes(file_id, name, folder, sender, modified, kind, title, excerpt, read_at, body)"
+                  " VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(file_id) DO UPDATE SET name=excluded.name,"
                   " modified=excluded.modified, kind=excluded.kind, title=excluded.title, excerpt=excluded.excerpt,"
-                  " sender=excluded.sender, read_at=excluded.read_at",
+                  " sender=excluded.sender, read_at=excluded.read_at, body=excluded.body",
                   (file["id"], file["name"], folder, sender, file.get("modifiedTime") or "", kind_of(file["name"], text),
-                   title_of(text, file["name"]), excerpt_of(text), db.now_iso()))
+                   title_of(text, file["name"]), excerpt_of(text), db.now_iso(), _clean(text)[:20000]))
     status = _save_updates(file["id"], ups)
     n = get(file["id"])
     applied = [u for u in ups if u.get("status") == "applied"]
@@ -322,6 +332,7 @@ def scan() -> list[dict]:
         return []
     token = _credentials(["https://www.googleapis.com/auth/drive.readonly"]).token
     known = {r["file_id"]: r["modified"] for r in db.query("SELECT file_id, modified FROM mail_notes")}
+    no_body = {r["file_id"] for r in db.query("SELECT file_id FROM mail_notes WHERE COALESCE(body,'')=''")}
     first_run = not known
     out = []
     for folder in folders:
@@ -335,7 +346,7 @@ def scan() -> list[dict]:
         for f in r.json().get("files", []):
             if f["name"].upper().startswith(SKIP_PREFIX) or f["id"] == settings.mailbox_outbox_doc_id:
                 continue
-            if known.get(f["id"], "") >= (f.get("modifiedTime") or "") and f["id"] in known:
+            if known.get(f["id"], "") >= (f.get("modifiedTime") or "") and f["id"] in known and f["id"] not in no_body:
                 continue
             try:
                 text = mailbox._read(token, f)
@@ -344,7 +355,54 @@ def scan() -> list[dict]:
             n = ingest(f, text, folder, first_run)
             if n:
                 out.append(n)
+    backfilled = bool(_BACKFILLED)
+    _BACKFILLED.clear()
+    if backfilled or any(n.get("sender") == "Claude" and n.get("folder") == (folders[0] if folders else "") for n in out):
+        refresh_outbox()  # thư mới của Claude → chép vào Doc hộp thư đi Gemini đang đọc
     return out
+
+
+# ---------------------------------------------------------------- thư Claude → Doc hộp thư đi
+CLAUDE_WINDOW_HOURS = 72
+
+
+def claude_letters_for_gemini(limit: int = 6) -> list[dict]:
+    """Thư Claude gửi Gemini (thư mục GUI_GEMINI) trong 72 giờ qua mà Gemini CHƯA gửi thư __XACNHAN / trả lời."""
+    from datetime import datetime, timedelta, timezone
+
+    init()
+    folders = [x.strip() for x in (settings.mailbox_folder_ids or "").split(",") if x.strip()]
+    if not folders:
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(hours=CLAUDE_WINDOW_HOURS)).strftime("%Y-%m-%dT%H:%M:%S")
+    rows = db.query("SELECT * FROM mail_notes WHERE sender='Claude' AND folder=? AND substr(modified,1,19) >= ?"
+                    " ORDER BY modified DESC", (folders[0], since))
+    names = [r["name"].upper() for r in db.query("SELECT name FROM mail_notes WHERE folder!=?", (folders[0],))]
+    out = []
+    for r in rows:
+        code = re.sub(r"__.*$", "", r["name"]).replace(".MD", "").replace(".md", "").upper()
+        if any(n.startswith(code) and re.search(r"XACNHAN|TRALOI|DANHGIA", n) for n in names):
+            continue  # Gemini đã xác nhận / trả lời thư này
+        tail = code.split("-", 1)[-1]  # "SOSANH-2311-GOI-19" → trả lời "DANHGIA-2311-SOSANH-GOI-19…"
+        if any("DANHGIA" in n and code.split("-")[0] in n and tail.split("-", 1)[-1] in n for n in names):
+            continue
+        out.append(r)
+    return out[:limit]
+
+
+def refresh_outbox() -> bool:
+    """Ghi lại Doc HOP_THU_TOOL__YEUCAU (yêu cầu của tool + thư Claude đang chờ Gemini)."""
+    if not settings.mailbox_outbox_doc_id:
+        return False
+    try:
+        from .gemini_requests import outbox_text
+        from .notebooklm import push_drive
+
+        push_drive(settings.mailbox_outbox_doc_id, outbox_text())
+        return True
+    except Exception:  # noqa: BLE001
+        log.exception("refresh outbox (Claude letters)")
+        return False
 
 
 def all_notes(limit: int = 100) -> list[dict]:

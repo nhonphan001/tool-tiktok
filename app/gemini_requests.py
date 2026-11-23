@@ -398,7 +398,21 @@ def outbox_text() -> str:
     body = []
     for r in pend:
         body += ["---", "", r["letter_md"], ""]
-    return "\n".join(head + (body or ["(Không có yêu cầu nào đang chờ.)"]))
+    out = head + (body or ["(Không có yêu cầu nào đang chờ.)"])
+    try:
+        from . import mail_notes
+
+        letters = mail_notes.claude_letters_for_gemini()
+    except Exception:  # noqa: BLE001
+        letters = []
+    if letters:
+        out += ["", "---", "", f"# THƯ CỦA CLAUDE ĐANG CHỜ GEMINI ({len(letters)})", "",
+                "Bản chép từ thư Claude trong GUI_GEMINI (72 giờ qua, chưa có thư xác nhận/trả lời). Làm theo từng thư; "
+                "trả lời đúng tên ở dòng file_tra_loi trong thư (nếu có), hoặc tạo <MÃ THƯ>__XACNHAN.md trong GUI_CLAUDE.", ""]
+        for r in letters:
+            out += ["---", "", f"## ✉ {r['name']} · https://docs.google.com/document/d/{r['file_id']}/edit", "",
+                    (r.get("body") or r.get("excerpt") or "").strip(), ""]
+    return "\n".join(out)
 
 
 def send(rid: int) -> str:

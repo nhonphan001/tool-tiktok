@@ -103,3 +103,22 @@ def test_page(fresh):
     assert "Hộp thư Claude" in html and "Quy tắc nội dung bắt buộc" in html and "Áp dụng" in html and "từ chối" in html
     c.post("/hop-thu/F4/content_rules", data={"action": "reject"})
     assert {u["key"]: u.get("status") for u in mn.get("F4")["updates"]}["content_rules"] == "rejected"
+
+
+def test_claude_letters_copied_to_outbox(fresh, monkeypatch):
+    from app import gemini_requests, notebooklm
+    from app import db as _db
+
+    pushed = []
+    monkeypatch.setattr(notebooklm, "push_drive", lambda doc, text: pushed.append(text))
+    monkeypatch.setattr(settings, "mailbox_outbox_doc_id", "OUTBOX")
+    now = _db.now_iso()
+    letter = "---\nma_yeu_cau: SUA-2311-GOI-27-7-CANH\ntu: Claude\n---\n\n# Gói 27 bản 7 cảnh\n\nSửa cảnh 5 thêm “thật trọn vẹn”."
+    mn.ingest({"id": "C1", "name": "SUA-2311-GOI-27-7-CANH__YEUCAU.md", "modifiedTime": now}, letter, "FG")
+    mn.ingest({"id": "C2", "name": "CHOT-2311-X__YEUCAU.md", "modifiedTime": now}, "---\ntu: Claude\n---\n# X", "FG")
+    mn.ingest({"id": "G2", "name": "CHOT-2311-X__XACNHAN.md", "modifiedTime": now}, "---\ntu: Gemini\n---\n# ok", "FC")
+    names = [r["name"] for r in mn.claude_letters_for_gemini()]
+    assert names == ["SUA-2311-GOI-27-7-CANH__YEUCAU.md"]  # thư đã có XACNHAN bị bỏ
+    txt = gemini_requests.outbox_text()
+    assert "THƯ CỦA CLAUDE ĐANG CHỜ GEMINI (1)" in txt and "thật trọn vẹn" in txt and "docs.google.com/document/d/C1" in txt
+    assert mn.refresh_outbox() and "thật trọn vẹn" in pushed[-1]
