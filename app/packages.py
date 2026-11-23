@@ -14,17 +14,27 @@ import unicodedata
 from . import analytics, battu, compliance, db, products, tags
 from .products import real_link
 
-SCENES = ("scene1", "scene2", "scene3", "scene4")
+MAX_SCENES = 8  # 4 cảnh (~32–40 giây) hoặc 7 cảnh (video trên 60 giây), tối đa 8
+SCENES = tuple(f"scene{i}" for i in range(1, MAX_SCENES + 1))
 FIELDS = ("goi", "title", "loai", "content_group", "sku", "product_name", "on_screen", "caption", "pinned", "note",
           *SCENES, "ads_plan")
-PROMPTS = ("prompt1", "prompt2", "prompt3", "prompt4")   # prompt video 8 giây (Veo / Flow) từng cảnh
-IMAGES = ("image1", "image2", "image3", "image4")        # ID ảnh Drive từng cảnh
+PROMPTS = tuple(f"prompt{i}" for i in range(1, MAX_SCENES + 1))   # prompt video (Veo / Flow) từng cảnh
+IMAGES = tuple(f"image{i}" for i in range(1, MAX_SCENES + 1))     # ID ảnh Drive từng cảnh
 VIDEOS = ("final_video", "clean_video")                  # ID video thành phẩm (có phụ đề) / bản sạch
 LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
 STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "len_lich": "Đã lên lịch đăng", "da_dang": "Đã đăng"}
 SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # mặc định cũ (clip 8 giây); dùng syllable_range() theo Cài đặt
+
+
+def n_scenes(p: dict) -> int:
+    """Số cảnh của gói: cảnh cuối cùng có lời thoại / prompt / ảnh (ít nhất 4)."""
+    n = 4
+    for i in range(1, MAX_SCENES + 1):
+        if any(str(p.get(f"{k}{i}") or "").strip() for k in ("scene", "prompt", "image")):
+            n = max(n, i)
+    return n
 
 
 def clip_seconds() -> int:
@@ -68,16 +78,17 @@ def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
         cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
-        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json", "clips_json"):
+        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json", "clips_json",
+                    *[f"scene{i}" for i in range(5, MAX_SCENES + 1)]):
             if col not in cols:
                 c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
 
 
 def _expand(p: dict) -> dict:
-    """prompts_json / images_json -> prompt1..4 / image1..4 để form và kiểm tra dùng chung."""
+    """prompts_json / images_json -> prompt1..8 / image1..8 để form và kiểm tra dùng chung."""
     pr = json.loads(p.get("prompts_json") or "{}")
     im = json.loads(p.get("images_json") or "{}")
-    for i in range(1, 5):
+    for i in range(1, MAX_SCENES + 1):
         p[f"prompt{i}"] = pr.get(str(i), "")
         p[f"image{i}"] = im.get(str(i), "")
     return p
@@ -110,13 +121,13 @@ def save(data: dict, pid: int | None = None) -> int:
     row["sku"] = row["sku"].upper()
     birth = {k: str(data.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "nhuan", "gioi")}
     row["birth_json"] = json.dumps(birth if birth["dd"] and birth["mm"] and birth["yy"] else {}, ensure_ascii=False)
-    row["prompts_json"] = json.dumps({str(i): str(data.get(f"prompt{i}") or "").strip() for i in range(1, 5)
+    row["prompts_json"] = json.dumps({str(i): str(data.get(f"prompt{i}") or "").strip() for i in range(1, MAX_SCENES + 1)
                                       if str(data.get(f"prompt{i}") or "").strip()}, ensure_ascii=False)
     for k in VIDEOS:
         row[k] = _drive_id(str(data.get(k) or ""))
     if "post_plan_json" in data:
         row["post_plan_json"] = data["post_plan_json"]
-    row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, 5)
+    row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, MAX_SCENES + 1)
                                      if str(data.get(f"image{i}") or "").strip()}, ensure_ascii=False)
     status = data.get("status") or None
     now = db.now_iso()
@@ -333,6 +344,18 @@ def check(p: dict) -> dict:
         if re.search(r"\bmusic\b", prompt, re.I) and not re.search(r"no\s+(background\s+)?music", prompt, re.I):
             add("warn", "Prompt", f"Prompt cảnh {i} có nhạc nền — định dạng kênh là không nhạc nền.")
 
+    # Cảnh trống giữa chừng + độ dài video
+    ns = n_scenes(p)
+    missing = [str(i) for i in range(1, ns + 1) if not str(p.get(f"scene{i}") or "").strip()]
+    if missing and any(str(p.get(f"scene{i}") or "").strip() for i in range(1, ns + 1)):
+        add("warn", "Số cảnh", f"Gói {ns} cảnh nhưng cảnh {', '.join(missing)} chưa có lời thoại.")
+    if ns >= 6:
+        total = sum(syllables(p.get(f"scene{i}") or "") for i in range(1, ns + 1))
+        est = total / 3.9 + ns * 0.5  # giọng 3,9 âm tiết/giây + ~0,5 giây ngắt giữa cảnh sau khi cắt lặng
+        if est < 61:
+            add("warn", "Độ dài", f"{ns} cảnh, {total} âm tiết ≈ {est:.0f} giây — dưới 61 giây (cần trên 1 phút); "
+                                  "thêm âm tiết cho các cảnh (tối đa mỗi cảnh theo độ dài clip).")
+
     # Âm tiết mỗi cảnh
     for i, s in enumerate(SCENES):
         t = (p.get(s) or "").strip()
@@ -391,8 +414,8 @@ def to_markdown(p: dict, chk: dict) -> str:
         c = chk["chart"]
         out += ["## Lá số (TikTok Manager tính, Nhật chủ = can trụ Ngày)", f"- {battu.mo_ta_ngan(c)}",
                 f"- Âm lịch: {c['am_lich']}"] + [f"- ⚠ {x}" for x in c["canh_bao"]] + [""]
-    out.append(f"## Lời thoại 4 cảnh × {clip_seconds()} giây")
-    for i, s in enumerate(SCENES):
+    out.append(f"## Lời thoại {n_scenes(p)} cảnh × {clip_seconds()} giây")
+    for i, s in enumerate(SCENES[:n_scenes(p)]):
         t = (p.get(s) or "").strip()
         out.append(f"{i + 1}. ({syllables(t)} âm tiết) {t or '—'}")
     out += ["", "## Chữ trên hình", p.get("on_screen") or "—", "", "## Caption", p.get("caption") or "—", "",

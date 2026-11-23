@@ -47,12 +47,17 @@
         {% else %}<input name="sku" value="{{ p.sku or '' }}" placeholder="SP-THUY-02 (chưa đồng bộ bảng sản phẩm)">{% endif %}</div>
       <div style="flex:2;min-width:200px"><label>Tên sản phẩm dùng trong kịch bản</label><input name="product_name" value="{{ p.product_name or '' }}" placeholder="chép đúng tên trong bảng quản trị"></div>
     </div>
-    <h2 style="margin-top:16px">Lời thoại 4 cảnh × {{ clip_s }} giây <span class="muted small">({{ syl_lo }}–{{ syl_hi }} âm tiết / cảnh)</span></h2>
-    {% for i in range(1, 5) %}<label>Cảnh {{ i }} <span class="muted" data-syl="scene{{ i }}"></span></label><textarea name="scene{{ i }}" rows="2" oninput="syl(this)">{{ p['scene' ~ i] or '' }}</textarea>
+    <h2 style="margin-top:16px">Lời thoại <span id="nsc-label">{{ nsc }}</span> cảnh × {{ clip_s }} giây <span class="muted small">({{ syl_lo }}–{{ syl_hi }} âm tiết / cảnh · tổng <span id="syl-total">—</span>)</span></h2>
+    {% for i in range(1, max_sc + 1) %}<div class="scene-block" data-i="{{ i }}" {{ 'hidden' if i > nsc }}>
+    <label>Cảnh {{ i }} <span class="muted" data-syl="scene{{ i }}"></span></label><textarea name="scene{{ i }}" rows="2" oninput="syl(this)">{{ p['scene' ~ i] or '' }}</textarea>
     <details class="sub" {{ 'open' if not p.id and (p['prompt' ~ i] or p['image' ~ i]) }}><summary class="small muted">Ảnh + prompt video cảnh {{ i }}{% if p['prompt' ~ i] %} ✓{% endif %}</summary>
       <label>ID / link ảnh Drive cảnh {{ i }}</label><input name="image{{ i }}" value="{{ p['image' ~ i] or '' }}">
       <label>Prompt video {{ clip_s }} giây cảnh {{ i }} (Veo / Flow)</label><textarea name="prompt{{ i }}" rows="4">{{ p['prompt' ~ i] or '' }}</textarea>
-    </details>{% endfor %}
+    </details></div>{% endfor %}
+    <div class="row" style="gap:6px;margin-top:8px">
+      <button type="button" class="btn sec small" onclick="addScene()">+ Thêm cảnh</button>
+      <button type="button" class="btn sec small" onclick="setScenes(7)">Video 60 giây (7 cảnh)</button>
+      <span class="muted small">Tối đa {{ max_sc }} cảnh · 7 cảnh × clip {{ clip_s }}s ≈ 61–66 giây sau khi ghép.</span></div>
     <label>Chữ trên hình (hook, phụ đề nổi bật)</label><textarea name="on_screen" rows="2">{{ p.on_screen or '' }}</textarea>
     <label>Caption + hashtag</label><textarea name="caption" rows="3">{{ p.caption or '' }}</textarea>
     <label>Bình luận ghim</label><textarea name="pinned" rows="2">{{ p.pinned or '' }}</textarea>
@@ -121,16 +126,16 @@
       {% if p.id %}<a class="btn sec small" href="/media/{{ p.id }}/{{ key }}?download=1">Tải về</a>{% else %}<a class="btn sec small" href="https://drive.google.com/uc?export=download&amp;id={{ p[key] }}" target="_blank" rel="noopener">Tải về</a>{% endif %}</span></div>
       <div class="muted small">Drive ID {{ p[key] }}</div></div>{% endif %}{% endfor %}
     {% if not p.final_video %}<div class="kit-item"><span class="muted small">Chưa có video thành phẩm — tool tự lấy từ thư BAOCAO-…GOI-{{ p.goi }}… của Gemini khi nhập từ hộp thư, hoặc dán link vào ô “Video thành phẩm”.</span></div>{% endif %}
-    {% if p.id and (p.image1 or p.image2 or p.image3 or p.image4) %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh 4 cảnh</b>
-      <a class="btn sec small" href="/media/{{ p.id }}/images.zip">Tải cả 4 ảnh (.zip)</a></div>
-      <div class="kit-thumbs">{% for i in range(1, 5) %}{% if p['image' ~ i] %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener"><img src="/media/{{ p.id }}/image{{ i }}" alt="Cảnh {{ i }}" loading="lazy" onerror="this.style.display='none'"><span>C{{ i }}</span></a>{% endif %}{% endfor %}</div></div>{% endif %}
+    {% if p.id and (p.image1 or p.image2 or p.image3 or p.image4) %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh {{ nsc }} cảnh</b>
+      <a class="btn sec small" href="/media/{{ p.id }}/images.zip">Tải cả {{ nsc }} ảnh (.zip)</a></div>
+      <div class="kit-thumbs">{% for i in range(1, nsc + 1) %}{% if p['image' ~ i] %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener"><img src="/media/{{ p.id }}/image{{ i }}" alt="Cảnh {{ i }}" loading="lazy" onerror="this.style.display='none'"><span>C{{ i }}</span></a>{% endif %}{% endfor %}</div></div>{% endif %}
     {{ item('Caption + hashtag', p.caption) }}
     {{ item('Bình luận ghim', p.pinned) }}
     {{ item('Chữ trên hình', p.on_screen) }}
-    {% set all_lines %}{% for i in range(1, 5) %}{% if p['scene' ~ i] %}Cảnh {{ i }}: {{ p['scene' ~ i] }}
+    {% set all_lines %}{% for i in range(1, nsc + 1) %}{% if p['scene' ~ i] %}Cảnh {{ i }}: {{ p['scene' ~ i] }}
 {% endif %}{% endfor %}{% endset %}
-    {{ item('Lời thoại cả 4 cảnh', all_lines.strip()) }}
-    {% for i in range(1, 5) %}{% if p['scene' ~ i] or p['prompt' ~ i] or p['image' ~ i] %}
+    {{ item('Lời thoại cả ' ~ nsc ~ ' cảnh', all_lines.strip()) }}
+    {% for i in range(1, nsc + 1) %}{% if p['scene' ~ i] or p['prompt' ~ i] or p['image' ~ i] %}
     <div class="kit-scene"><div class="kit-head"><b>Cảnh {{ i }} · clip {{ clip_s }}s</b>
       {% if p['image' ~ i] and p.id %}<a class="btn sec small" href="/media/{{ p.id }}/image{{ i }}?download=1">Tải ảnh</a>
       {% elif p['image' ~ i] %}<a class="btn sec small" href="https://drive.google.com/file/d/{{ p['image' ~ i] }}/view" target="_blank" rel="noopener">Mở ảnh</a>{% endif %}</div>
@@ -148,8 +153,8 @@
 <div class="card">
   <div class="row" style="justify-content:space-between"><h2 style="margin:0">Duyệt clip thô (P8a)</h2>
     <form method="post" action="/packages/{{ p.id }}/clips/sync" style="margin:0"><button class="btn sec small">Quét lại thư mục 02</button></form></div>
-  <p class="muted small">Tool đọc thư mục <b>02_VIDEO_THO_CHO_KIEM_DUYET</b>, nhận file tên <code>Goi_{{ p.goi }}_canh_1…4</code> (bản mới nhất của mỗi cảnh).
-    Xem từng clip → <b>Đạt</b> hoặc <b>Làm lại</b>. Đủ 4 cảnh Đạt thì gửi Gemini ghép, chèn hook và phụ đề.</p>
+  <p class="muted small">Tool đọc thư mục <b>02_VIDEO_THO_CHO_KIEM_DUYET</b>, nhận file tên <code>Goi_{{ p.goi }}_canh_1…{{ clips|length }}</code> (bản mới nhất của mỗi cảnh).
+    Xem từng clip → <b>Đạt</b> hoặc <b>Làm lại</b>. Đủ {{ clips|length }} cảnh Đạt thì gửi Gemini ghép, chèn hook và phụ đề.</p>
   {% if raw_err %}<div class="flash error">{{ raw_err }}</div>{% endif %}
   <div class="veo-box">
     <div class="row" style="justify-content:space-between;align-items:center"><b>🎬 Tạo clip bằng Veo (API, trả phí)</b>
@@ -159,12 +164,12 @@
     {% else %}
     <div class="row" style="gap:8px;margin-top:8px">
     <form method="post" action="/packages/{{ p.id }}/veo" style="margin:0"
-          onsubmit="return confirm('Phương án B: tạo 4 cảnh KHÔNG TIẾNG bằng {{ veo_all_b.model }} {{ veo_all_b.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ.\nGiọng đọc lồng sau bằng giọng TTS cố định.')">
+          onsubmit="return confirm('Phương án B: tạo {{ nsc }} cảnh KHÔNG TIẾNG bằng {{ veo_all_b.model }} {{ veo_all_b.resolution }}?\nChi phí ước tính: ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ.\nGiọng đọc lồng sau bằng giọng TTS cố định.')">
       <input type="hidden" name="scenes" value="1,2,3,4"><input type="hidden" name="audio" value="0"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_all_b.usd) }}">
-      <button class="btn" {{ 'disabled' if veo_all_b.over_budget }}>4 cảnh không tiếng (PA B) · ≈ ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ</button>
+      <button class="btn" {{ 'disabled' if veo_all_b.over_budget }}>{{ nsc }} cảnh không tiếng (PA B) · ≈ ${{ '%.2f'|format(veo_all_b.usd) }} ≈ {{ '{:,}'.format(veo_all_b.vnd).replace(',', '.') }}đ</button>
     </form>
     <form method="post" action="/packages/{{ p.id }}/veo" style="margin:0"
-          onsubmit="return confirm('Tạo 4 cảnh CÓ TIẾNG bằng {{ veo_all.model }} {{ veo_all.resolution }}?\nLưu ý: giọng Veo có thể khác nhau giữa các cảnh.\nChi phí ước tính: ${{ '%.2f'|format(veo_all.usd) }} ≈ {{ '{:,}'.format(veo_all.vnd).replace(',', '.') }}đ.')">
+          onsubmit="return confirm('Tạo {{ nsc }} cảnh CÓ TIẾNG bằng {{ veo_all.model }} {{ veo_all.resolution }}?\nLưu ý: giọng Veo có thể khác nhau giữa các cảnh.\nChi phí ước tính: ${{ '%.2f'|format(veo_all.usd) }} ≈ {{ '{:,}'.format(veo_all.vnd).replace(',', '.') }}đ.')">
       <input type="hidden" name="scenes" value="1,2,3,4"><input type="hidden" name="audio" value="1"><input type="hidden" name="confirm_usd" value="{{ '%.2f'|format(veo_all.usd) }}">
       <button class="btn sec" {{ 'disabled' if veo_all.over_budget }}>Có tiếng Veo · ≈ ${{ '%.2f'|format(veo_all.usd) }}</button>
     </form></div>
@@ -172,9 +177,9 @@
     {% endif %}
   </div>
   <div class="veo-box voice-box">
-    <div class="row" style="justify-content:space-between;align-items:center"><b>🎙️ Giọng Cô Kim 4 cảnh (TTS)</b>
+    <div class="row" style="justify-content:space-between;align-items:center"><b>🎙️ Giọng Cô Kim {{ nsc }} cảnh (TTS)</b>
       <span class="muted small">{% if tts_voice %}Giọng: <b>{{ tts_voice }}</b> · <a href="/giong">đổi</a>{% else %}<a href="/giong">Chưa chọn giọng — nghe thử &amp; chọn</a>{% endif %}</span></div>
-    {% for k in ['1','2','3','4'] %}{% set t = tts_scenes.get(k) %}{% if t %}
+    {% for k in range(1, nsc + 1)|map('string') %}{% set t = tts_scenes.get(k) %}{% if t %}
       <div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="small" style="min-width:52px">Cảnh {{ k }}</span>
         <audio controls preload="none" src="/media/{{ p.id }}/giong{{ k }}?v={{ t.seconds }}" style="flex:1;min-width:180px;height:34px"></audio>
         <span class="small" style="color:{{ 'var(--ok)' if t.fits_8s else 'var(--err)' }}">{{ t.seconds }}s · {{ t.sps }} ât/giây</span></div>
@@ -182,17 +187,17 @@
     {% if not tts_ok %}<p class="muted small" style="margin:6px 0 0">{{ tts_why }}</p>
     {% elif tts_voice %}<form method="post" action="/packages/{{ p.id }}/giong" style="margin:8px 0 0"
         onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Đang tạo giọng…';return true">
-      <button class="btn small sec">{{ 'Tạo lại' if tts_scenes else 'Tạo' }} giọng 4 cảnh từ lời thoại · ≈ ${{ '%.3f'|format(tts_usd) }}</button></form>{% endif %}
+      <button class="btn small sec">{{ 'Tạo lại' if tts_scenes else 'Tạo' }} giọng {{ nsc }} cảnh từ lời thoại · ≈ ${{ '%.3f'|format(tts_usd) }}</button></form>{% endif %}
     <p class="muted small" style="margin:6px 0 0">File giọng đi kèm trong “Tải 4 clip (.zip)”; thư GHEP sẽ dặn Gemini lồng giọng và chuẩn hoá −14 LUFS.</p>
   </div>
   <div class="row" style="gap:8px;margin-top:10px"><a class="btn sec small" href="/media/{{ p.id }}/clips.zip">Tải 4 clip (.zip)</a>
     <span class="muted small">Clip Veo nằm trên máy chủ: giải nén .zip vào <code>G:\My Drive\…\02_VIDEO_THO_CHO_KIEM_DUYET</code> để Gemini ghép được (tool giữ nguyên kết quả duyệt).</span></div>
   {% if ghep %}<div class="flash {{ 'success' if ghep.status in ('answered','imported') else '' }}">Yêu cầu ghép <b>{{ ghep.code }}</b>: {{ req_status.get(ghep.status, ghep.status) }}{% if ghep.answer_name %} · {{ ghep.answer_name }}{% endif %}</div>{% endif %}
   {% if clips_ok and not (ghep and ghep.status in ('sent','answered','imported')) %}
-    <form method="post" action="/packages/{{ p.id }}/ghep" onsubmit="return confirm('Gửi Gemini ghép 4 clip đã duyệt?')"><button class="btn">✅ Đủ 4 cảnh đạt — Gửi Gemini ghép (P8b)</button></form>
+    <form method="post" action="/packages/{{ p.id }}/ghep" onsubmit="return confirm('Gửi Gemini ghép {{ clips|length }} clip đã duyệt?')"><button class="btn">✅ Đủ {{ clips|length }} cảnh đạt — Gửi Gemini ghép (P8b)</button></form>
   {% endif %}
 </div>
-{% for i in range(1, 5) %}{% set c = clips[i|string] %}
+{% for i in range(1, (clips|length) + 1) %}{% set c = clips[i|string] %}
 <div class="card clip-card clip-{{ c.status }}" style="margin-top:12px">
   <div class="row" style="justify-content:space-between"><b>Cảnh {{ i }} · clip {{ clip_s }}s</b>
     <span class="badge {{ 'ok' if c.status=='dat' else ('error' if c.status in ('lam_lai','cho_duyet') else '') }}">{{ clip_status.get(c.status, c.status) }}{% if c.rounds %} · lần {{ c.rounds + 1 }}{% endif %}</span></div>
@@ -242,6 +247,13 @@ function copyKit(btn){
 }
 function syl(el){ const n=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; const s=document.querySelector('[data-syl="'+el.name+'"]'); if(s){ s.textContent='· '+n+' âm tiết'; s.style.color=(n&&(n<{{ syl_lo }}||n>{{ syl_hi }}))?'#b7791f':''; } }
 document.querySelectorAll('textarea[name^=scene]').forEach(syl);
+function sylTotal(){ let t=0; document.querySelectorAll('.scene-block:not([hidden]) textarea[name^=scene]').forEach(el=>{ t+=(el.value.match(/[^\s\d.,!?;:"“”()…–\-]+/g)||[]).length; });
+  const n=document.querySelectorAll('.scene-block:not([hidden])').length, sec=Math.round(t/3.9+n*0.5);
+  const e=document.getElementById('syl-total'); if(e){ e.textContent=t+' âm tiết ≈ '+sec+' giây'; e.style.color=(n>=6&&sec<61)?'#b7791f':''; }
+  const l=document.getElementById('nsc-label'); if(l) l.textContent=n; }
+function addScene(){ const h=document.querySelector('.scene-block[hidden]'); if(h){ h.hidden=false; h.querySelector('textarea').focus(); } sylTotal(); }
+function setScenes(n){ document.querySelectorAll('.scene-block').forEach(b=>{ if(+b.dataset.i<=n) b.hidden=false; }); sylTotal(); }
+document.querySelectorAll('textarea[name^=scene]').forEach(el=>el.addEventListener('input',sylTotal)); sylTotal();
 (function(){
   const bar = document.querySelector('.tabs-bar'); if(!bar) return;
   const tabs = [...bar.querySelectorAll('[data-tab]')].map(a => a.dataset.tab);

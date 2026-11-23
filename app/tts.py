@@ -448,6 +448,12 @@ def sample_file(key: str) -> str:
 
 
 # ---------- Giọng 4 cảnh của gói ----------
+def packages_n(p: dict) -> int:
+    from .packages import n_scenes
+
+    return n_scenes(p)
+
+
 def scene_name(goi, k: int) -> str:
     return f"Goi_{re.sub(r'[^0-9A-Za-z]', '', str(goi))}_canh_{k}_giong.wav"
 
@@ -458,7 +464,7 @@ def scene_file(goi, k: int) -> str:
 
 def scene_info(p: dict) -> dict:
     out = {}
-    for k in range(1, 5):
+    for k in range(1, packages_n(p) + 1):
         path = scene_file(p.get("goi"), k)
         if os.path.exists(path):
             with open(path, "rb") as f:
@@ -472,7 +478,7 @@ def make_scenes(p: dict, key: str | None = None) -> dict:
     if not key:
         raise TTSError("Chưa chọn giọng thương hiệu — vào trang Giọng Cô Kim để chọn")
     errors, done = [], []
-    for k in range(1, 5):
+    for k in range(1, packages_n(p) + 1):
         text = (p.get(f"scene{k}") or "").strip()
         if not text:
             errors.append(f"cảnh {k}: chưa có lời thoại")
@@ -491,7 +497,7 @@ def make_scenes(p: dict, key: str | None = None) -> dict:
 def scenes_zip(p: dict) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
-        for k in range(1, 5):
+        for k in range(1, packages_n(p) + 1):
             path = scene_file(p.get("goi"), k)
             if os.path.exists(path):
                 z.write(path, scene_name(p.get("goi"), k))
@@ -502,4 +508,4 @@ def estimate_scenes(p: dict, key: str | None = None) -> float:
     key = key or voice_key()
     if not key:
         return 0.0
-    return round(sum(estimate_usd(p.get(f"scene{k}") or "", key) for k in range(1, 5)), 4)
+    return round(sum(estimate_usd(p.get(f"scene{k}") or "", key) for k in range(1, packages_n(p) + 1)), 4)

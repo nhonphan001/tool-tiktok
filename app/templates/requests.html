@@ -19,6 +19,9 @@
     <div class="row" style="gap:8px;align-items:flex-end">
       <label style="display:flex;gap:6px;align-items:center;margin:0 0 10px"><input type="checkbox" name="ads" value="1" {{ '' if pre else 'checked' }} style="width:auto"> Chạy quảng cáo</label>
       <div style="flex:1;min-width:110px"><label>Số ngày quảng cáo</label><input type="number" name="ads_days" value="7" min="1" max="60"></div>
+      <div style="flex:1;min-width:150px"><label>Số cảnh</label><select name="scenes">
+        <option value="4" {{ 'selected' if (pre.scenes or 4)|int == 4 }}>4 cảnh (~32–40 giây)</option>
+        <option value="7" {{ 'selected' if (pre.scenes or 4)|int == 7 }}>7 cảnh (video trên 60 giây)</option></select></div>
       <div style="flex:1;min-width:150px"><label>Ngày / giờ đăng</label><input name="publish" placeholder="Sáng 19/11, 07:00" value="{{ pre.publish or '' }}"></div>
     </div>
     <details id="birthbox" style="margin-top:8px"><summary class="small"><b>Lá số (chỉ cho Loại 1)</b> — tool tự tính và gửi kèm thư, Gemini không tự tính can chi</summary>

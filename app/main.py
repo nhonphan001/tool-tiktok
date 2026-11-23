@@ -418,7 +418,7 @@ def _package_ctx(p: dict) -> dict:
     sua = [r for r in gemini_requests.all_requests()
            if p.get("goi") and str(r["goi"]) == str(p.get("goi")) and r["opts"].get("kind") == "sua"]
     syl_lo, syl_hi = packages.syllable_range()
-    return {"clips": None, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "clip_s": packages.clip_seconds(),
+    return {"clips": None, "nsc": packages.n_scenes(p), "max_sc": packages.MAX_SCENES, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "clip_s": packages.clip_seconds(),
             "syl_lo": syl_lo, "syl_hi": syl_hi, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
             "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
@@ -448,7 +448,8 @@ async def requests_new(request: Request):
         flash(request, "Hãy nhập nội dung yêu cầu", "error")
         return RedirectResponse("/requests", status_code=303)
     opts = {"loai": int(f.get("loai") or 3), "goal": f.get("goal") or "follow", "ads": bool(f.get("ads")),
-            "ads_days": int(f.get("ads_days") or 7), "publish": (f.get("publish") or "").strip()}
+            "ads_days": int(f.get("ads_days") or 7), "publish": (f.get("publish") or "").strip(),
+            "scenes": min(max(int(f.get("scenes") or 4), 4), packages.MAX_SCENES)}
     if f.get("plan_key"):
         opts["plan_key"] = str(f.get("plan_key"))[:40]  # dòng lịch 7 ngày đã tạo gói
     birth = {k: (f.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "gioi")}
@@ -574,7 +575,7 @@ def media_clips_zip(pid: int):
                 z.write(path, c.get("name") or f"Goi_{p.get('goi')}_canh_{k}.mp4")
         from . import tts as _tts
 
-        for k in range(1, 5):  # giọng TTS 4 cảnh (phương án B) đi kèm để Gemini ghép
+        for k in range(1, packages.n_scenes(p) + 1):  # giọng TTS từng cảnh (phương án B) đi kèm để Gemini ghép
             vp = _tts.scene_file(p.get("goi"), k)
             if os.path.exists(vp):
                 z.write(vp, _tts.scene_name(p.get("goi"), k))
@@ -692,7 +693,7 @@ def package_detail(request: Request, pid: int):
     vk = tts.voice_key()
     ctx.update(clips=cl, clip_status=clips.STATUS, clips_ok=clips.all_ok(cl), raw_err=raw_err, ghep=ghep,
                req_status=gemini_requests.STATUS, veo_ok=ok, veo_why=why, veo_one=veo.estimate(1),
-               veo_all=veo.estimate(4), veo_one_b=veo.estimate(1, False), veo_all_b=veo.estimate(4, False),
+               veo_all=veo.estimate(packages.n_scenes(p)), veo_one_b=veo.estimate(1, False), veo_all_b=veo.estimate(packages.n_scenes(p), False),
                veo_running=veo.running(pid), tts_ok=tts_ok, tts_why=tts_why,
                tts_voice=tts.VOICES[vk][2] if vk else "", tts_scenes=tts.scene_info(p),
                tts_usd=tts.estimate_scenes(p))
@@ -724,7 +725,7 @@ def package_veo(request: Request, pid: int, scenes: str = Form(...), confirm_usd
                 audio: str = Form("1")):
     from . import veo
 
-    sc = [s for s in scenes.split(",") if s in ("1", "2", "3", "4")]
+    sc = [s for s in scenes.split(",") if s in [str(i) for i in range(1, packages.MAX_SCENES + 1)]]
     au = audio != "0"
     est = veo.estimate(len(sc), au)
     if not sc:
@@ -759,7 +760,7 @@ def package_voice(request: Request, pid: int):
         return (f"Đã tạo giọng {r['voice']} cho cảnh {', '.join(r['done'])} Gói {p.get('goi')}."
                 + (" Lỗi: " + " · ".join(r["errors"]) if r["errors"] else ""))
     jobs.start("tts", _tts, link=f"/packages/{pid}#clips")
-    flash(request, "Đang tạo giọng 4 cảnh chạy ngầm — xong tool sẽ báo.", "info")
+    flash(request, "Đang tạo giọng các cảnh chạy ngầm — xong tool sẽ báo.", "info")
     return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
 
 
@@ -1010,7 +1011,7 @@ def package_ghep(request: Request, pid: int):
     p = packages.get(pid)
     cl = clips.load(p or {})
     if not p or not clips.all_ok(cl):
-        flash(request, "Cần duyệt ĐẠT đủ 4 cảnh trước khi gửi Gemini ghép", "error")
+        flash(request, "Cần duyệt ĐẠT đủ mọi cảnh trước khi gửi Gemini ghép", "error")
         return RedirectResponse(f"/packages/{pid}#clips", status_code=303)
     if clips.local_only(cl):
         flash(request, f"Cảnh {', '.join(clips.local_only(cl))} là clip Veo chưa có trên Drive: bấm “Tải 4 clip (.zip)”, "

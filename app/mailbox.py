@@ -1,7 +1,7 @@
 """Đọc kịch bản gói sản xuất từ hộp thư Drive Claude ↔ Gemini (05_HOP_THU_CLAUDE_GEMINI).
 
 Tìm file tên bắt đầu bằng SANXUAT- trong GUI_GEMINI và GUI_CLAUDE, tách các trường của phiếu gói
-(số gói, tiêu đề, loại, SKU, 4 cảnh, chữ trên hình, caption, bình luận ghim, ID ảnh cảnh) rồi gộp theo số gói.
+(số gói, tiêu đề, loại, SKU, 4–8 cảnh, chữ trên hình, caption, bình luận ghim, ID ảnh cảnh) rồi gộp theo số gói.
 Chỉ ĐỌC Drive; dữ liệu chỉ được lưu khi người dùng bấm “Lưu & kiểm tra” trên trang Gói SX.
 """
 import re
@@ -99,10 +99,10 @@ def parse(text: str, name: str = "") -> dict:
     m = re.search(r"ten_san_pham:\s*(.+)$", t, re.M)
     if m:
         out["product_name"] = _clean(m.group(1))
-    # 4 cảnh: "1. (26 âm tiết) …" hoặc hàng bảng "| Cảnh 1 … | … | (26 âm tiết) … |"
-    for m in re.finditer(r"^\s*([1-4])\.\s*\(\d+\s*âm tiết\)\s*(.+)$", t, re.M):
+    # 4–8 cảnh: "1. (26 âm tiết) …" hoặc hàng bảng "| Cảnh 1 … | … | (26 âm tiết) … |"
+    for m in re.finditer(r"^\s*([1-8])\.\s*\(\d+\s*âm tiết\)\s*(.+)$", t, re.M):
         out[f"scene{m.group(1)}"] = _clean(m.group(2))
-    for m in re.finditer(r"Cảnh\s*([1-4])\b[^|\n]*\|(?:[^|\n]*\|)*?\s*\(\d+\s*âm tiết\)\s*([^|\n]+)", t):
+    for m in re.finditer(r"Cảnh\s*([1-8])\b[^|\n]*\|(?:[^|\n]*\|)*?\s*\(\d+\s*âm tiết\)\s*([^|\n]+)", t):
         out.setdefault(f"scene{m.group(1)}", _clean(m.group(2)))
     for key, head in (("on_screen", r"Chữ trên hình"), ("caption", r"Caption(?:\s*\+\s*hashtag)?"),
                       ("pinned", r"Bình luận ghim")):
@@ -118,7 +118,7 @@ def parse(text: str, name: str = "") -> dict:
             out["caption"] = _clean(m.group(1))
     out.update(parse_videos(t))
     imgs = {}
-    for m in re.finditer(r"canh_([1-4])_[\d_]*s?\s*:\s*\"?\s*([A-Za-z0-9_-]{25,60})", t):
+    for m in re.finditer(r"canh_([1-8])_[\d_]*s?\s*:\s*\"?\s*([A-Za-z0-9_-]{25,60})", t):
         imgs[int(m.group(1))] = m.group(2)
     if imgs:
         out["images"] = imgs
@@ -136,7 +136,7 @@ def _video_prompts(t: str) -> dict:
     body = t[m.end():]
     end = re.search(r"^#{1,4}\s|^\s*nhan_video:", body, re.M)
     body = body[:end.start()] if end else body
-    marks = list(re.finditer(r"^[^\n]*?Cảnh\s*([1-4])\b[^\n]*$", body, re.M))
+    marks = list(re.finditer(r"^[^\n]*?Cảnh\s*([1-8])\b[^\n]*$", body, re.M))
     out = {}
     for k, mk in enumerate(marks):
         chunk = body[mk.end(): marks[k + 1].start() if k + 1 < len(marks) else len(body)]
@@ -172,8 +172,9 @@ def merge(parts: list[dict]) -> dict:
         out[f"image{i}"] = v
     for i, v in (out.get("prompts") or {}).items():
         out[f"prompt{i}"] = v
-    out["fields"] = [k for k in ("title", "sku", "scene1", "scene2", "scene3", "scene4", "on_screen", "caption", "pinned")
-                     if out.get(k)] + (["prompts"] if len(out.get("prompts") or {}) == 4 else []) \
+    nsc = max([4] + [int(k[5:]) for k in out if k.startswith("scene") and k[5:].isdigit()])
+    out["fields"] = [k for k in ("title", "sku", *[f"scene{i}" for i in range(1, nsc + 1)], "on_screen", "caption", "pinned")
+                     if out.get(k)] + (["prompts"] if len(out.get("prompts") or {}) >= nsc else []) \
         + (["video"] if out.get("final_video") else [])
     return out
 

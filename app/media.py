@@ -29,14 +29,14 @@ def cache_dir() -> str:
 
 
 def file_id_for(p: dict, kind: str) -> str:
-    m = re.fullmatch(r"clip([1-4])", kind)
+    m = re.fullmatch(r"clip([1-8])", kind)
     if m:
         try:
             v = (json.loads(p.get("clips_json") or "{}").get(m.group(1)) or {}).get("id") or ""
         except ValueError:
             v = ""
         return v if re.fullmatch(r"[A-Za-z0-9_-]{20,80}", v) else ""
-    if re.fullmatch(r"image[1-4]", kind) or kind in ("final_video", "clean_video"):
+    if re.fullmatch(r"image[1-8]", kind) or kind in ("final_video", "clean_video"):
         v = (p.get(kind) or "").strip()
         if re.fullmatch(r"[A-Za-z0-9_-]{20,80}", v):
             return v
@@ -81,7 +81,7 @@ def fetch(file_id: str) -> tuple[str, dict]:
 def images_zip(p: dict) -> tuple[bytes, list[str]]:
     buf, errors = io.BytesIO(), []
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
-        for i in range(1, 5):
+        for i in range(1, 9):
             fid = file_id_for(p, f"image{i}")
             if not fid:
                 continue

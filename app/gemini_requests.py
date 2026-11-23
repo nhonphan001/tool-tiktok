@@ -83,11 +83,11 @@ VOICE_BLOCK = ("Voice (identical in every scene): a 26-year-old Southern Vietnam
                "close-mic voice only: NO background music, NO ambient sound, NO sound effects.")
 
 
-def _rules_for(loai: int, ads: bool) -> list[str]:
+def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
     cs = packages.clip_seconds()
     lo, hi = packages.syllable_range()
     common = [
-        f"Định dạng: 4 cảnh × {cs} giây (clip Gemini/Flow {cs} giây), dọc 9:16, mỗi cảnh {lo}–{hi} âm tiết (giọng đọc 3,8–4,0 âm tiết/giây "
+        f"Định dạng: {n} cảnh × {cs} giây (clip Gemini/Flow {cs} giây), dọc 9:16, mỗi cảnh {lo if n < 6 else 26}–{hi} âm tiết (giọng đọc 3,8–4,0 âm tiết/giây "
         f"≈ {lo / 4:.0f}–{hi / 3.9:.1f} giây, chừa khoảng 0,7 giây vào/ra giọng), hook ngay giây 0; Cô Kim v3.3 (25–30 tuổi; "
         "ảnh mặt chuẩn nhất CO_KIM_MASTER_FACE_CHUAN_NHAT_3957.png, ID Drive 1gnq18QukC1lCSC0py5Zmf18lR78r3CEH (từ Gói 19): "
         "khóa mặt trái xoan, mắt hạnh nhân, cười khép môi sau voan tím (không hở răng), trâm vàng ngọc đỏ + trâm tua rua trái; "
@@ -95,10 +95,15 @@ def _rules_for(loai: int, ads: bool) -> list[str]:
         "Không nhắc web, Link Bio, tên miền, Zalo, Shopee, Lazada, link (B.1).",
         "Không hứa may mắn, tài lộc, rước lộc, bình an, phù hộ; không hù dọa; không hứa chữa bệnh, giàu có (B.4).",
         "Hình ảnh: không lửa, hào quang, linh vật phát sáng; không chắp tay khấn vái, nhang, mâm cúng (C.7, C.8).",
-        "4 cảnh cùng 1 gói phải THỐNG NHẤT bối cảnh, ánh sáng và thời điểm trong ngày (không để 1 cảnh sáng hơn/khác giờ "
-        "so với 3 cảnh còn lại) — quy tắc anh Nhơn chốt 20/11.",
+        f"{n} cảnh cùng 1 gói phải THỐNG NHẤT bối cảnh, ánh sáng và thời điểm trong ngày (không để 1 cảnh sáng hơn/khác giờ "
+        "so với các cảnh còn lại) — quy tắc anh Nhơn chốt 20/11.",
         "Bật nhãn “Nội dung do AI tạo” khi đăng.",
     ]
+    if n >= 6:
+        common.append(f"**Video trên 60 giây ({n} cảnh, thư CHOT-2311-VIDEO-60-GIAY):** thành phẩm phải dài TRÊN 61 giây; "
+                      "mỗi cảnh một hành động khác nhau; chữ trên hình đánh dấu chương; câu móc giữa video (~giây 35–40); "
+                      "Loại 1 theo bố cục hook → lá số bằng hình ảnh → tính cách → tình cảm/gia đạo → móc giữa video → "
+                      "năm tới (cả hai mặt) → lời khuyên + CTA.")
     if loai == 3:
         return [
             "**Loại 3 – Video tăng follow, KHÔNG gắn giỏ hàng, KHÔNG SKU.**",
@@ -177,6 +182,9 @@ def build_letter(req: dict) -> str:
     ads = bool(o.get("ads"))
     goi = req["goi"]
     answer = f"{req['code']}__XONG.md"
+    n = int(o.get("scenes") or 4)
+    cs = packages.clip_seconds()
+    lo, hi = packages.syllable_range()
     lines = [
         "---",
         f"ma_yeu_cau: {req['code']}",
@@ -194,7 +202,7 @@ def build_letter(req: dict) -> str:
         f"# Yêu cầu sản xuất Gói {goi} — {req['title']}", "",
         "## Yêu cầu của anh Nhơn", "", f"> {req['brief'].strip()}", "",
         "## Bắt buộc", "",
-        *[f"- {r}" for r in _rules_for(loai, ads)], "",
+        *[f"- {r}" for r in _rules_for(loai, ads, n)], "",
     ]
     chart = chart_lines(o.get("birth") or {}) if loai == 1 else []
     if chart:
@@ -216,19 +224,13 @@ def build_letter(req: dict) -> str:
         f"Tạo file **{answer}** trong GUI_CLAUDE với nội dung:", "",
         "```",
         f"ma_yeu_cau: {req['code']}",
-        "anh_4_canh:",
-        '  canh_1_0_8s: "<ID ảnh Drive>"',
-        '  canh_2_8_16s: "<ID ảnh Drive>"',
-        '  canh_3_16_24s: "<ID ảnh Drive>"',
-        '  canh_4_24_32s: "<ID ảnh Drive>"',
+        f"anh_{n}_canh:",
+        *[f'  canh_{k}_{(k - 1) * cs}_{k * cs}s: "<ID ảnh Drive>"' for k in range(1, n + 1)],
         "",
         f"# Phiếu gói {goi} — <tiêu đề>",
         "",
-        f"## Lời thoại 4 cảnh × {packages.clip_seconds()} giây",
-        "1. (26 âm tiết) <lời thoại cảnh 1>",
-        "2. (27 âm tiết) <lời thoại cảnh 2>",
-        "3. (26 âm tiết) <lời thoại cảnh 3>",
-        "4. (25 âm tiết) <lời thoại cảnh 4>",
+        f"## Lời thoại {n} cảnh × {cs} giây",
+        *[f"{k}. ({lo + 3} âm tiết) <lời thoại cảnh {k}>" for k in range(1, n + 1)],
         "",
         "## Chữ trên hình",
         "<hook ngắn>",
@@ -243,21 +245,20 @@ def build_letter(req: dict) -> str:
         "<mục tiêu, đối tượng, giờ bật, số ngày>" if ads else "",
         "",
         f"## Prompt tạo video {packages.clip_seconds()} giây (Veo / Flow)",
-        "Clip tạo TAY trên app Gemini/Flow, CÓ GIỌNG ĐỌC (anh Nhơn chốt 20/11). Mỗi prompt = hình + câu thoại + KHỐI GIỌNG giống hệt nhau từng chữ ở cả 4 cảnh:",
+        "Clip tạo TAY trên app Gemini/Flow, CÓ GIỌNG ĐỌC (anh Nhơn chốt 20/11). Mỗi prompt = hình + câu thoại + KHỐI GIỌNG giống hệt nhau từng chữ ở cả {n} cảnh:",
         f"> {VOICE_BLOCK}",
         "Lời thoại trong prompt viết số/ngày bằng chữ (vd. “hai mươi tháng mười một”), đặt trong ngoặc kép, nguyên văn phiếu gói.",
-        "1. **Cảnh 1 (0–8s | ảnh …)**: <hình + chuyển động; She speaks softly in Vietnamese through her veil: \"<lời cảnh 1>\" + KHỐI GIỌNG>",
-        "2. **Cảnh 2 (8–16s | ảnh …)**: <prompt cảnh 2>",
-        "3. **Cảnh 3 (16–24s | ảnh …)**: <prompt cảnh 3>",
-        "4. **Cảnh 4 (24–32s | ảnh …)**: <prompt cảnh 4>",
+        f"1. **Cảnh 1 (0–{cs}s | ảnh …)**: <hình + chuyển động; She speaks softly in Vietnamese through her veil: \"<lời cảnh 1>\" + KHỐI GIỌNG>",
+        *[f"{k}. **Cảnh {k} ({(k - 1) * cs}–{k * cs}s | ảnh …)**: <prompt cảnh {k}>" for k in range(2, n + 1)],
         "",
         "nhan_video:",
         f"  goi: {goi}",
         f"  loai: {loai}",
+        f"  so_canh: {n}",
         "```", "",
         "Sau khi trả lời, TikTok Manager sẽ tự phát hiện thư (tối đa 10 phút) và báo anh Nhơn nhập vào Gói SX để kiểm tra.",
         "",
-        "Video (P8a/P8b): anh Nhơn tạo 4 clip thô trên Veo/Flow theo 4 prompt → 02_VIDEO_THO_CHO_KIEM_DUYET; Gemini QA, "
+        f"Video (P8a/P8b): anh Nhơn tạo {n} clip thô trên Veo/Flow theo {n} prompt → 02_VIDEO_THO_CHO_KIEM_DUYET; Gemini QA, "
         "FFmpeg cắt/ghép/phụ đề, **KHÔNG xoá dấu nhận diện AI (logo ✦)**, lưu 04_VIDEO_DA_DUYET_SAN_SANG_DANG.",
         f"Khi dựng xong video, gửi thư **BAOCAO-<ddmm>-…-GOI-{goi}-…__GUI_CLAUDE.md** trong GUI_CLAUDE, đầu thư có 2 dòng "
         "(tool tự lấy link video vào Gói SX):",
@@ -293,7 +294,7 @@ def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]
     issues = "\n".join(f"{k}. **{'LỖI' if i['level'] == 'error' else 'Cảnh báo'} · {i['rule']}**: {i['msg']}"
                        for k, i in enumerate(items, 1)) or "(không có)"
     scenes = []
-    for k in range(1, 5):
+    for k in range(1, packages.n_scenes(p) + 1):
         t = (p.get(f"scene{k}") or "").strip()
         scenes.append(f"{k}. ({packages.syllables(t)} âm tiết) {t or '—'}")
     bad_prompts = sorted({int(m) for i in items if i["rule"] == "Prompt" for m in re.findall(r"cảnh (\d)", i["msg"])})
@@ -327,7 +328,7 @@ def build_sua(p: dict, chk: dict, note: str = "", n: int = 1) -> tuple[str, str]
         *(["## Lá số do tool tính (dùng nguyên văn)", *chart, ""] if chart else []),
         "## Trả lời",
         f"Tạo **{answer}** trong GUI_CLAUDE với **toàn bộ phiếu gói đã sửa**, đúng định dạng phiếu gói (lời thoại 4 cảnh "
-        "“1. (NN âm tiết) …”, chữ trên hình, caption, bình luận ghim, ảnh 4 cảnh, “## Prompt tạo video … giây”, khối "
+        "“1. (NN âm tiết) …”, chữ trên hình, caption, bình luận ghim, ảnh từng cảnh, “## Prompt tạo video … giây”, khối "
         "nhan_video). Tool tự phát hiện thư, anh Nhơn bấm Nhập lại → Lưu & kiểm tra.",
     ])
     return code, letter
