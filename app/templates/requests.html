@@ -5,7 +5,7 @@
 <p class="muted">Nhập yêu cầu → tool giữ số gói, soạn thư kèm quy tắc bắt buộc + số liệu kênh + mẫu trả lời, rồi gửi vào hộp thư
   <b>GUI_GEMINI</b>. Gemini làm xong trả lời vào <b>GUI_CLAUDE</b>; tool tự kiểm tra <b>mỗi 10 phút</b> và báo để bạn nhập vào Gói SX. Không tốn token.</p>
 <div class="card {{ 'pre-card' if pre }}" id="moi" style="margin-bottom:16px"><h2>Yêu cầu mới · Gói {{ next_goi }}</h2>
-  {% if pre %}<div class="flash info">Điền sẵn từ <b>lịch 7 ngày của chiến lược</b> ({{ pre.publish }}). Xem lại, sửa nếu cần rồi bấm “Tạo &amp; gửi cho Gemini”.
+  {% if pre %}<div class="flash info">Điền sẵn từ <b>{{ 'tin nhắn khách (trang Lá số)' if pre.dd else 'lịch 7 ngày của chiến lược' }}</b> ({{ pre.publish }}). Xem lại, sửa nếu cần rồi bấm “Tạo &amp; gửi cho Gemini”.
     {% if pre.warnings %}<ul class="small" style="margin:6px 0 0;padding-left:18px">{% for w in pre.warnings %}<li>⚠ {{ w }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}
   <form method="post" action="/requests/new">
     {% if pre %}<input type="hidden" name="plan_key" value="{{ pre.plan_key }}">{% endif %}
@@ -23,12 +23,12 @@
     </div>
     <details id="birthbox" style="margin-top:8px"><summary class="small"><b>Lá số (chỉ cho Loại 1)</b> — tool tự tính và gửi kèm thư, Gemini không tự tính can chi</summary>
       <div class="row" style="gap:8px">
-        <div style="flex:1;min-width:60px"><label>Ngày</label><input type="number" name="dd" min="1" max="31"></div>
-        <div style="flex:1;min-width:60px"><label>Tháng</label><input type="number" name="mm" min="1" max="12"></div>
-        <div style="flex:1;min-width:80px"><label>Năm</label><input type="number" name="yy" min="1900" max="2100"></div>
-        <div style="flex:1;min-width:100px"><label>Giờ (nếu biết)</label><input type="time" name="t"></div>
-        <div style="flex:1;min-width:100px"><label>Lịch</label><select name="lich"><option value="duong">Dương</option><option value="am">Âm</option></select></div>
-        <div style="flex:1;min-width:90px"><label>Giới tính</label><select name="gioi"><option value="">—</option><option value="nu">Nữ</option><option value="nam">Nam</option></select></div>
+        <div style="flex:1;min-width:60px"><label>Ngày</label><input type="number" name="dd" min="1" max="31" value="{{ pre.dd or '' }}"></div>
+        <div style="flex:1;min-width:60px"><label>Tháng</label><input type="number" name="mm" min="1" max="12" value="{{ pre.mm or '' }}"></div>
+        <div style="flex:1;min-width:80px"><label>Năm</label><input type="number" name="yy" min="1900" max="2100" value="{{ pre.yy or '' }}"></div>
+        <div style="flex:1;min-width:100px"><label>Giờ (nếu biết)</label><input type="time" name="t" value="{{ pre.t or '' }}"></div>
+        <div style="flex:1;min-width:100px"><label>Lịch</label><select name="lich"><option value="duong">Dương</option><option value="am" {{ 'selected' if pre.lich=='am' }}>Âm</option></select></div>
+        <div style="flex:1;min-width:90px"><label>Giới tính</label><select name="gioi"><option value="">—</option><option value="nu" {{ 'selected' if pre.gioi=='nu' }}>Nữ</option><option value="nam" {{ 'selected' if pre.gioi=='nam' }}>Nam</option></select></div>
       </div></details>
     <script>(function(){const s=document.querySelector('select[name=loai]'),b=document.getElementById('birthbox'),a=document.querySelector('input[name=ads]');
       function u(){const one=s.value==='1'; b.open=one; if(one&&a){a.checked=false;} }; s.addEventListener('change',u); u();

@@ -332,6 +332,39 @@ def _chart_from_params(q) -> dict:
                            q.get("lich") or "duong", bool(q.get("nhuan")))
 
 
+def _laso_row(text: str, line: int) -> dict | None:
+    return next((r for r in comments.analyze(text) if r.get("line") == line and r.get("chart")), None)
+
+
+@app.post("/api/laso/reply")
+def laso_reply(text: str = Form(""), line: int = Form(...)):
+    """Trả lời nhanh bằng Gemini cho 1 dòng đã lập được lá số (gọi bằng fetch, trang không tải lại)."""
+    from . import comment_reply
+
+    row = _laso_row(text, line)
+    if not row:
+        return JSONResponse({"error": "Dòng này chưa lập được lá số"}, status_code=400)
+    if not settings.gemini_api_key and settings.gemini_backend != "vertex":
+        return JSONResponse({"error": "Chưa cấu hình Gemini API (Cài đặt → Gemini)"}, status_code=400)
+    try:
+        return comment_reply.draft_reply(text, row["chart"])
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": str(e)[:300]}, status_code=502)
+
+
+@app.post("/laso/package")
+def laso_package(request: Request, text: str = Form(""), line: int = Form(...)):
+    """Điền sẵn form Yêu cầu Gemini (Loại 1, nhóm 4, kèm ngày giờ sinh) từ tin nhắn khách."""
+    from . import comment_reply
+
+    row = _laso_row(text, line)
+    if not row:
+        flash(request, "Dòng này chưa lập được lá số", "error")
+        return RedirectResponse("/laso", status_code=303)
+    request.session["pre_request"] = comment_reply.package_prefill(text, row)
+    return RedirectResponse("/requests#moi", status_code=303)
+
+
 @app.get("/laso", response_class=HTMLResponse)
 def laso_page(request: Request):
     q = request.query_params
@@ -394,7 +427,7 @@ def requests_page(request: Request, sid: int | None = None, row: int | None = No
     from . import strategy_plan
 
     reqs = gemini_requests.all_requests()
-    pre = {}
+    pre = request.session.pop("pre_request", None) or {}  # "Tạo gói SX" từ trang Lá số
     if sid is not None and row is not None:  # "Tạo gói" từ lịch 7 ngày của chiến lược
         st = db.query_one("SELECT content_md FROM strategies WHERE id=?", (sid,))
         rows = strategy_plan.parse_schedule((st or {}).get("content_md") or "")

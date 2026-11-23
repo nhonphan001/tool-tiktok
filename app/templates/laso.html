@@ -48,5 +48,46 @@
     </tr>{% endfor %}
   </table>
 </div>
+{% set charted = rows|selectattr('chart')|list %}
+{% for r in charted %}<div class="card reply-card" style="margin-top:12px" data-line="{{ r.line }}">
+  <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+    <div><b>Dòng {{ r.line }} · {{ r.chart.tu_tru.split(' – ')[0] }} {{ r.y }}{% if r.gioi %} · {{ 'Nam' if r.gioi=='nam' else 'Nữ' }}{% endif %}</b>
+      <div class="muted small">Nhật chủ {{ r.chart.nhat_chu }} {{ r.chart.nhat_chu_hanh }} · {{ r.chart.trang_thai }} · Dụng {{ r.chart.dung_than }}</div></div>
+    <div class="row" style="gap:6px">
+      <button type="button" class="btn small" onclick="quickReply(this)">⚡ Trả lời nhanh (AI)</button>
+      <form method="post" action="/laso/package" style="margin:0"><input type="hidden" name="text" value="{{ text }}"><input type="hidden" name="line" value="{{ r.line }}">
+        <button class="btn sec small">📦 Tạo gói SX</button></form>
+    </div>
+  </div>
+  <div class="reply-out" hidden></div>
+</div>{% endfor %}
+{% if charted %}<p class="muted small" style="margin-top:8px">Trả lời nhanh: Gemini viết 1 câu trả lời bình luận theo đúng lá số tool tính (không tự tính can chi), tự ẩn tên khách, không hứa hẹn/không link; tool kiểm tra tuân thủ trước khi hiện. Khách xin <b>gieo quẻ Kinh Dịch</b> → Cô Kim trả lời khéo là kênh giải mã Bát Tự. “Tạo gói SX” điền sẵn yêu cầu Loại 1 nhóm 4 kèm ngày giờ sinh.</p>{% endif %}
+<textarea id="laso-text" hidden>{{ text }}</textarea>
+<script>
+async function quickReply(btn){
+  const card = btn.closest('.reply-card'), out = card.querySelector('.reply-out');
+  const fd = new FormData(); fd.append('text', document.getElementById('laso-text').value); fd.append('line', card.dataset.line);
+  btn.disabled = true; const o = btn.textContent; btn.textContent = 'Gemini đang viết…';
+  out.hidden = false; out.innerHTML = '<div class="pending" style="padding:8px 0"><span class="spinner"></span> Đang soạn câu trả lời…</div>';
+  try {
+    const r = await fetch('/api/laso/reply', {method:'POST', body:fd}); const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || ('Lỗi ' + r.status));
+    const esc = s => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const ok = d.level === 'ok' || d.level === 'warning';
+    out.innerHTML = '<div class="kit-item" style="margin-top:10px"><div class="kit-head"><b>Câu trả lời bình luận</b>'
+      + '<span class="row" style="gap:6px"><span class="badge ' + (ok ? 'ok' : 'error') + '">' + (ok ? 'Sạch' : 'Cần sửa: ' + esc(d.issues.join(', '))) + '</span>'
+      + '<button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></span></div>'
+      + '<div class="kit-text big">' + esc(d.reply) + '</div>'
+      + (d.idea ? '<div class="muted small" style="margin-top:6px">💡 Ý video: ' + esc(d.idea) + '</div>' : '')
+      + '<div class="muted small" style="margin-top:4px">' + esc(d.reply).length + ' ký tự · ≈ $' + (d.cost_usd||0).toFixed(4) + ' · bấm lại để viết bản khác</div></div>';
+  } catch (e) { out.innerHTML = '<div class="flash error" style="margin-top:10px">' + e.message + '</div>'; }
+  btn.disabled = false; btn.textContent = o;
+}
+function copyKit(btn){
+  const t = btn.closest('.kit-item').querySelector('.kit-text').innerText.trim();
+  const done = () => { const o = btn.textContent; btn.textContent = 'Đã chép ✓'; setTimeout(() => btn.textContent = o, 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done); else { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+}
+</script>
 {% endif %}
 {% endblock %}
