@@ -185,3 +185,20 @@ def test_sua_letter_and_route(monkeypatch):
     r2 = gr.get(sent[1])
     assert r2["code"].endswith("-GOI-20-L2") and "đổi hook mạnh hơn" in r2["letter_md"]
     assert "SUA-" in c.get(f"/packages/{pid}").text
+
+
+def test_check_replies_waits_for_empty_answer(monkeypatch):
+    _reset()
+    rid = gr.create(BRIEF, "", OPTS)
+    with db.tx() as c:
+        c.execute("UPDATE gemini_requests SET status='sent', sent_at='2026-11-18T17:00:00+00:00' WHERE id=?", (rid,))
+    files = [{"id": "e", "name": "SANXUAT-2311-GOI-17-X__XONG.md", "modifiedTime": "2026-11-18T18:00:00Z"}]
+    body = {"v": ""}
+    monkeypatch.setattr(gr, "_token", lambda *a: "t")
+    monkeypatch.setattr(mailbox, "folder_ids", lambda: ["A"])
+    monkeypatch.setattr(mailbox, "_list_files", lambda token, folder: files)
+    monkeypatch.setattr(mailbox, "_read", lambda token, f: body["v"])
+    monkeypatch.setattr(settings, "mailbox_outbox_doc_id", "")
+    assert gr.check_replies() == [] and gr.get(rid)["status"] == "sent"  # file rỗng → vẫn chờ
+    body["v"] = "# Phiếu gói 17\n" + "Lời thoại cảnh rất dài " * 20
+    assert len(gr.check_replies()) == 1 and gr.get(rid)["status"] == "answered"

@@ -483,6 +483,13 @@ def check_replies() -> list[dict]:
             continue
         f = max(hits, key=lambda x: x.get("modifiedTime") or "")
         mod = f.get("modifiedTime") or ""
+        try:  # Gemini hay tạo file trước rồi mới dán nội dung → file rỗng chưa phải là thư trả lời
+            body = mailbox._read(token, f)
+        except Exception:  # noqa: BLE001
+            body = "x" * 500
+        if len(re.sub(r"\s+", "", body)) < 200:
+            log.info("Thư trả lời %s còn rỗng — chờ Gemini dán nội dung", f["name"])
+            continue
         if r["status"] != "sent":
             # Thư đã trả lời trước đó: chỉ báo khi Gemini SỬA file sau lần ghi nhận trước
             seen = r.get("answer_modified") or r.get("answered_at") or ""

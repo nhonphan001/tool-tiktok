@@ -102,6 +102,8 @@ def _classify(r: dict) -> dict:
         w.append("Từ “thỉnh” coi sản phẩm như vật tâm linh → dùng “xem khăn”/“chọn khăn”.")
     chk = compliance.check(f"{r['hook']} {r['chu_de']}", loai == 2)
     for x in chk.get("promise", []) + chk.get("offsite", []):
+        if loai == 1 and x.get("code") == "bu_khuyet_la_so":
+            continue  # video lá số được nói ngũ hành “thiếu Hỏa” — chỉ cấm khi nối với vật phẩm (Loại 2)
         w.append(f"Cụm “{x['match']}”: {x['label']}.")
     r["warnings"] = w
     return r
