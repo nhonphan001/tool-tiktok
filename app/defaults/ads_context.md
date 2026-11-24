@@ -7,4 +7,5 @@ BỐI CẢNH QUẢNG BÁ (số liệu trang Promote ngày 24/11/2026). Đọc k�
 - Chi phí mỗi follower khoảng 182–420đ (trung bình khoảng 402đ). Mục tiêu "Mua sản phẩm" tốn 352.510đ, 0 đơn.
 - Video Bát Tự/lá số bị TikTok từ chối quảng bá (ngành bói toán, bùa hộ mệnh).
 - Follower mua ít quay lại: 674 follower của Gói 17 chỉ tạo 473 view trong 7 ngày sau.
+- Lệnh Quảng bá cuối cùng (Gói 17, mã 1882261840595073) đã được anh Nhơn DỪNG tối 24/11/2026 (đã chi khoảng 282K/350K). Từ đó không còn lệnh nào chạy.
 - Từ 25/11/2026: TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ, đo view và follower tự nhiên. Video đăng từ 25/11 là số tự nhiên. Video đăng trước đó phải coi là số có trả phí.
