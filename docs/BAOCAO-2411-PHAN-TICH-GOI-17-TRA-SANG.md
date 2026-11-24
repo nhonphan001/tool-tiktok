@@ -83,3 +83,7 @@ Studio không cho ghim Gói 17 trên web vì video bị đánh dấu nội dung 
 | Bình luận / 1.000 view | ≥ 5 |
 | % nguồn "Đã follow" ở video lá số 12:30 | tăng so với trước 19/11 |
 | Chi phí mỗi follower (nếu chạy Quảng bá) | so sánh ngày có và không Quảng bá |
+
+---
+
+> **ĐÍNH CHÍNH (24/11, sau khi có số liệu trang Promote):** Gói 17 được quảng bá 7 ngày, 350K. Trong đó **674/695 follower và 9.491/10.000 view là trả phí**. Các mục 3.1 ("không cần Bát Tự vẫn 6,9%") và 3.2 ("sống lâu 5 ngày") phản ánh **quảng cáo**, không phải sức lan toả tự nhiên. Xem `BAOCAO-2411-QUANG-BA-VA-DINH-CHINH-CHIEN-LUOC.md`.
