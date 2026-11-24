@@ -29,7 +29,8 @@
 <div class="card"><h2>Đã lưu</h2>
 {% for r in rows %}<div class="row" style="justify-content:space-between;border-top:1px solid var(--border);padding:8px 0">
   <div>{% if is_new(r.created_at) %}<span class="new-dot"></span> {% endif %}<b>{{ r.title }}</b>
-    <div class="muted small">{{ r.created_at|localtime }}{% if r.pid %} · <a href="/packages/{{ r.pid }}#posted">Gói {{ (pk.get(r.pid) or {}).get('goi') or r.pid }}</a>{% endif %}{% if r.video_id %} · video {{ r.video_id }}{% endif %}</div></div>
+    <div class="muted small">{% if r.run_started %}Chạy {{ r.run_started[:16]|replace('T', ' ') }}{% if r.run_finished %} → {{ r.run_finished[11:16] }}{% endif %}{% if r.duration_min %} ({{ r.duration_min }} phút){% endif %} · {% endif %}tải lên {{ r.created_at|localtime }}
+      · {% if r.tokens_exact %}{{ "{:,}".format(r.tokens_exact) }} token{% elif r.tokens_est %}~{{ "{:,}".format(r.tokens_est) }} token (ước tính){% endif %}{% if r.pid %} · <a href="/packages/{{ r.pid }}#posted">Gói {{ (pk.get(r.pid) or {}).get('goi') or r.pid }}</a>{% endif %}{% if r.video_id %} · video {{ r.video_id }}{% endif %}</div></div>
   <div class="row" style="gap:6px"><a class="btn sec small" href="/danh-gia/{{ r.id }}.md" target="_blank">Xem</a>
     <form method="post" action="/danh-gia/{{ r.id }}/xoa" onsubmit="return confirm('Xoá báo cáo này?')" style="margin:0"><button class="btn sec small">Xoá</button></form></div>
 </div>{% else %}<p class="muted">Chưa có báo cáo nào.</p>{% endfor %}

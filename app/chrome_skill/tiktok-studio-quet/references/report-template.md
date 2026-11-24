@@ -3,7 +3,9 @@
 ```
 # Quét kênh <hằng ngày|hằng tuần> dd/mm/yyyy      (hoặc: # Đánh giá video <ID> dd/mm/yyyy)
 
-> Nguồn: TikTok Studio, trang Quảng bá, hồ sơ, TikTok Manager /danh-gia/ngu-canh · lấy lúc HH:MM (giờ VN) · chế độ chỉ đọc
+> Nguồn: TikTok Studio, trang Quảng bá, hồ sơ, TikTok Manager /danh-gia/ngu-canh · chế độ chỉ đọc
+> **Chạy skill:** bắt đầu dd/mm/yyyy HH:MM:SS → kết thúc HH:MM:SS (giờ VN, theo /danh-gia/gio) · thời lượng N phút
+> **Token (ước tính):** đầu vào ~X (đọc Y trang, Z ký tự, W ảnh chụp) · đầu ra ~V · **tổng ~T** · chính xác: <số nếu Claude hiển thị, không thì "không có">
 
 ## 1. Tóm tắt
 (5 dòng: follower, video tốt nhất/kém nhất (số tự nhiên), phát hiện quan trọng nhất, có quảng bá không, việc cần làm ngay)
@@ -31,6 +33,16 @@
 | organic_views / organic_followers | tổng − trả phí (nếu có quảng bá) |
 | h_score | số quy tắc H1–H6 đạt (0–6) |
 
+## Thời gian chạy và token
+
+- `started_at` / `finished_at`: lấy từ dòng `ISO:` của `https://tiktok.nangtamchatluongsong.vn/danh-gia/gio`, lúc đầu và lúc cuối. **Không tự đoán giờ.**
+- **Token ước tính** (Claude in Chrome không tự đo được token chính xác):
+  - `input` = `chars_read` ÷ 3 + `screenshots` × 1.500. Tiếng Việt khoảng 1 token / 3 ký tự; một ảnh chụp màn hình khoảng 1.500 token.
+  - `output` = số ký tự của báo cáo ÷ 3.
+  - `total` = `input` + `output`.
+  - Làm tròn đến hàng trăm.
+- `exact_tokens`: chỉ ghi khi giao diện Claude hiển thị con số thật. Không có thì `null`.
+
 ## Khối JSON (cuối file, trong ```json … ```, đúng tên khoá)
 
 ```json
@@ -38,6 +50,12 @@
   "schema": "tiktok-studio-quet/v1",
   "mode": "hang_ngay|hang_tuan|video",
   "snapshot_at": "2026-11-25T16:30+07:00",
+  "run": {
+    "started_at": "2026-11-25T16:30:05+07:00", "finished_at": "2026-11-25T16:52:40+07:00", "duration_min": 22.6,
+    "pages_read": 0, "chars_read": 0, "screenshots": 0,
+    "tokens_est": {"input": 0, "output": 0, "total": 0}, "tokens_method": "ký tự ÷ 3 + ảnh chụp × 1.500",
+    "exact_tokens": null
+  },
   "channel": {
     "followers": 0, "followers_net_7d": 0, "followers_by_day": {"2026-11-25": 0},
     "views_7d": 0, "profile_views_7d": 0, "likes_7d": 0, "comments_7d": 0, "shares_7d": 0,

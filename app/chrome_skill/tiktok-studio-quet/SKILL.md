@@ -47,6 +47,13 @@ Nếu lời gọi không nói chế độ, dùng **hằng ngày**. Nếu hôm na
 
 ## 2. Quy trình
 
+### Bước 0: Ghi mốc bắt đầu
+1. Mở `https://tiktok.nangtamchatluongsong.vn/danh-gia/gio` và chép dòng `ISO:`, ví dụ `2026-11-25T16:30:05+07:00`. Đây là **started_at**. Không tự đoán giờ.
+2. Từ lúc này, **đếm sổ** suốt quá trình (dùng cho mục token ở Bước 7):
+   - **pages_read**: số trang đã đọc nội dung;
+   - **chars_read**: tổng số ký tự văn bản đã đọc, ước lượng theo từng trang;
+   - **screenshots**: số ảnh chụp màn hình đã dùng.
+
 ### Bước 1: Đọc ngữ cảnh từ TikTok Manager
 1. Mở `https://tiktok.nangtamchatluongsong.vn/danh-gia/ngu-canh?days=14`. Trang trả văn bản thuần. Nếu bị chuyển sang trang đăng nhập: dừng và báo.
 2. Ghi nhận:
@@ -106,6 +113,12 @@ Tính các chỉ số dẫn xuất ở `references/report-template.md` mục "Ch
   - **3 thay đổi cụ thể cho các gói kế tiếp**: câu đầu, khung hình 0, vị trí câu kêu gọi, giờ đăng, dạng video.
 
 ### Bước 7: Viết và lưu báo cáo
+0. **Ghi mốc kết thúc và token:**
+   - Mở lại `https://tiktok.nangtamchatluongsong.vn/danh-gia/gio`, chép dòng `ISO:` → **finished_at**. Tính **duration_min**.
+   - Tính **token ước tính** theo công thức trong `references/report-template.md` mục "Thời gian chạy và token":
+     - đầu vào = ký tự đã đọc ÷ 3 + ảnh chụp × 1.500;
+     - đầu ra = độ dài báo cáo ÷ 3.
+   - Nếu giao diện Claude hiển thị **số token chính xác** của lần chạy thì ghi vào `exact_tokens`. Không thì để `null`, **không bịa**.
 1. Viết báo cáo **đúng khuôn** trong `references/report-template.md`, kể cả khối JSON cuối file. Tiêu đề dòng đầu theo dạng:
    - `# Quét kênh hằng ngày dd/mm/yyyy`;
    - `# Quét kênh hằng tuần dd/mm/yyyy`;
@@ -119,6 +132,7 @@ Tính các chỉ số dẫn xuất ở `references/report-template.md` mục "Ch
 ## 3. Khi xong
 
 Trả lời ngắn trong khung chat:
+- giờ bắt đầu → kết thúc, thời lượng, token ước tính (đầu vào / đầu ra / tổng);
 - 5 dòng tóm tắt;
 - báo cáo đã lưu vào TikTok Manager chưa;
 - các mục bị thiếu dữ liệu và lý do.

@@ -96,3 +96,29 @@ def test_chrome_skill_and_context():
     skill = z.read("tiktok-studio-quet/SKILL.md").decode()
     assert skill.startswith("---\nname: tiktok-studio-quet\n") and "/danh-gia/ngu-canh" in skill
     assert "Tải skill" in c.get("/danh-gia").text
+
+
+def test_run_info_and_clock():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    body = ("# Quét kênh hằng ngày 25/11/2026\n\n## 1. Tóm tắt\nok\n```json\n"
+            '{"schema": "tiktok-studio-quet/v1", "mode": "hang_ngay", "run": {"started_at": "2026-11-25T16:30:05+07:00",'
+            ' "finished_at": "2026-11-25T16:52:41+07:00", "tokens_est": {"input": 81000, "output": 4200, "total": 85200},'
+            ' "exact_tokens": null}}\n```\n')
+    info = chrome_reports.run_info(body)
+    assert info["duration_min"] == 22.6 and info["tokens_est"] == 85200 and info["tokens_exact"] is None
+    assert info["mode"] == "hang_ngay"
+    assert chrome_reports.run_info("a" * 300)["tokens_est"] == 100  # không có khối run → ước tính đầu ra
+    rid = chrome_reports.add(body)
+    assert chrome_reports.list_reports()[0]["tokens_est"] == 85200 and chrome_reports.get(rid)["run_started"].startswith("2026-11-25T16:30")
+    c = TestClient(app)
+    c.post("/login", data={"password": settings.app_password})
+    assert "ISO: 20" in c.get("/danh-gia/gio").text
+    page = c.get("/danh-gia").text
+    assert "85,200 token" in page and "22.6 phút" in page
+    z = c.get("/danh-gia/skill.zip").content
+    import io, zipfile
+    zz = zipfile.ZipFile(io.BytesIO(z))
+    assert "/danh-gia/gio" in zz.read("tiktok-studio-quet/SKILL.md").decode()
+    assert '"exact_tokens"' in zz.read("tiktok-studio-quet/references/report-template.md").decode()

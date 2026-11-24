@@ -29,10 +29,22 @@ def init() -> None:
         c.execute("""CREATE TABLE IF NOT EXISTS chrome_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, pid INTEGER, video_id TEXT DEFAULT '',
             title TEXT, body TEXT)""")
+        cols = {r[1] for r in c.execute("PRAGMA table_info(chrome_reports)").fetchall()}
+        for col, typ in (("run_started", "TEXT DEFAULT ''"), ("run_finished", "TEXT DEFAULT ''"),
+                         ("duration_min", "REAL"), ("tokens_est", "INTEGER"), ("tokens_exact", "INTEGER"),
+                         ("mode", "TEXT DEFAULT ''")):
+            if col not in cols:
+                c.execute(f"ALTER TABLE chrome_reports ADD COLUMN {col} {typ}")
 
 
 def _now() -> str:
     return datetime.now(VN).strftime("%d/%m/%Y %H:%M")
+
+
+def clock_text() -> str:
+    """Giờ máy chủ cho skill ghi mốc bắt đầu/kết thúc (trang /danh-gia/gio)."""
+    n = datetime.now(VN)
+    return f"TikTok Manager · giờ Việt Nam: {n:%d/%m/%Y %H:%M:%S}\nISO: {n.isoformat(timespec='seconds')}\n"
 
 
 def _video(video_id: str) -> dict:
@@ -170,18 +182,54 @@ def add(body: str, title: str = "", pid: int | None = None, video_id: str = "") 
     if not video_id:
         m = re.search(r'"video_id"\s*:\s*"(\d{8,})"', body)
         video_id = m.group(1) if m else ""
+    run = run_info(body)
     with db.tx() as c:
-        cur = c.execute("INSERT INTO chrome_reports (created_at, pid, video_id, title, body) VALUES (?,?,?,?,?)",
-                        (db.now_iso(), pid, video_id, title, body))
+        cur = c.execute("INSERT INTO chrome_reports (created_at, pid, video_id, title, body, run_started, run_finished,"
+                        " duration_min, tokens_est, tokens_exact, mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (db.now_iso(), pid, video_id, title, body, run["started_at"], run["finished_at"],
+                         run["duration_min"], run["tokens_est"], run["tokens_exact"], run["mode"]))
         return cur.lastrowid
+
+
+def _int(x) -> int | None:
+    try:
+        return int(float(str(x).replace(".", "").replace(",", ""))) if x not in (None, "") else None
+    except ValueError:
+        return None
+
+
+def run_info(body: str) -> dict:
+    """Thông tin lần chạy skill: giờ bắt đầu/kết thúc, thời lượng, token (khối "run" trong JSON).
+    Thiếu số token của skill → ước tính phần báo cáo (đầu ra) theo độ dài: ~1 token / 3 ký tự tiếng Việt."""
+    data = extract_json(body) or {}
+    r = data.get("run") or {}
+    tok = r.get("tokens_est") or {}
+    total = _int(tok.get("total")) if isinstance(tok, dict) else _int(tok)
+    started, finished = str(r.get("started_at") or ""), str(r.get("finished_at") or "")
+    dur = r.get("duration_min")
+    if dur in (None, "") and started and finished:
+        try:
+            a, b = datetime.fromisoformat(started), datetime.fromisoformat(finished)
+            dur = round((b - a).total_seconds() / 60, 1)
+        except ValueError:
+            dur = None
+    try:
+        dur = float(dur) if dur not in (None, "") else None
+    except (TypeError, ValueError):
+        dur = None
+    return {"started_at": started, "finished_at": finished, "duration_min": dur,
+            "tokens_est": total if total else round(len(body or "") / 3), "tokens_exact": _int(r.get("exact_tokens")),
+            "tokens_from_skill": bool(total), "mode": str(data.get("mode") or "")}
+
+
+_LIST_COLS = "id, created_at, pid, video_id, title, run_started, run_finished, duration_min, tokens_est, tokens_exact, mode"
 
 
 def list_reports(pid: int | None = None, limit: int = 50) -> list[dict]:
     init()
     if pid:
-        return db.query("SELECT id, created_at, pid, video_id, title FROM chrome_reports WHERE pid=? ORDER BY id DESC LIMIT ?",
-                        (pid, limit))
-    return db.query("SELECT id, created_at, pid, video_id, title FROM chrome_reports ORDER BY id DESC LIMIT ?", (limit,))
+        return db.query(f"SELECT {_LIST_COLS} FROM chrome_reports WHERE pid=? ORDER BY id DESC LIMIT ?", (pid, limit))
+    return db.query(f"SELECT {_LIST_COLS} FROM chrome_reports ORDER BY id DESC LIMIT ?", (limit,))
 
 
 def get(rid: int) -> dict | None:

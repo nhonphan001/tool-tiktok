@@ -846,6 +846,14 @@ def chrome_page(request: Request, days: int = 7):
                   pk={p["id"]: p for p in packages.all_packages()})
 
 
+@app.get("/danh-gia/gio")
+def chrome_clock():
+    """Mốc giờ cho skill tiktok-studio-quet ghi lúc bắt đầu và kết thúc."""
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.clock_text(), media_type="text/plain; charset=utf-8")
+
+
 @app.get("/danh-gia/ngu-canh")
 def chrome_context(days: int = 14):
     """Trang văn bản cho skill Claude in Chrome đọc (cần đăng nhập TikTok Manager)."""
