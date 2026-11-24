@@ -144,7 +144,7 @@ def _daily_gains(video_id: str) -> list[tuple[str, int]]:
 
 def promo_suspects(open_id: str | None = None) -> list[dict]:
     """Video nghi có Quảng bá mà Chrome chưa xác nhận: (a) ≥3 ngày liền tăng ≥1.000 view/ngày và đều nhau (max ≤ 1,8 × min);
-    (b) view/ngày ≥ 5 × trung vị kênh. Chỉ là gợi ý để chạy skill kiểm trang Quảng bá."""
+    (b) tổng view ≥ 5 × trung vị view của video 30 ngày gần đây (và ≥ 2.000). Chỉ là gợi ý để chạy skill kiểm trang Quảng bá."""
     from . import analytics
 
     acc = db.get_active_account() or {}
@@ -153,8 +153,10 @@ def promo_suspects(open_id: str | None = None) -> list[dict]:
         return []
     vids = analytics.get_videos(oid)
     chrome = latest_chrome()
-    vpd = [v["views_per_day"] for v in vids if v.get("views_per_day")]
-    med = statistics.median(vpd) if vpd else 0
+    # trung vị theo VIEW TỔNG của video 30 ngày gần đây (view/ngày của video cũ rất nhỏ → bội số bị phóng đại)
+    recent = [v for v in vids if v.get("age_days") is not None and v["age_days"] <= 30]
+    tot = [v.get("view_count") or 0 for v in recent]
+    med = statistics.median(tot) if len(tot) >= 5 else 0
     out = []
     for v in vids[:60]:
         c = chrome.get(v["id"])
@@ -165,8 +167,8 @@ def promo_suspects(open_id: str | None = None) -> list[dict]:
         run = [g for _, g in gains[-5:] if g >= 1000]
         if len(run) >= 3 and max(run) <= 1.8 * min(run):
             reasons.append(f"{len(run)} ngày liền tăng đều {min(run):,}–{max(run):,} view/ngày".replace(",", "."))
-        if med and (v.get("views_per_day") or 0) >= 5 * med and (v.get("view_count") or 0) >= 2000:
-            reasons.append(f"{v['views_per_day']:,} view/ngày ≈ {v['views_per_day'] / med:.0f}× trung vị kênh".replace(",", "."))
+        if med and (v.get("view_count") or 0) >= max(5 * med, 2000):
+            reasons.append(f"{v['view_count']:,} view ≈ {v['view_count'] / med:.0f}× trung vị 30 ngày ({med:,.0f})".replace(",", "."))
         if reasons:
             out.append({"video_id": v["id"], "posted": v.get("posted_str"), "views": v.get("view_count"),
                         "label": v.get("label"), "reasons": reasons})
