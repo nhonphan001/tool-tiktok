@@ -911,8 +911,42 @@ async def chrome_report_upload(request: Request):
         if vid:
             with db.tx() as c:
                 c.execute("UPDATE chrome_reports SET video_id=? WHERE id=?", (vid, rid))
-    flash(request, "Đã lưu báo cáo. Lần lập chiến lược tới sẽ dùng báo cáo này.", "success")
+    from . import consensus
+
+    jobs.start("consensus", lambda: "Báo cáo đồng thuận: " + consensus.after_report(rid), link="/dong-thuan",
+               label="Tách số liệu + gửi báo cáo đồng thuận cho Gemini")
+    flash(request, "Đã lưu báo cáo. Tool đang tách số liệu và gửi báo cáo đồng thuận cho Gemini (chạy nền).", "success")
     return RedirectResponse(back, status_code=303)
+
+
+@app.get("/dong-thuan", response_class=HTMLResponse)
+def consensus_page(request: Request, days: int = 21):
+    from . import consensus
+
+    days = max(3, min(days, 60))
+    consensus.init()
+    return render(request, "consensus.html", active="chrome", md=consensus.build_md(days=days), days=days,
+                  doc=settings.consensus_doc_gemini)
+
+
+@app.get("/dong-thuan.md")
+def consensus_md(days: int = 21):
+    from . import consensus
+
+    return HTMLResponse(consensus.build_md(days=max(3, min(days, 60))), media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": "attachment; filename=BAO_CAO_DONG_THUAN.md"})
+
+
+@app.post("/dong-thuan/gui")
+def consensus_send(request: Request):
+    from . import consensus
+
+    def _go():
+        n = consensus.ingest_all()
+        return f"Đã tách {n} dòng số liệu · gửi Gemini: {consensus.push()}"
+    jobs.start("consensus", _go, link="/dong-thuan", label="Gửi báo cáo đồng thuận cho Gemini")
+    flash(request, "Đang tách lại số liệu và gửi báo cáo đồng thuận (chạy nền).", "success")
+    return RedirectResponse("/dong-thuan", status_code=303)
 
 
 @app.post("/danh-gia/{rid}/xoa")

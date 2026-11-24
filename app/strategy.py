@@ -239,6 +239,17 @@ def _build_prompt(open_id: str, goal: str) -> str:
     if settings.ads_context:
         prompt += f"=== BỐI CẢNH QUẢNG BÁ TRẢ PHÍ ===\n{settings.ads_context}\n"
         prompt += ("Trạng thái hiện tại: TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ.\n\n" if settings.ads_paused else "Trạng thái hiện tại: có thể dùng Quảng bá.\n\n")
+    try:
+        from . import consensus
+
+        md = consensus.build_md(open_id)
+        start = md.find("## 2. Bảng video ghép")
+        end = md.find("## 6. Báo cáo Claude in Chrome")
+        if start >= 0:
+            prompt += ("=== SỐ LIỆU ĐỒNG THUẬN (tổng = API, trả phí = trang Quảng bá, giữ chân/follower = Studio) ===\n"
+                       + md[start:end if end > 0 else None][:8000] + "\n\n")
+    except Exception:  # noqa: BLE001
+        log.exception("consensus in strategy prompt")
     reports = chrome_reports.recent_for_prompt()
     if reports:
         prompt += "=== ĐÁNH GIÁ CHUYÊN SÂU (Claude in Chrome đọc TikTok Studio) ===\n" + reports + "\n\n"

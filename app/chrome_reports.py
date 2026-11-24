@@ -316,6 +316,14 @@ def context_md(days: int = 14) -> str:
                 f"- Bình luận ghim: {(p.get('pinned') or '—').strip()}"]
         out += [f"  {i}. {(p.get(f'scene{i}') or '').strip()}" for i in range(1, ns + 1) if (p.get(f"scene{i}") or "").strip()]
         out.append("")
+    try:
+        from . import consensus
+
+        sus = consensus.promo_suspects(oid)
+    except Exception:  # noqa: BLE001
+        sus = []
+    out += ["## Video nghi được Quảng bá (từ chuỗi API) — BẮT BUỘC kiểm trang Quảng bá cho các video này"] + \
+           [f"- {s['video_id']} · {s['posted']} · {'; '.join(s['reasons'])}" for s in sus] + ([] if sus else ["- (không có)"]) + [""]
     rows = list_reports(limit=5)
     out += ["## Báo cáo Claude in Chrome đã lưu (5 gần nhất)"] + \
            [f"- {r['created_at'][:16]} · {r['title']}" for r in rows] + ([] if rows else ["- (chưa có)"])

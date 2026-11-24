@@ -84,7 +84,8 @@ Với mỗi video:
 
 ### Bước 4: Quảng bá
 - Chế độ hằng tuần: bắt buộc.
-- Chế độ hằng ngày: chỉ khi có video nghi bị quảng bá.
+- Chế độ hằng ngày: chỉ khi có video nghi bị quảng bá, **gồm mọi video trong mục "Video nghi được Quảng bá" của trang ngữ cảnh**.
+- Mọi video trong báo cáo phải có `promoted` là `true` hoặc `false` khi đã kiểm trang Quảng bá. Chỉ để `null` khi chưa kiểm. Tool dùng trường này để tách số tự nhiên.
 
 1. Mở `https://www.tiktok.com/promote/web/dashboard` → Lịch sử đặt lệnh.
 2. Liệt kê lệnh trong kỳ (phần **E**). Với mỗi video ở Bước 3, xác định **promoted = true/false**.
