@@ -60,7 +60,7 @@ Nếu lời gọi không nói chế độ, dùng **hằng ngày**. Nếu hôm na
    - bảng **Video ↔ Gói** (ID video, giờ đăng, gói, Loại, số cảnh, view theo API);
    - kịch bản của từng gói (chữ trên hình, caption, bình luận ghim, lời thoại);
    - **bối cảnh quảng bá** và trạng thái "tuần thử nghiệm không quảng bá";
-   - các báo cáo đã lưu, để không lặp báo cáo cùng ngày cùng chế độ.
+   - các báo cáo đã lưu, để không lặp báo cáo cùng ngày cùng chế độ. Nếu đã có thì chỉ báo số mới trong chat, không lưu bản trùng, **trừ khi anh Nhơn yêu cầu lưu**.
 
 ### Bước 2: Tổng quan kênh (TikTok Studio → Phân tích)
 Mở `https://www.tiktok.com/tiktokstudio/analytics`. Nếu URL đổi, vào TikTok Studio rồi chọn menu **Phân tích**.
@@ -89,6 +89,8 @@ Với mỗi video:
 1. Mở `https://www.tiktok.com/promote/web/dashboard` → Lịch sử đặt lệnh.
 2. Liệt kê lệnh trong kỳ (phần **E**). Với mỗi video ở Bước 3, xác định **promoted = true/false**.
 3. Nếu có quảng bá: tính **tự nhiên = tổng − trả phí** (view, follower, thích).
+   - Nếu Studio làm tròn tổng view (vd "11K"), lấy **view chính xác theo API** ở cột "View (API)" của trang ngữ cảnh làm tổng, ghi rõ nguồn và giờ quét API.
+   - Trang Quảng bá và Studio cập nhật lệch giờ nhau: ghi phần tự nhiên dạng khoảng (vd "~400–450 view").
 
 ### Bước 5: Đối chiếu TikTok Manager và TikTok Studio
 Với mỗi video:
