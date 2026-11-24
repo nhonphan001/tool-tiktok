@@ -228,3 +228,50 @@ def recent_for_prompt(n: int = 5, per: int = 2500, total: int = 10000) -> str:
         out.append(part)
         size += len(part)
     return "\n\n".join(out)
+
+
+def context_md(days: int = 14) -> str:
+    """Trang ngữ cảnh cho Claude in Chrome (skill tiktok-studio-quet): gói ↔ video, kịch bản, số API của tool, quy tắc."""
+    from . import analytics, packages
+
+    acc = db.get_active_account() or {}
+    oid = acc.get("open_id") or ""
+    snap = db.query_one("SELECT taken_at, follower_count, likes_count, video_count FROM account_snapshots WHERE open_id=?"
+                        " AND follower_count IS NOT NULL ORDER BY taken_at DESC LIMIT 1", (oid,)) or {}
+    since = datetime.now(VN) - timedelta(days=days)
+    vids = [v for v in (analytics.get_videos(oid) if oid else []) if v.get("posted_local") and v["posted_local"] >= since]
+    by_vid = {p.get("video_id"): p for p in packages.all_packages() if p.get("video_id")}
+    out = [f"# TikTok Manager: ngữ cảnh cho Claude in Chrome ({_now()})", "",
+           f"- Kênh: @{acc.get('username') or 'tiemtragiaima'} · follower theo API lần quét gần nhất: "
+           f"{snap.get('follower_count', 'không rõ')} ({str(snap.get('taken_at') or '')[:16]})",
+           f"- Trạng thái quảng bá: {'TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ' if settings.ads_paused else 'có thể có Quảng bá'}",
+           f"- Khoảng xem: {days} ngày qua · {len(vids)} video", "",
+           "## Bối cảnh quảng bá", settings.ads_context.strip() or "(trống)", "",
+           "## Video và gói tương ứng",
+           "| Video ID | Đăng | Gói | Loại | Cảnh | View (API) | Thích | BL | Chia sẻ | Tiêu đề |",
+           "|---|---|---|---|---|---|---|---|---|---|"]
+    for v in vids:
+        p = by_vid.get(v["id"]) or {}
+        out.append(f"| {v['id']} | {v['posted_str']} | {p.get('goi') or '—'} | {p.get('loai') or '—'} | "
+                   f"{packages.n_scenes(p) if p else '—'} | {v.get('view_count') or 0} | {v.get('like_count') or 0} | "
+                   f"{v.get('comment_count') or 0} | {v.get('share_count') or 0} | {(v.get('label') or '').replace('|', '/')[:60]} |")
+    out += ["", "## Kịch bản các gói đã gắn video"]
+    for v in vids:
+        p = by_vid.get(v["id"])
+        if not p:
+            continue
+        ns = packages.n_scenes(p)
+        out += [f"### Gói {p.get('goi')} · video {v['id']} · Loại {p.get('loai')} · {ns} cảnh",
+                f"- Link: {v.get('share_url') or ''}",
+                f"- Chữ trên hình: {(p.get('on_screen') or '—').strip()}",
+                f"- Caption ({len((p.get('caption') or '').strip())} ký tự): {(p.get('caption') or '—').strip()}",
+                f"- Bình luận ghim: {(p.get('pinned') or '—').strip()}"]
+        out += [f"  {i}. {(p.get(f'scene{i}') or '').strip()}" for i in range(1, ns + 1) if (p.get(f"scene{i}") or "").strip()]
+        out.append("")
+    rows = list_reports(limit=5)
+    out += ["## Báo cáo Claude in Chrome đã lưu (5 gần nhất)"] + \
+           [f"- {r['created_at'][:16]} · {r['title']}" for r in rows] + ([] if rows else ["- (chưa có)"])
+    out += ["", "## Quy tắc hiệu suất để đối chiếu video thật",
+            "H1 khung 0 sáng, có chuyển động, nói ngay giây 0 · H2 chữ hook lớn ≤ 70 ký tự · H3 câu kêu gọi ở cảnh 1–2 (giây 3–8) · "
+            "H4 caption ≤ 250 ký tự · H5 không chữ chỉ giờ · H6 cùng bối cảnh/ánh sáng mọi cảnh."]
+    return "\n".join(out)

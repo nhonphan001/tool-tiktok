@@ -76,3 +76,23 @@ def test_chrome_routes():
     pid = packages.save({"goi": "93", "loai": 3, "scene1": S, "caption": "Trà"})
     assert "Claude in Chrome" in c.get(f"/packages/{pid}").text
     assert c.post(f"/danh-gia/{rid}/xoa", follow_redirects=False).status_code == 303
+
+
+def test_chrome_skill_and_context():
+    import io
+    import zipfile
+
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    c = TestClient(app)
+    c.post("/login", data={"password": settings.app_password})
+    r = c.get("/danh-gia/ngu-canh?days=14")
+    assert r.status_code == 200 and "Video và gói tương ứng" in r.text and "Bối cảnh quảng bá" in r.text
+    z = zipfile.ZipFile(io.BytesIO(c.get("/danh-gia/skill.zip").content))
+    names = set(z.namelist())
+    assert {"tiktok-studio-quet/SKILL.md", "tiktok-studio-quet/references/checklist.md",
+            "tiktok-studio-quet/references/report-template.md"} <= names
+    skill = z.read("tiktok-studio-quet/SKILL.md").decode()
+    assert skill.startswith("---\nname: tiktok-studio-quet\n") and "/danh-gia/ngu-canh" in skill
+    assert "Tải skill" in c.get("/danh-gia").text

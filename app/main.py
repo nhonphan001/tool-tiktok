@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 import markdown as md
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -844,6 +844,31 @@ def chrome_page(request: Request, days: int = 7):
     return render(request, "chrome_reports.html", active="chrome", rows=chrome_reports.list_reports(),
                   week=chrome_reports.week_request(days), days=days, ads_paused=settings.ads_paused,
                   pk={p["id"]: p for p in packages.all_packages()})
+
+
+@app.get("/danh-gia/ngu-canh")
+def chrome_context(days: int = 14):
+    """Trang văn bản cho skill Claude in Chrome đọc (cần đăng nhập TikTok Manager)."""
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.context_md(max(1, min(days, 60))), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/danh-gia/skill.zip")
+def chrome_skill_zip():
+    """Gói skill tiktok-studio-quet (SKILL.md + references) để tải lên Claude."""
+    import io
+    import zipfile as _zf
+    from pathlib import Path
+
+    root = Path(__file__).parent / "chrome_skill"
+    buf = io.BytesIO()
+    with _zf.ZipFile(buf, "w", _zf.ZIP_DEFLATED) as z:
+        for f in sorted((root / "tiktok-studio-quet").rglob("*")):
+            if f.is_file():
+                z.write(f, f.relative_to(root).as_posix())
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": "attachment; filename=tiktok-studio-quet.zip"})
 
 
 @app.get("/danh-gia/{rid}.md")
