@@ -98,6 +98,10 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
         f"{n} cảnh cùng 1 gói phải THỐNG NHẤT bối cảnh, ánh sáng và thời điểm trong ngày (không để 1 cảnh sáng hơn/khác giờ "
         "so với các cảnh còn lại) — quy tắc anh Nhơn chốt 20/11.",
         "Bật nhãn “Nội dung do AI tạo” khi đăng.",
+        "**Hiệu suất (số liệu Studio 24/11: mọi video mất ~50% người xem ở giây 2, chỉ 2–6% xem tới cảnh cuối):** khung hình 0 "
+        "sáng, có chuyển động (hơi trà, rót trà, ánh nắng), Cô Kim nói NGAY giây 0; ô “Chữ trên hình” là chữ hook lớn giữa màn "
+        "hình ≤ 70 ký tự; 1 câu kêu gọi ngắn ở cảnh 1–2 (giây 3–8), không chỉ ở cảnh cuối; caption ≤ 250 ký tự, dòng đầu là lý "
+        "do để follow/comment; không ghi giờ (“tối nay”, “19h”) trong caption, chữ trên hình và lời thoại.",
     ]
     if n >= 6:
         common.append(f"**Video trên 60 giây ({n} cảnh, thư CHOT-2311-VIDEO-60-GIAY):** thành phẩm phải dài TRÊN 61 giây; "
@@ -107,12 +111,14 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
     if loai == 3:
         return [
             "**Loại 3 – Video tăng follow, KHÔNG gắn giỏ hàng, KHÔNG SKU.**",
-            "Vì video sẽ chạy **Quảng bá trả phí** nên tuyệt đối **không xem lá số, không bói toán, không Bát Tự/can chi/"
+            "Giữ video **đủ điều kiện Quảng bá** (kể cả tuần không quảng bá) nên tuyệt đối **không xem lá số, không bói toán, không Bát Tự/can chi/"
             "Nhật chủ/Dụng thần, không mời “để lại ngày sinh”** (TikTok cấm quảng cáo dịch vụ bói toán tại VN — "
             "lý do bị từ chối ngày 18/11).",
             "Nội dung nên chọn: trà sáng chữa lành, lời chúc buổi sáng, đếm ngược cuối năm, câu chuyện đời thường ấm áp, "
             "mẹo trà. Cô Kim là người pha trà, không phải thầy bói.",
-            "CTA duy nhất: “bấm theo dõi Cô Kim” (có thể kèm “mỗi sáng Cô Kim pha một ấm trà cho cả nhà”).",
+            "CTA: “bấm theo dõi Cô Kim” kèm lời hứa “mỗi sáng Cô Kim pha một ấm trà cho cả nhà” — nói ở cảnh 1–2 và lặp ở dòng "
+            "đầu caption; bình luận ghim là 1 câu hỏi đời thường dễ trả lời (vd “Sáng nay cả nhà uống trà gì?”), không kiểu "
+            "“comment ‘trà’ để nhận…”.",
             *common,
         ] + (["Nội dung phải giữ được 7 ngày chạy quảng cáo: tránh mốc ngày cụ thể trong lời thoại (vd “thứ Ba 17/11”), "
               "dùng “sáng nay”, “những ngày cuối năm”."] if ads else [])
@@ -121,8 +127,9 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
                 "lá số. Tên sản phẩm đúng cột “Tên dùng trong video”. CTA: “bấm giỏ hàng góc trái”. Chèn ảnh sản phẩm thật "
                 "(C.9).", *common]
     return ["**Loại 1 – Video giải mã lá số (không giỏ hàng, KHÔNG chạy quảng cáo).** Dùng NGUYÊN VĂN lá số trong mục "
-            "“Lá số (TikTok Manager tính)” của thư này, không tự tính can chi / Nhật chủ / Dụng thần. Không nối lá số với vật phẩm. CTA: “để lại ngày sinh dưới bình luận "
-            "để Cô Kim giải mã”.", *common]
+            "“Lá số (TikTok Manager tính)” của thư này, không tự tính can chi / Nhật chủ / Dụng thần. Không nối lá số với vật phẩm. CTA sớm ở cảnh 1–2: “comment năm sinh để Cô Kim xem giúp”; "
+            "CTA cuối: “để lại ngày sinh dưới bình luận để Cô Kim giải mã”. Ưu tiên lá số theo NĂM SINH cụ thể (vd “Nữ Đinh Mùi "
+            "1967 bước vào năm 2027”), 7 cảnh.", *common]
 
 
 def _n(x) -> str:
@@ -179,7 +186,7 @@ def chart_lines(birth: dict) -> list[str]:
 def build_letter(req: dict) -> str:
     o = req["opts"]
     loai = int(o.get("loai") or 3)
-    ads = bool(o.get("ads"))
+    ads = bool(o.get("ads")) and not settings.ads_paused  # tuần thử nghiệm không quảng bá → không xin kế hoạch quảng cáo
     goi = req["goi"]
     answer = f"{req['code']}__XONG.md"
     n = int(o.get("scenes") or 4)

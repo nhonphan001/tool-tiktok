@@ -421,7 +421,16 @@ def _package_ctx(p: dict) -> dict:
     return {"clips": None, "nsc": packages.n_scenes(p), "max_sc": packages.MAX_SCENES, "sua_reqs": sua, "req_status": gemini_requests.STATUS, "clip_s": packages.clip_seconds(),
             "syl_lo": syl_lo, "syl_hi": syl_hi, "plan": plan, "plan_fields": post_plan.FIELDS, "p": p, "b": p.get("birth") or {}, "chk": chk, "block": packages.nhan_video_block(p, chk) if p.get("id") else "",
             "loai": packages.LOAI, "status": packages.STATUS, "groups": tags.CONTENT_GROUPS,
-            "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else []}
+            "products": products.all_products(), "videos": analytics.get_videos(acc["open_id"])[:60] if acc else [],
+            **_chrome_ctx(p)}
+
+
+def _chrome_ctx(p: dict) -> dict:
+    from . import chrome_reports
+
+    if not p.get("id"):
+        return {"chrome_req": "", "chrome_rows": []}
+    return {"chrome_req": chrome_reports.video_request(p), "chrome_rows": chrome_reports.list_reports(p["id"])}
 
 
 @app.get("/requests", response_class=HTMLResponse)
@@ -825,6 +834,61 @@ def summaries_page(request: Request):
 
     return render(request, "summaries.html", active="strategy", rows=cycle_summary.all_rows(),
                   doc_g=settings.summary_doc_gemini, doc_c=settings.summary_doc_claude)
+
+
+@app.get("/danh-gia", response_class=HTMLResponse)
+def chrome_page(request: Request, days: int = 7):
+    from . import chrome_reports
+
+    days = max(1, min(days, 30))
+    return render(request, "chrome_reports.html", active="chrome", rows=chrome_reports.list_reports(),
+                  week=chrome_reports.week_request(days), days=days, ads_paused=settings.ads_paused,
+                  pk={p["id"]: p for p in packages.all_packages()})
+
+
+@app.get("/danh-gia/{rid}.md")
+def chrome_report_md(rid: int):
+    from . import chrome_reports
+
+    r = chrome_reports.get(rid)
+    if not r:
+        return RedirectResponse("/danh-gia", status_code=303)
+    return HTMLResponse(r["body"], media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": f"inline; filename=danh-gia-{rid}.md"})
+
+
+@app.post("/danh-gia")
+async def chrome_report_upload(request: Request):
+    from . import chrome_reports
+
+    form = await request.form()
+    pid = int(form.get("pid") or 0) or None
+    back = f"/packages/{pid}#posted" if pid else "/danh-gia"
+    body = str(form.get("text") or "").strip()
+    f = form.get("file")
+    if not body and f is not None and hasattr(f, "read"):
+        raw = await f.read()
+        body = raw.decode("utf-8", errors="replace").strip()
+    if len(body) < 50:
+        flash(request, "Báo cáo trống hoặc quá ngắn — dán nội dung hoặc chọn file .md của Claude in Chrome.", "error")
+        return RedirectResponse(back, status_code=303)
+    rid = chrome_reports.add(body, pid=pid)
+    if pid and not chrome_reports.get(rid)["video_id"]:
+        vid = (packages.get(pid) or {}).get("video_id") or ""
+        if vid:
+            with db.tx() as c:
+                c.execute("UPDATE chrome_reports SET video_id=? WHERE id=?", (vid, rid))
+    flash(request, "Đã lưu báo cáo. Lần lập chiến lược tới sẽ dùng báo cáo này.", "success")
+    return RedirectResponse(back, status_code=303)
+
+
+@app.post("/danh-gia/{rid}/xoa")
+def chrome_report_delete(request: Request, rid: int):
+    from . import chrome_reports
+
+    chrome_reports.delete(rid)
+    flash(request, "Đã xoá báo cáo", "success")
+    return RedirectResponse("/danh-gia", status_code=303)
 
 
 @app.get("/tom-tat/{sid}.md")
@@ -1370,7 +1434,7 @@ def settings_page(request: Request):
 async def settings_save(request: Request):
     form = await request.form()
     for key in EDITABLE_KEYS:
-        if key in ("auto_strategy", "veo_enabled", "auto_apply_updates"):
+        if key in ("auto_strategy", "veo_enabled", "auto_apply_updates", "ads_paused"):
             val = "true" if form.get(key) else "false"
         elif key in form:
             val = str(form.get(key)).strip()

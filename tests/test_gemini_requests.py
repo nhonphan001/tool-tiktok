@@ -116,7 +116,10 @@ def test_real_goi17_v33_prompts():
     d = {k: m.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES)}
     d["loai"] = 3
     chk = packages.check(packages.get(packages.save(d)))
-    assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]
+    assert chk["errors"] == 0 and chk["ads_ok"]
+    # Gói 17 gốc: CTA follow chỉ ở cảnh 4 + caption > 250 ký tự (quy tắc hiệu suất 24/11)
+    assert sorted(i["msg"][:14] for i in chk["items"] if i["level"] == "warn") == sorted(
+        i["msg"][:14] for i in chk["items"] if i["rule"] == "Hiệu suất") and chk["warns"] == 2
 
 
 def test_check_replies_notifies_final_video(monkeypatch):

@@ -34,6 +34,10 @@
         <div style="flex:2;min-width:200px"><label>Khung giờ đăng (phân tách dấu phẩy)</label><input name="posting_slots" value="{{ s.posting_slots }}"></div>
         <div style="flex:1;min-width:140px"><label>Độ dài 1 clip Gemini (giây)</label><input type="number" min="6" max="15" name="clip_seconds" value="{{ s.clip_seconds }}"></div>
       </div>
+      <h2 style="margin-top:20px">Quảng bá</h2>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="ads_paused" value="1" style="width:auto" {{ 'checked' if s.ads_paused }}> Tuần thử nghiệm KHÔNG quảng bá (tool và Gemini không lên kế hoạch Quảng bá; đo view/follower tự nhiên)</label>
+      <label>Bối cảnh quảng bá đã chạy (gửi kèm cho AI lập chiến lược để không nhầm view trả phí là tự nhiên; để trống = bản mặc định)</label>
+      <textarea name="ads_context" rows="6">{{ s.ads_context }}</textarea>
       <h2 style="margin-top:20px">Bảng quản trị sản phẩm</h2>
       <label>ID Google Sheet (chia sẻ cho service account: Người xem để đọc, Người chỉnh sửa để thêm SKU)</label><input name="product_sheet_id" value="{{ s.product_sheet_id }}">
       <label>Vùng đọc</label><input name="product_sheet_range" value="{{ s.product_sheet_range }}">

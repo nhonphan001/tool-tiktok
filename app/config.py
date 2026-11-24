@@ -100,6 +100,10 @@ class Settings:
     summary_doc_claude: str = field(default_factory=lambda: os.getenv("SUMMARY_DOC_CLAUDE", "1U4g6gMgcNy5oaL6jtOmCp9FEF1QFWKLxG50cK6zCMVE"))
     # Hồ sơ giọng Cô Kim (lời dặn cho Gemini TTS) — trống = app/defaults/co_kim_voice.md
     tts_style: str = field(default_factory=lambda: _default_text("co_kim_voice.md", "TTS_STYLE"))
+    # Tuần thử nghiệm KHÔNG quảng bá (anh Nhơn chốt 24/11): tool không gợi ý bật Quảng bá, Gemini không viết kế hoạch quảng cáo
+    ads_paused: bool = field(default_factory=lambda: _bool(os.getenv("ADS_PAUSED"), True))
+    # Bối cảnh quảng bá đã chạy (để AI không nhầm view trả phí là view tự nhiên) — trống = app/defaults/ads_context.md
+    ads_context: str = field(default_factory=lambda: _default_text("ads_context.md", "ADS_CONTEXT"))
 
     notebooklm_mode: str = field(default_factory=lambda: os.getenv("NOTEBOOKLM_MODE", "local"))
     export_dir: str = field(default_factory=lambda: os.getenv("EXPORT_DIR", "exports"))
@@ -157,6 +161,8 @@ EDITABLE_KEYS = {
     "summary_doc_gemini": str,
     "clip_seconds": int,
     "auto_apply_updates": lambda v: _bool(str(v)),
+    "ads_paused": lambda v: _bool(str(v)),
+    "ads_context": str,
     "summary_doc_claude": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
@@ -169,6 +175,7 @@ DEFAULT_TEXT_KEYS = {
     "channel_context": ("channel_context.md", "CHANNEL_CONTEXT"),
     "content_rules": ("content_rules.md", "CONTENT_RULES"),
     "tts_style": ("co_kim_voice.md", "TTS_STYLE"),
+    "ads_context": ("ads_context.md", "ADS_CONTEXT"),
 }
 
 settings = Settings()

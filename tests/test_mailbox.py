@@ -44,7 +44,10 @@ def test_parse_gemini_bold_h1_headings_goi17():
     pk = {k: m.get(k, "") for k in packages.FIELDS}
     pk["loai"] = 3
     chk = packages.check(pk)
-    assert chk["errors"] == 0 and chk["warns"] == 0 and chk["ads_ok"]
+    assert chk["errors"] == 0 and chk["ads_ok"]
+    # Gói 17 gốc: CTA follow chỉ ở cảnh 4 + caption > 250 ký tự (quy tắc hiệu suất 24/11)
+    assert sorted(i["msg"][:14] for i in chk["items"] if i["level"] == "warn") == sorted(
+        i["msg"][:14] for i in chk["items"] if i["rule"] == "Hiệu suất") and chk["warns"] == 2
 
 
 def test_video_prompts_parsed_saved_and_checked():

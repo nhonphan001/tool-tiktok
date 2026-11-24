@@ -95,7 +95,7 @@ def _classify(r: dict) -> dict:
         if re.search(r"\b(?:11|12):\d\d", r["gio"]) and re.match(r"11", r["gio"]):
             w.append("Video giỏ hàng chiếm khung 11:00 (khung kéo follow tốt nhất) → nên dời 12:00.")
     if loai == 1 and re.match(r"\s*1[01]:", r["gio"]):
-        w.append("Khung 11:00 nên dành cho Loại 3 (trà sáng kéo tim/follow, tim/view 11–14%); lá số nên dời 19:00.")
+        w.append("Khung 11:00 dành cho series Trà sáng (Loại 3); lá số đăng 12:30 hoặc 19:00 (tuần thử nghiệm xen kẽ 2 khung).")
     if loai == 3 and FORTUNE_RX.search(text):
         w.append("Loại 3 (được quảng cáo) không được nhắc lá số/tuổi.")
     if re.search(r"\bthỉnh\b", text, re.I):
@@ -122,7 +122,8 @@ def prefill(r: dict) -> dict:
     if r.get("hook"):
         parts.append(f"Hook gợi ý (3 giây đầu): \"{r['hook']}\".")
     if r.get("dinh_dang") or r.get("do_dai"):
-        parts.append(f"Định dạng: {r.get('dinh_dang') or '—'}, độ dài {r.get('do_dai') or '32s'} (4 cảnh, clip 10 giây).")
+        sc = "7 cảnh × 10 giây, trên 61 giây" if r["loai"] == 1 else "3–4 cảnh × 10 giây, ~30 giây"
+        parts.append(f"Định dạng: {r.get('dinh_dang') or '—'}, độ dài {r.get('do_dai') or ('65s' if r['loai'] == 1 else '32s')} ({sc}).")
     tags = FORTUNE_TAG_RX.sub("", r.get("hashtag") or "") if r["loai"] == 2 else (r.get("hashtag") or "")
     if tags.strip():
         parts.append(f"Hashtag gợi ý: {' '.join(tags.split())}.")
@@ -137,4 +138,5 @@ def prefill(r: dict) -> dict:
     goal = {1: "comment", 2: "sale", 3: "follow"}[r["loai"]]
     title = re.sub(r"^\[?Có giỏ hàng\]?\s*", "", r["chu_de"], flags=re.I)
     return {"brief": " ".join(parts), "title": title[:60], "loai": r["loai"], "goal": goal, "ads": False,
+            "scenes": 7 if r["loai"] == 1 else 4,
             "publish": f"{r['ngay']}, {r['gio']}"}

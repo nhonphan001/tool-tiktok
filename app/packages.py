@@ -366,14 +366,42 @@ def check(p: dict) -> dict:
         if not lo <= n <= hi:
             add("warn", "Nhịp cảnh", f"Cảnh {i + 1}: {n} âm tiết (chuẩn {lo}–{hi} cho clip {clip_seconds()} giây).")
 
-    # CTA
-    cap_norm = compliance.normalize((p.get("caption") or "") + " " + (p.get("pinned") or "") + " " + (p.get("scene4") or ""))
+    # CTA (chấp nhận câu kêu gọi ở bất kỳ cảnh nào, caption hoặc bình luận ghim)
+    scene_norms = [compliance.normalize(p.get(f"scene{i}") or "") for i in range(1, ns + 1)]
+    cap_norm = compliance.normalize((p.get("caption") or "") + " " + (p.get("pinned") or "")) + " " + " ".join(scene_norms)
     if loai == 2 and "gio hang" not in cap_norm:
         add("warn", "CTA", "Thêm CTA được phép: “bấm giỏ hàng góc trái”.")
     if loai == 3 and "theo doi" not in cap_norm and "follow" not in cap_norm:
         add("warn", "CTA", "Thêm CTA tăng follow: “bấm theo dõi Cô Kim”.")
-    if loai == 1 and "ngay sinh" not in cap_norm and "ngay gio sinh" not in cap_norm:
-        add("warn", "CTA", "Gợi ý CTA: “để lại ngày sinh dưới bình luận để Cô Kim giải mã”.")
+    if loai == 1 and not re.search(r"ngay\s*(gio\s*)?sinh|nam\s*sinh|con\s*giap", cap_norm):
+        add("warn", "CTA", "Gợi ý CTA: “comment năm sinh để Cô Kim xem giúp” hoặc “để lại ngày sinh dưới bình luận để Cô Kim giải mã”.")
+
+    # Hiệu suất (số liệu Studio 24/11: mọi video mất ~50% người xem ở giây 2; chỉ 2–6% xem tới cảnh cuối)
+    cta_rx = {1: r"ngay\s*(gio\s*)?sinh|nam\s*sinh|con\s*giap|theo\s*doi", 2: r"gio\s*hang", 3: r"theo\s*doi|follow"}[loai]
+    filled = [i for i, t in enumerate(scene_norms) if t.strip()]
+    if len(filled) >= 3 and loai in (1, 3):
+        early = any(re.search(cta_rx, scene_norms[i]) for i in filled[:2])
+        late = any(re.search(cta_rx, scene_norms[i]) for i in filled[2:])
+        if late and not early:
+            add("warn", "Hiệu suất", "Câu kêu gọi chỉ nằm ở các cảnh sau — chỉ 2–6% người xem tới cuối. Đưa 1 câu kêu gọi ngắn lên "
+                                     "cảnh 1–2 (giây 3–8), vd “comment năm sinh” / “theo dõi Cô Kim để mỗi sáng…”.")
+    hook = (p.get("on_screen") or "").strip()
+    if any(t.strip() for t in scene_norms):
+        if not hook:
+            add("warn", "Hiệu suất", "Chưa có chữ hook lớn ở khung hình 0 (ô “Chữ trên hình”) — người xem quyết định trong 2 giây đầu.")
+        elif len(hook) > 70:
+            add("warn", "Hiệu suất", f"Chữ hook khung 0 dài {len(hook)} ký tự — nên ≤ 70 ký tự (≤ 2 dòng chữ lớn giữa màn hình).")
+    cap = (p.get("caption") or "").strip()
+    if len(cap) > 250:
+        add("warn", "Hiệu suất", f"Caption dài {len(cap)} ký tự (nên ≤ 250): TikTok cắt sau ~2 dòng, dòng đầu phải là lý do để follow/comment.")
+    time_rx = re.compile(r"\b(toi\s*nay|trua\s*nay|chieu\s*nay|dem\s*nay|\d{1,2}\s*h\s*\d{0,2}\b|\d{1,2}\s*gio\s*(toi|trua|chieu)|luc\s*\d{1,2}\s*(h|gio)\b)")
+    nay_rx = re.compile(r"\b(toi|trua|chieu|dem)\s*nay\b")  # lời thoại có thể nói giờ sinh (“sinh lúc 19 giờ”) → chỉ bắt “tối nay…”
+    for label, t, rx in (("Caption", cap, time_rx), ("Chữ trên hình", hook, time_rx),
+                         *[(f"Cảnh {i + 1}", p.get(f"scene{i + 1}") or "", nay_rx) for i in filled]):
+        m = rx.search(compliance.normalize(t))
+        if m:
+            add("warn", "Hiệu suất", f"{label}: có chữ chỉ giờ (“{m.group(0)}”) — video được đề xuất nhiều ngày sau khi đăng, bỏ mốc giờ.")
+            break
 
     errors = sum(1 for i in items if i["level"] == "error")
     warns = sum(1 for i in items if i["level"] == "warn")

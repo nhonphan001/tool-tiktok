@@ -236,6 +236,19 @@
     </form>
     <p class="muted small">Sau mỗi lần quét, tool tự gắn nếu caption video mới khớp caption của gói.</p>
   </div>
+  <div class="card" style="margin-top:16px"><h2>🔎 Đánh giá chuyên sâu bằng Claude in Chrome</h2>
+    <p class="muted small">Đăng xong 24–48 giờ: chép yêu cầu dưới đây, dán vào Claude in Chrome (đang đăng nhập TikTok Studio). Nhận file .md thì tải lên đây — tool lưu theo gói và đưa vào lần lập chiến lược kế tiếp.</p>
+    <div class="kit-item"><div class="kit-head"><b>Yêu cầu cho Claude in Chrome</b><button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></div>
+      <div class="kit-text" style="max-height:220px;overflow:auto;white-space:pre-wrap">{{ chrome_req }}</div></div>
+    <form method="post" action="/danh-gia" enctype="multipart/form-data" style="margin-top:10px">
+      <input type="hidden" name="pid" value="{{ p.id }}">
+      <label>Tải file .md báo cáo</label><input type="file" name="file" accept=".md,.txt,text/markdown,text/plain">
+      <label>…hoặc dán nội dung</label><textarea name="text" rows="3"></textarea>
+      <button class="btn">Lưu báo cáo</button>
+    </form>
+    {% for r in chrome_rows %}<div class="small" style="border-top:1px solid var(--border);padding:6px 0">
+      <a href="/danh-gia/{{ r.id }}.md" target="_blank">{{ r.title }}</a> <span class="muted">· {{ r.created_at|localtime }}</span></div>{% endfor %}
+  </div>
 </section>{% endif %}
 <script>
 function copyKit(btn){

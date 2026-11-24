@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from . import analytics, db, pricing, report
+from . import analytics, chrome_reports, db, pricing, report
 from .config import settings
 
 log = logging.getLogger(__name__)
@@ -40,13 +40,19 @@ Trả lời bằng tiếng Việt, định dạng Markdown, gồm các mục:
 1. Chẩn đoán nhanh (điểm mạnh, điểm yếu, cơ hội — dẫn chứng bằng số liệu)
 2. Mô thức nội dung thắng (video nào/vì sao hiệu quả, nên lặp lại yếu tố gì)
 3. Lịch đăng đề xuất 7 ngày tới (bảng: ngày, giờ đăng, loại (1/2/3), chủ đề/ý tưởng, định dạng, độ dài, hook gợi ý, hashtag).
-   Ràng buộc đã chốt với chủ kênh: nhịp 2 video/ngày — 11:00 Loại 3 (trà sáng/chữa lành, kéo tim + follow),
-   19:00 Loại 1 (lá số; ưu tiên nhóm 4 trả lời bình luận thật). Loại 2 (giỏ hàng) TỐI ĐA 2 video/tuần, đăng 12:00,
+   Ràng buộc đã chốt với chủ kênh: nhịp 2 video/ngày — 11:00 Loại 3 (series "Trà sáng Cô Kim": thường xanh ngày thường,
+   gắn dịp khi có Rằm/mùng 1/lễ; 3–4 cảnh, ~30 giây, ánh nắng ban ngày); Loại 1 (lá số năm sinh cụ thể, 7 cảnh × 10 giây, >61 giây;
+   ưu tiên năm sinh đông người và nhóm 4 trả lời bình luận thật) xen kẽ 12:30 và 19:00 để đo giờ tự nhiên tốt nhất.
+   Loại 2 (giỏ hàng) TỐI ĐA 2 video/tuần, đăng 12:00,
    chỉ dùng sản phẩm đã sẵn sàng; video Loại 2 KHÔNG nhắc lá số/tuổi/Bát Tự, KHÔNG hashtag #battu #tutru #phongthuy #tuvi…,
-   không dùng từ "thỉnh"; CTA duy nhất "bấm giỏ hàng góc trái". Mỗi video 4 cảnh × 10 giây (clip Gemini 10 giây, sau khi cắt lặng ~32–40 giây).
+   không dùng từ "thỉnh"; CTA duy nhất "bấm giỏ hàng góc trái".
+   Quy tắc hiệu suất: khung hình 0 sáng, có chuyển động, chữ hook lớn giữa màn hình, câu nói vào ngay giây 0; câu kêu gọi
+   (follow / "comment năm sinh hoặc con giáp") ở giây 3–8, không chỉ ở cảnh cuối; caption ≤ 250 ký tự, dòng đầu là lời hứa
+   lý do follow; không ghi giờ ("tối nay", "19h") trong caption/lời thoại.
+   Nếu đang là tuần KHÔNG QUẢNG BÁ: không đề xuất bật Quảng bá; đánh giá video theo số TỰ NHIÊN.
 4. 10 ý tưởng video mới kèm hook 3 giây đầu
 5. Tối ưu caption, hashtag, CTA (CTA chỉ dùng các câu được phép trong QUY TẮC NỘI DUNG BẮT BUỘC bên dưới)
-6. KPI mục tiêu 7 ngày và 30 ngày (follower, view TB, tim/view, bình luận/video) — đặt theo tốc độ thực tế, nói rõ mốc nào khả thi
+6. KPI mục tiêu 7 ngày và 30 ngày (follower TỰ NHIÊN, view TB tự nhiên, tim/view, bình luận/1.000 view, % giữ chân giây 2) — tách số trả phí và tự nhiên, đặt theo tốc độ thực tế, nói rõ mốc nào khả thi
 7. Thử nghiệm A/B nên chạy
 Không bịa số liệu không có trong dữ liệu; nếu dữ liệu còn ít, hãy nói rõ mức độ tin cậy."""
 
@@ -230,6 +236,12 @@ def _build_prompt(open_id: str, goal: str) -> str:
     prompt = ""
     if settings.channel_context:
         prompt += f"=== THÔNG TIN KÊNH (do chủ kênh mô tả) ===\n{settings.channel_context}\n\n"
+    if settings.ads_context:
+        prompt += f"=== BỐI CẢNH QUẢNG BÁ TRẢ PHÍ ===\n{settings.ads_context}\n"
+        prompt += ("Trạng thái hiện tại: TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ.\n\n" if settings.ads_paused else "Trạng thái hiện tại: có thể dùng Quảng bá.\n\n")
+    reports = chrome_reports.recent_for_prompt()
+    if reports:
+        prompt += "=== ĐÁNH GIÁ CHUYÊN SÂU (Claude in Chrome đọc TikTok Studio) ===\n" + reports + "\n\n"
     prompt += f"Mục tiêu của chủ kênh: {goal or 'Tăng trưởng follower, lượt xem và tương tác bền vững'}\n\n"
     prompt += "=== SỐ LIỆU KÊNH ===\n" + data_md
     if prev:

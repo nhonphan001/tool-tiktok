@@ -49,7 +49,8 @@ FORTUNE_RULES = [
      r"du\s*doan\s*chinh\s*xac|chac\s*chan\s*se|dam\s*bao\s*se|100\s*%\s*(se|chinh\s*xac|linh)|linh\s*nghiem"),
 ]
 
-ALLOWED_CTA = ["bấm giỏ hàng góc trái", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "bấm theo dõi Cô Kim"]
+ALLOWED_CTA = ["bấm giỏ hàng góc trái", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "bấm theo dõi Cô Kim",
+               "comment năm sinh để Cô Kim xem giúp", "comment con giáp của cả nhà"]
 
 
 def normalize(text: str) -> str:
