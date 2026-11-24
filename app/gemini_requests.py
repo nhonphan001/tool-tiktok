@@ -100,7 +100,7 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
         "Bật nhãn “Nội dung do AI tạo” khi đăng.",
         "**Hiệu suất (số liệu Studio 24/11: mọi video mất ~50% người xem ở giây 2, chỉ 2–6% xem tới cảnh cuối):** khung hình 0 "
         "sáng, có chuyển động (hơi trà, rót trà, ánh nắng), Cô Kim nói NGAY giây 0; ô “Chữ trên hình” là chữ hook lớn giữa màn "
-        "hình ≤ 70 ký tự; 1 câu kêu gọi ngắn ở cảnh 1–2 (giây 3–8), không chỉ ở cảnh cuối; caption ≤ 250 ký tự, dòng đầu là lý "
+        "hình ≤ 70 ký tự; 1 câu kêu gọi ngắn ở CUỐI CẢNH 1 (giây 3–8; clip 10 giây nên cảnh 2 đã là giây 10+), không chỉ ở cảnh cuối; caption ≤ 250 ký tự, dòng đầu là lý "
         "do để follow/comment; không ghi giờ (“tối nay”, “19h”) trong caption, chữ trên hình và lời thoại.",
     ]
     if n >= 6:
@@ -116,7 +116,7 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
             "lý do bị từ chối ngày 18/11).",
             "Nội dung nên chọn: trà sáng chữa lành, lời chúc buổi sáng, đếm ngược cuối năm, câu chuyện đời thường ấm áp, "
             "mẹo trà. Cô Kim là người pha trà, không phải thầy bói.",
-            "CTA: “bấm theo dõi Cô Kim” kèm lời hứa “mỗi sáng Cô Kim pha một ấm trà cho cả nhà” — nói ở cảnh 1–2 và lặp ở dòng "
+            "CTA: “bấm theo dõi Cô Kim” kèm lời hứa “mỗi sáng Cô Kim pha một ấm trà cho cả nhà” — nói ở cuối cảnh 1 (giây 3–8) và lặp ở dòng "
             "đầu caption; bình luận ghim là 1 câu hỏi đời thường dễ trả lời (vd “Sáng nay cả nhà uống trà gì?”), không kiểu "
             "“comment ‘trà’ để nhận…”.",
             *common,
@@ -127,7 +127,7 @@ def _rules_for(loai: int, ads: bool, n: int = 4) -> list[str]:
                 "lá số. Tên sản phẩm đúng cột “Tên dùng trong video”. CTA: “bấm giỏ hàng góc trái”. Chèn ảnh sản phẩm thật "
                 "(C.9).", *common]
     return ["**Loại 1 – Video giải mã lá số (không giỏ hàng, KHÔNG chạy quảng cáo).** Dùng NGUYÊN VĂN lá số trong mục "
-            "“Lá số (TikTok Manager tính)” của thư này, không tự tính can chi / Nhật chủ / Dụng thần. Không nối lá số với vật phẩm. CTA sớm ở cảnh 1–2: “comment năm sinh để Cô Kim xem giúp”; "
+            "“Lá số (TikTok Manager tính)” của thư này, không tự tính can chi / Nhật chủ / Dụng thần. Không nối lá số với vật phẩm. CTA sớm ở cuối cảnh 1 (giây 3–8): “comment năm sinh để Cô Kim xem giúp”; "
             "CTA cuối: “để lại ngày sinh dưới bình luận để Cô Kim giải mã”. Ưu tiên lá số theo NĂM SINH cụ thể (vd “Nữ Đinh Mùi "
             "1967 bước vào năm 2027”), 7 cảnh.", *common]
 

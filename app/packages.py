@@ -384,7 +384,22 @@ def check(p: dict) -> dict:
         late = any(re.search(cta_rx, scene_norms[i]) for i in filled[2:])
         if late and not early:
             add("warn", "Hiệu suất", "Câu kêu gọi chỉ nằm ở các cảnh sau — chỉ 2–6% người xem tới cuối. Đưa 1 câu kêu gọi ngắn lên "
-                                     "cảnh 1–2 (giây 3–8), vd “comment năm sinh” / “theo dõi Cô Kim để mỗi sáng…”.")
+                                     "cuối cảnh 1 (giây 3–8), vd “comment năm sinh” / “theo dõi Cô Kim để mỗi sáng…”.")
+        elif early:
+            # Ước tính giây của câu kêu gọi đầu tiên trong video thành phẩm (đã cắt lặng): 3,9 âm tiết/giây + ~0,5 giây giữa cảnh
+            before, sec = 0, None
+            for k, i in enumerate(filled):
+                raw = unicodedata.normalize("NFC", p.get(f"scene{i + 1}") or "")
+                m = re.search(cta_rx, compliance.normalize(raw))
+                if m:
+                    # vị trí trong câu gốc ≈ vị trí trong chuỗi đã bỏ dấu (cùng số từ)
+                    words_before = len(compliance.normalize(raw)[:m.start()].split())
+                    sec = (before + words_before) / 3.9 + k * 0.5
+                    break
+                before += syllables(raw)
+            if sec is not None and sec > 9:
+                add("warn", "Hiệu suất", f"Câu kêu gọi đầu tiên rơi vào khoảng giây {sec:.0f} của video (nên ≤ 8, khi còn ~30% "
+                                         "người xem). Đưa câu kêu gọi ngắn vào CUỐI CẢNH 1.")
     hook = (p.get("on_screen") or "").strip()
     if any(t.strip() for t in scene_norms):
         if not hook:

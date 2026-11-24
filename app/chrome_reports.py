@@ -328,6 +328,6 @@ def context_md(days: int = 14) -> str:
     out += ["## Báo cáo Claude in Chrome đã lưu (5 gần nhất)"] + \
            [f"- {r['created_at'][:16]} · {r['title']}" for r in rows] + ([] if rows else ["- (chưa có)"])
     out += ["", "## Quy tắc hiệu suất để đối chiếu video thật",
-            "H1 khung 0 sáng, có chuyển động, nói ngay giây 0 · H2 chữ hook lớn ≤ 70 ký tự · H3 câu kêu gọi ở cảnh 1–2 (giây 3–8) · "
+            "H1 khung 0 sáng, có chuyển động, nói ngay giây 0 · H2 chữ hook lớn ≤ 70 ký tự · H3 câu kêu gọi ở cuối cảnh 1 (giây 3–8) · "
             "H4 caption ≤ 250 ký tự · H5 không chữ chỉ giờ · H6 cùng bối cảnh/ánh sáng mọi cảnh."]
     return "\n".join(out)

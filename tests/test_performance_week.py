@@ -17,7 +17,7 @@ def test_performance_warnings():
     base = {"goi": "90", "loai": 3, "scene1": S, "scene2": S, "scene3": S,
             "scene4": S + " bấm theo dõi Cô Kim nha", "caption": "Trà sáng", "on_screen": ""}
     msgs = _perf(base)
-    assert any("cảnh 1–2" in m for m in msgs) and any("khung hình 0" in m for m in msgs)
+    assert any("cuối cảnh 1" in m for m in msgs) and any("khung hình 0" in m for m in msgs)
     ok = {**base, "scene1": "Bấm theo dõi Cô Kim để mỗi sáng " + S[:60], "on_screen": "Sáng nay chậm lại 30 giây"}
     assert _perf(ok) == []
     assert any("250" in m for m in _perf({**ok, "caption": "x" * 260}))
@@ -122,3 +122,14 @@ def test_run_info_and_clock():
     zz = zipfile.ZipFile(io.BytesIO(z))
     assert "/danh-gia/gio" in zz.read("tiktok-studio-quet/SKILL.md").decode()
     assert '"exact_tokens"' in zz.read("tiktok-studio-quet/references/report-template.md").decode()
+
+
+def test_cta_second_estimate():
+    # Gói 30 thật: CTA nằm giữa cảnh 2 (~giây 11) → cảnh báo; đưa vào cảnh 1 → hết cảnh báo
+    s1 = "Thức giấc bên chén trà nóng, bạn đã kịp tha thứ cho những điều chưa trọn vẹn của chính mình chưa? Dừng lại vài giây nhé."
+    s2 = "Mỗi sáng Cô Kim pha một ấm trà ngoài hiên nắng, cả nhà bấm theo dõi để ghé nha, rồi cùng nhau bỏ xuống chuyện cũ nhẹ lòng."
+    base = {"goi": "94", "loai": 3, "on_screen": "Dành một chén trà sáng", "caption": "Trà sáng", "scene3": S, "scene4": S}
+    msgs = _perf({**base, "scene1": s1, "scene2": s2})
+    assert any("giây 11" in m and "CUỐI CẢNH 1" in m for m in msgs)
+    s1b = "Bạn đã kịp tha thứ cho chính mình chưa? Bấm theo dõi Cô Kim, mỗi sáng mình cùng ngồi xuống uống chén trà nóng nha."
+    assert _perf({**base, "scene1": s1b, "scene2": S}) == []
