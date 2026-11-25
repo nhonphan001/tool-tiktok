@@ -395,6 +395,12 @@ def packages_page(request: Request):
         t = max(str(r.get(k) or "")[:19] for k in ("answered_at", "answer_modified", "video_seen"))
         if t > events.get(str(r["goi"]), ""):
             events[str(r["goi"])] = t
+    from . import finals
+
+    finals.init()
+    for f in db.query("SELECT goi, seen_at FROM finals_seen WHERE kind='final'"):
+        if str(f["seen_at"])[:19] > events.get(str(f["goi"]), ""):
+            events[str(f["goi"])] = str(f["seen_at"])[:19]
     for p in items:
         p["chk"] = packages.check(p)
         p["event_at"] = events.get(str(p.get("goi")), "")
@@ -925,6 +931,18 @@ async def chrome_report_upload(request: Request):
                label="Tách số liệu + gửi báo cáo đồng thuận cho Gemini")
     flash(request, "Đã lưu báo cáo. Tool đang tách số liệu và gửi báo cáo đồng thuận cho Gemini (chạy nền).", "success")
     return RedirectResponse(back, status_code=303)
+
+
+@app.post("/packages/finals/sync")
+def finals_sync_now(request: Request):
+    from . import finals
+
+    def _go():
+        msgs = finals.sync()
+        return f"Đã đọc thư mục 04: {len(msgs)} video thành phẩm mới" if msgs else "Thư mục 04: không có video thành phẩm mới"
+    jobs.start("finals", _go, link="/packages", label="Đọc video thành phẩm trong thư mục 04")
+    flash(request, "Đang đọc thư mục 04 (chạy nền) — có video mới sẽ báo.", "success")
+    return RedirectResponse("/packages", status_code=303)
 
 
 @app.get("/dong-thuan", response_class=HTMLResponse)

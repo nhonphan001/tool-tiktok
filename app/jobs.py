@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 KIND_LABELS = {"classify": "Phân loại video bằng Gemini", "products": "Đồng bộ bảng sản phẩm",
                "mailbox": "Hộp thư Gemini", "clips": "Clip thô mới", "scan": "Quét TikTok",
                "send": "Gửi thư cho Gemini", "mail_check": "Kiểm tra thư trả lời", "mail_notes": "Đọc hộp thư",
-               "summary": "Bản tóm tắt", "consensus": "Báo cáo đồng thuận", "tts": "Tạo giọng 4 cảnh", "sync": "Đồng bộ Drive / NotebookLM",
+               "summary": "Bản tóm tắt", "finals": "Video thành phẩm", "consensus": "Báo cáo đồng thuận", "tts": "Tạo giọng 4 cảnh", "sync": "Đồng bộ Drive / NotebookLM",
                "drive_test": "Kiểm tra Drive", "mail_note": "Hộp thư", "veo": "Veo", "inbox_scan": "Quét phiếu trong hộp thư", "ask": "Gemini trả lời câu hỏi"}
 
 

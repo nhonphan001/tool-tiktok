@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row" style="justify-content:space-between"><h1>Gói sản xuất ({{ items|length }})</h1><div class="row"><a class="btn sec" href="/packages/import">Nhập từ hộp thư Drive</a><a class="btn" href="/packages/new">+ Gói mới</a></div></div>
+<div class="row" style="justify-content:space-between"><h1>Gói sản xuất ({{ items|length }})</h1><div class="row"><form method="post" action="/packages/finals/sync" style="margin:0"><button class="btn sec" title="Gemini tải video thành phẩm vào 04_VIDEO_DA_DUYET_SAN_SANG_DANG — tool tự đọc 10 phút/lần">🎬 Kiểm tra video thành phẩm</button></form><a class="btn sec" href="/packages/import">Nhập từ hộp thư Drive</a><a class="btn" href="/packages/new">+ Gói mới</a></div></div>
 <p class="muted">Soạn lời thoại, caption, bình luận ghim, lá số và SKU trước khi dựng video. Tool kiểm tra B.1/B.2/B.3/B.4 (0 token), sinh khối <code>nhan_video</code> và tự gắn gói vào video sau khi đăng (khi caption khớp).</p>
 {% if waiting %}<div class="flash info">🔴 Gemini đã gửi phiếu/video cho gói chưa nhập: {% for g in waiting %}<a href="/packages/import/{{ g }}"><b>Gói {{ g }}</b></a>{{ ', ' if not loop.last }}{% endfor %} — bấm để nhập.</div>{% endif %}
 <div class="card scroll"><table>
-<tr><th>Gói</th><th>Tiêu đề</th><th>Loại</th><th>SKU</th><th>Kiểm tra</th><th>Quảng cáo</th><th>Trạng thái</th><th>Video</th></tr>
+<tr><th>Gói</th><th>Tiêu đề</th><th>Loại</th><th>SKU</th><th>Kiểm tra</th><th>Quảng cáo</th><th>Trạng thái</th><th>Thành phẩm</th><th>Video</th></tr>
 {% for p in items %}<tr>
   <td><a href="/packages/{{ p.id }}">{{ p.goi or ('#' ~ p.id) }}</a>{% if is_new(p.event_at) %} <span class="new-dot" title="Có phiếu/video mới từ Gemini"></span>{% endif %}</td>
   <td>{{ p.title }}</td>
@@ -12,8 +12,9 @@
   <td>{{ p.sku or '—' }}</td>
   <td>{% if p.chk.errors %}<span class="badge error">{{ p.chk.errors }} lỗi</span>{% else %}<span class="badge ok">Đạt</span>{% endif %}{% if p.chk.warns %} <span class="badge">{{ p.chk.warns }} cảnh báo</span>{% endif %}</td>
   <td>{{ 'Được' if p.chk.ads_ok else 'Không' }}</td>
-  <td>{{ status[p.status or 'nhap'] }}</td>
+  <td>{% if p.status == 'cho_dang' %}<span class="badge ok">{{ status[p.status] }}</span>{% else %}{{ status[p.status or 'nhap'] }}{% endif %}</td>
+  <td>{% if p.final_video %}<a href="https://drive.google.com/file/d/{{ p.final_video }}/view" target="_blank" rel="noopener">🎬 bản đăng</a>{% else %}—{% endif %}</td>
   <td>{% if p.video_id %}<a href="/videos/{{ p.video_id }}">xem</a>{% if p.link_source=='auto' %} <span class="muted small">(tự khớp)</span>{% endif %}{% else %}—{% endif %}</td>
-</tr>{% else %}<tr><td colspan="8" class="muted">Chưa có gói nào.</td></tr>{% endfor %}
+</tr>{% else %}<tr><td colspan="9" class="muted">Chưa có gói nào.</td></tr>{% endfor %}
 </table></div>
 {% endblock %}

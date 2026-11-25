@@ -75,6 +75,13 @@ def reschedule() -> None:
         except Exception:  # noqa: BLE001
             log.exception("clips.sync_all")
         try:
+            from . import finals  # video thành phẩm Gemini tải lên 04 → gắn vào gói + thông báo
+
+            for m in finals.sync():
+                log.info(m)
+        except Exception:  # noqa: BLE001
+            log.exception("finals.sync")
+        try:
             from . import mail_notes  # thư đánh giá/chốt của Claude & Gemini + khối cap_nhat_tool
 
             got = mail_notes.scan()

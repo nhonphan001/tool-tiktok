@@ -79,6 +79,8 @@ class Settings:
     # Doc "hộp thư đi" (HOP_THU_TOOL__YEUCAU trong GUI_GEMINI) — dùng khi service account không tạo được file mới
     # Thư mục 02_VIDEO_THO_CHO_KIEM_DUYET (clip thô anh Nhơn tạo, P8a) — tool đọc để duyệt trên web
     raw_video_folder_id: str = field(default_factory=lambda: os.getenv("RAW_VIDEO_FOLDER_ID", "1zG9VyoYDtHgYnJs-SH8kqy_bQPdpRTyM"))
+    # 04_VIDEO_DA_DUYET_SAN_SANG_DANG: Gemini tải video thành phẩm vào đây → tool tự gắn vào gói (app/finals.py)
+    final_video_folder_id: str = field(default_factory=lambda: os.getenv("FINAL_VIDEO_FOLDER_ID", "1JOpC__Wf1E2y-7wxodvZDCU12_gj69AH"))
     mailbox_outbox_doc_id: str = field(default_factory=lambda: os.getenv("MAILBOX_OUTBOX_DOC_ID", "1x6QmTfs7cl2cU-wRUQDZnXLu33dKYeeMNPNjVr04Plg"))
 
     # Token cho API chỉ-đọc /api/public/* (bảng điều hành khác, Gemini...). Trống = tắt.
@@ -150,6 +152,7 @@ EDITABLE_KEYS = {
     "mailbox_folder_ids": str,
     "mailbox_outbox_doc_id": str,
     "raw_video_folder_id": str,
+    "final_video_folder_id": str,
     "gemini_price_input": float,
     "gemini_price_output": float,
     "usd_vnd_rate": float,

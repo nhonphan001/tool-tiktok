@@ -17,8 +17,9 @@ SECTIONS = {
     "dashboard": (("/",), f"SELECT COUNT(*) AS n FROM scans WHERE status='ok' AND {_N.format(c='finished_at')}"),
     "strategy": (("/strategy",), f"SELECT COUNT(*) AS n FROM strategies WHERE status='done' AND {_N.format(c='created_at')}"),
     "packages": (("/packages",),
-                 "SELECT COUNT(*) AS n FROM gemini_requests WHERE "
-                 f"({_N.format(c='answered_at')} OR {_N.format(c='answer_modified')} OR {_N.format(c='video_seen')})"),
+                 "SELECT (SELECT COUNT(*) FROM gemini_requests WHERE "
+                 f"({_N.format(c='answered_at')} OR {_N.format(c='answer_modified')} OR {_N.format(c='video_seen')}))"
+                 f" + (SELECT COUNT(*) FROM finals_seen WHERE kind='final' AND {_N.format(c='seen_at')}) AS n"),
     "requests": (("/requests",), f"SELECT COUNT(*) AS n FROM gemini_requests WHERE {_N.format(c='answered_at')}"
                                  f" OR {_N.format(c='answer_modified')}"),
     "mail": (("/hop-thu",), f"SELECT COUNT(*) AS n FROM mail_notes WHERE {_N.format(c='read_at')}"),
@@ -31,6 +32,9 @@ def _ensure_tables() -> None:
         from . import cycle_summary, gemini_requests, mail_notes
 
         cycle_summary.init()
+        from . import finals
+
+        finals.init()
         mail_notes.init()
         gemini_requests.init()
     except Exception:  # noqa: BLE001

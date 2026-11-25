@@ -24,7 +24,8 @@ VIDEOS = ("final_video", "clean_video")                  # ID video thành phẩ
 LOAI = {1: "Video giải mã lá số (không giỏ hàng, không quảng cáo)", 2: "Video sản phẩm (giỏ hàng; quảng cáo chỉ khi tool báo được)",
         3: "Video tăng follow (không giỏ hàng; được quảng cáo nếu sạch bói toán)"}
 LOAI_SHORT = {1: "Lá số", 2: "Sản phẩm", 3: "Tăng follow"}
-STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "len_lich": "Đã lên lịch đăng", "da_dang": "Đã đăng"}
+STATUS = {"nhap": "Nháp", "san_sang": "Sẵn sàng dựng", "cho_dang": "Đã dựng – chờ đăng", "len_lich": "Đã lên lịch đăng",
+          "da_dang": "Đã đăng"}
 SYLLABLE_MIN, SYLLABLE_MAX = 24, 28  # mặc định cũ (clip 8 giây); dùng syllable_range() theo Cài đặt
 
 
