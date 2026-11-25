@@ -127,6 +127,8 @@ def full_system_prompt(base: str = "") -> str:
     base = base or SYSTEM_PROMPT
     if settings.content_rules:
         base += "\n\n" + settings.content_rules
+    if settings.script_rules:
+        base += "\n\n" + settings.script_rules
     return base
 
 

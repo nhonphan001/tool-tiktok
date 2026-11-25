@@ -56,6 +56,7 @@ def next_goi() -> int:
     init()
     nums = [int(p["goi"]) for p in packages.all_packages() if str(p.get("goi") or "").isdigit()]
     nums += [int(r["goi"]) for r in db.query("SELECT goi FROM gemini_requests") if str(r["goi"] or "").isdigit()]
+    nums.append(int(settings.goi_reserved_until or 0))  # số Claude đã giữ khi gửi phiếu trực tiếp
     return (max(nums) + 1) if nums else 1
 
 
@@ -183,6 +184,30 @@ def chart_lines(birth: dict) -> list[str]:
     return out
 
 
+def _kich_ban_lines(kb: dict, n: int) -> list[str]:
+    """Kịch bản Gemini API của tool soạn sẵn (đã qua bộ kiểm tra) → Gemini app giữ nguyên văn, chỉ làm hình + prompt."""
+    out = ["## Lời thoại SOẠN SẴN — GIỮ NGUYÊN VĂN", "",
+           "Gemini API của TikTok Manager đã soạn theo Bộ quy tắc và cho qua bộ kiểm tra"
+           + (f" ({kb.get('check_note')})" if kb.get("check_note") else "") + ". Gemini chỉ làm ảnh + prompt video; "
+           "nếu thấy câu nào sai lá số hoặc vi phạm quy tắc thì GHI CHÚ trong phiếu trả lời, không tự đổi lời.", "",
+           "| Cảnh | Lời thoại | Âm tiết |", "|---|---|---|"]
+    for i, s in enumerate(kb["canh"][:n], 1):
+        out.append(f"| {i} | {s} | {packages.syllables(s)} |")
+    out += [""]
+    if kb.get("chu_tren_hinh"):
+        out += [f"- **Chữ hook khung 0:** `{kb['chu_tren_hinh']}`"]
+    if kb.get("chu_chuong"):
+        out += ["- **Chữ chương:** " + " · ".join(f"cảnh {k}: `{v}`" for k, v in sorted(kb["chu_chuong"].items(),
+                                                                                         key=lambda x: int(x[0])))]
+    if kb.get("caption"):
+        out += [f"- **Caption ({len(kb['caption'])} ký tự):** {kb['caption']}"]
+    if kb.get("binh_luan_ghim"):
+        out += [f"- **Bình luận ghim:** {kb['binh_luan_ghim']}"]
+    if kb.get("goi_y_hinh"):
+        out += ["- **Gợi ý hành động từng cảnh:** " + " · ".join(f"{i}. {h}" for i, h in enumerate(kb["goi_y_hinh"], 1))]
+    return out + [""]
+
+
 def build_letter(req: dict) -> str:
     o = req["opts"]
     loai = int(o.get("loai") or 3)
@@ -211,6 +236,12 @@ def build_letter(req: dict) -> str:
         "## Bắt buộc", "",
         *[f"- {r}" for r in _rules_for(loai, ads, n)], "",
     ]
+    if settings.script_rules:
+        lines += ["## Bộ quy tắc kịch bản (TikTok Manager tự đính kèm, áp dụng mọi gói)", "", "```",
+                  settings.script_rules.strip(), "```", ""]
+    kb = o.get("kich_ban") or {}
+    if kb.get("canh"):
+        lines += _kich_ban_lines(kb, n)
     chart = chart_lines(o.get("birth") or {}) if loai == 1 else []
     if chart:
         lines += ["## Lá số (TikTok Manager tính – dùng nguyên văn, Nhật chủ = can trụ Ngày)", "", *chart, ""]

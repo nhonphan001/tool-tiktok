@@ -587,6 +587,8 @@ async def requests_new(request: Request):
             "scenes": min(max(int(f.get("scenes") or 4), 4), packages.MAX_SCENES)}
     if f.get("plan_key"):
         opts["plan_key"] = str(f.get("plan_key"))[:40]  # dòng lịch 7 ngày đã tạo gói
+    if (f.get("o_phep_thu") or "").strip():
+        opts["o_phep_thu"] = str(f.get("o_phep_thu")).strip()[:80]
     birth = {k: (f.get(k) or "").strip() for k in ("dd", "mm", "yy", "t", "lich", "gioi")}
     if opts["loai"] == 1:
         opts["ads"] = False  # video lá số không bao giờ chạy quảng cáo
@@ -598,8 +600,33 @@ async def requests_new(request: Request):
             opts["birth"] = birth
     rid = gemini_requests.create(brief, f.get("title") or "", opts)
     r = gemini_requests.get(rid)
-    _send_bg(rid, f"/requests#r{rid}")
-    flash(request, f"Đã giữ số Gói {r['goi']} và soạn thư — đang gửi cho Gemini chạy ngầm, xong tool sẽ báo.", "success")
+    if f.get("ai_script") and (settings.gemini_api_key or settings.gemini_backend == "vertex"):
+        _script_bg(rid)
+        flash(request, f"Đã giữ số Gói {r['goi']} — Gemini API đang soạn kịch bản theo Bộ quy tắc, tự kiểm rồi gửi Gemini"
+                       " (chạy ngầm, xong tool sẽ báo).", "success")
+    else:
+        _send_bg(rid, f"/requests#r{rid}")
+        flash(request, f"Đã giữ số Gói {r['goi']} và soạn thư — đang gửi cho Gemini chạy ngầm, xong tool sẽ báo.", "success")
+    return RedirectResponse(f"/requests#r{rid}", status_code=303)
+
+
+def _script_bg(rid: int) -> int:
+    """Gemini API soạn kịch bản (Bộ quy tắc) → tự kiểm, tự sửa → gửi thư cho Gemini app. Chạy nền."""
+    from . import script_ai
+
+    def _go():
+        msg = script_ai.draft_and_store(rid)
+        return f"{msg} · gửi: {gemini_requests.send(rid)}"
+    return jobs.start("script", _go, link=f"/requests#r{rid}", label="Soạn kịch bản bằng Gemini API")
+
+
+@app.post("/requests/{rid}/kich-ban")
+def requests_script(request: Request, rid: int):
+    if not (settings.gemini_api_key or settings.gemini_backend == "vertex"):
+        flash(request, "Chưa cấu hình Gemini API (Cài đặt → Gemini)", "error")
+        return RedirectResponse(f"/requests#r{rid}", status_code=303)
+    _script_bg(rid)
+    flash(request, "Gemini API đang soạn lại kịch bản và gửi lại thư (chạy ngầm).", "info")
     return RedirectResponse(f"/requests#r{rid}", status_code=303)
 
 

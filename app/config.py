@@ -104,6 +104,10 @@ class Settings:
     tts_style: str = field(default_factory=lambda: _default_text("co_kim_voice.md", "TTS_STYLE"))
     # Doc nhận báo cáo đồng thuận (API + Claude in Chrome) trong GUI_GEMINI — tool ghi đè sau mỗi báo cáo Chrome
     consensus_doc_gemini: str = field(default_factory=lambda: os.getenv("CONSENSUS_DOC_GEMINI", "110M2BH7w_jzTwXMg_Dg_cC8VqHF7fE4yuY3g1f7npgU"))
+    # Bộ quy tắc kịch bản (tổng hợp mọi chỉnh sửa) — tool tự kèm vào mọi thư cho Gemini và lời nhắc Gemini API
+    script_rules: str = field(default_factory=lambda: _default_text("script_rules.md", "SCRIPT_RULES"))
+    # Số gói đã giữ ngoài tool (Claude gửi phiếu trực tiếp) → gói mới của tool bắt đầu từ số này + 1
+    goi_reserved_until: int = field(default_factory=lambda: int(os.getenv("GOI_RESERVED_UNTIL", "34")))
     # Tuần thử nghiệm KHÔNG quảng bá (anh Nhơn chốt 24/11): tool không gợi ý bật Quảng bá, Gemini không viết kế hoạch quảng cáo
     ads_paused: bool = field(default_factory=lambda: _bool(os.getenv("ADS_PAUSED"), True))
     # Bối cảnh quảng bá đã chạy (để AI không nhầm view trả phí là view tự nhiên) — trống = app/defaults/ads_context.md
@@ -169,6 +173,8 @@ EDITABLE_KEYS = {
     "ads_paused": lambda v: _bool(str(v)),
     "consensus_doc_gemini": str,
     "ads_context": str,
+    "script_rules": str,
+    "goi_reserved_until": int,
     "summary_doc_claude": str,
     "notebooklm_mode": str,
     "google_doc_id_report": str,
@@ -182,6 +188,7 @@ DEFAULT_TEXT_KEYS = {
     "content_rules": ("content_rules.md", "CONTENT_RULES"),
     "tts_style": ("co_kim_voice.md", "TTS_STYLE"),
     "ads_context": ("ads_context.md", "ADS_CONTEXT"),
+    "script_rules": ("script_rules.md", "SCRIPT_RULES"),
 }
 
 settings = Settings()

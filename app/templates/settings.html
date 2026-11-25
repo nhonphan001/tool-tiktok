@@ -38,6 +38,11 @@
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="ads_paused" value="1" style="width:auto" {{ 'checked' if s.ads_paused }}> Tuần thử nghiệm KHÔNG quảng bá (tool và Gemini không lên kế hoạch Quảng bá; đo view/follower tự nhiên)</label>
       <label>Bối cảnh quảng bá đã chạy (gửi kèm cho AI lập chiến lược để không nhầm view trả phí là tự nhiên; để trống = bản mặc định)</label>
       <textarea name="ads_context" rows="6">{{ s.ads_context }}</textarea>
+      <h2 style="margin-top:20px">Bộ quy tắc kịch bản</h2>
+      <label>Tool tự kèm vào MỌI thư gửi Gemini và lời nhắc Gemini API (lập chiến lược, soạn kịch bản). Thêm quy tắc mới vào đây thay vì nhắc lại từng lần. Để trống = bản mặc định mới nhất.</label>
+      <textarea name="script_rules" rows="10">{{ s.script_rules }}</textarea>
+      <label>Số gói đã giữ ngoài tool (Claude gửi phiếu trực tiếp) — gói mới của tool bắt đầu từ số này + 1</label>
+      <input type="number" name="goi_reserved_until" value="{{ s.goi_reserved_until }}">
       <h2 style="margin-top:20px">Bảng quản trị sản phẩm</h2>
       <label>ID Google Sheet (chia sẻ cho service account: Người xem để đọc, Người chỉnh sửa để thêm SKU)</label><input name="product_sheet_id" value="{{ s.product_sheet_id }}">
       <label>Vùng đọc</label><input name="product_sheet_range" value="{{ s.product_sheet_range }}">

@@ -7,6 +7,7 @@ import pytest  # noqa: E402
 
 from app import db, gemini_requests as gr, mailbox, packages  # noqa: E402
 from app.config import settings  # noqa: E402
+settings.goi_reserved_until = 0  # các test cũ đánh số gói từ 17
 
 BRIEF = ("Tôi muốn có một kịch bản cho sáng ngày mai, kịch bản không gắn sản phẩm, mục tiêu tăng follow, "
          "có chạy quảng cáo liên tục 7 ngày")
