@@ -331,3 +331,41 @@ def context_md(days: int = 14) -> str:
             "H1 khung 0 sáng, có chuyển động, nói ngay giây 0 · H2 chữ hook lớn ≤ 70 ký tự · H3 câu kêu gọi ở cuối cảnh 1 (giây 3–8) · "
             "H4 caption ≤ 250 ký tự · H5 không chữ chỉ giờ · H6 cùng bối cảnh/ánh sáng mọi cảnh."]
     return "\n".join(out)
+
+
+BATCH = 10
+
+
+def full_scan_md(batch: int = BATCH) -> str:
+    """Trang cho chế độ "toàn bộ" của skill: mọi video của kênh, đánh dấu đã/chưa có số Claude in Chrome, và đợt kế tiếp."""
+    from . import analytics, consensus, packages
+
+    acc = db.get_active_account() or {}
+    oid = acc.get("open_id") or ""
+    vids = analytics.get_videos(oid) if oid else []  # mới nhất trước
+    done = consensus.latest_chrome()
+    pk = {p.get("video_id"): p for p in packages.all_packages() if p.get("video_id")}
+    todo = [v for v in vids if v["id"] not in done]
+    nxt = todo[:batch]
+    n_batches = (len(todo) + batch - 1) // batch
+    out = [f"# TikTok Manager: quét TOÀN BỘ kênh ({_now()})", "",
+           f"- Tổng {len(vids)} video theo API · đã có số Claude in Chrome: {len(vids) - len(todo)} · còn lại: {len(todo)}"
+           f" (khoảng {n_batches} đợt × {batch} video)",
+           f"- Trạng thái quảng bá: {'TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ' if settings.ads_paused else 'có thể có Quảng bá'}", ""]
+    if nxt:
+        out += [f"## ĐỢT KẾ TIẾP: quét đúng {len(nxt)} video này (mới nhất trước)", "",
+                "| # | Video ID | Đăng | Gói | Loại | Cảnh | Thời lượng | View (API) | Tiêu đề |", "|---|---|---|---|---|---|---|---|---|"]
+        for i, v in enumerate(nxt, 1):
+            p = pk.get(v["id"]) or {}
+            out.append(f"| {i} | {v['id']} | {v['posted_str']} | {p.get('goi') or '—'} | {p.get('loai') or '—'} | "
+                       f"{packages.n_scenes(p) if p else '—'} | {v.get('duration') or '—'}s | {v.get('view_count') or 0} | "
+                       f"{(v.get('label') or '').replace('|', '/')[:60]} |")
+    else:
+        out += ["## ĐÃ QUÉT XONG TOÀN BỘ. Không còn video nào thiếu số Claude in Chrome.", ""]
+    out += ["", "## Tất cả video", "", "| Video ID | Đăng | Gói | View (API) | Thích | BL | Chrome |", "|---|---|---|---|---|---|---|"]
+    for v in vids:
+        p = pk.get(v["id"]) or {}
+        c = done.get(v["id"])
+        out.append(f"| {v['id']} | {v['posted_str']} | {p.get('goi') or '—'} | {v.get('view_count') or 0} | "
+                   f"{v.get('like_count') or 0} | {v.get('comment_count') or 0} | {'đã có (' + str(c.get('snapshot_at') or '')[:10] + ')' if c else 'CHƯA'} |")
+    return "\n".join(out)

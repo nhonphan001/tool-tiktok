@@ -1,7 +1,7 @@
 # Khuôn báo cáo (bắt buộc đúng thứ tự)
 
 ```
-# Quét kênh <hằng ngày|hằng tuần> dd/mm/yyyy      (hoặc: # Đánh giá video <ID> dd/mm/yyyy)
+# Quét kênh <hằng ngày|hằng tuần> dd/mm/yyyy      (hoặc: # Đánh giá video <ID> dd/mm/yyyy · # Quét toàn bộ đợt <k> dd/mm/yyyy)
 
 > Nguồn: TikTok Studio, trang Quảng bá, hồ sơ, TikTok Manager /danh-gia/ngu-canh · chế độ chỉ đọc
 > **Chạy skill:** bắt đầu dd/mm/yyyy HH:MM:SS → kết thúc HH:MM:SS (giờ VN, theo /danh-gia/gio) · thời lượng N phút
@@ -48,7 +48,7 @@
 ```json
 {
   "schema": "tiktok-studio-quet/v1",
-  "mode": "hang_ngay|hang_tuan|video",
+  "mode": "hang_ngay|hang_tuan|video|toan_bo", "batch": {"k": 1, "total": 8, "remaining_after": 65},
   "snapshot_at": "2026-11-25T16:30+07:00",
   "run": {
     "started_at": "2026-11-25T16:30:05+07:00", "finished_at": "2026-11-25T16:52:40+07:00", "duration_min": 22.6,

@@ -107,3 +107,31 @@ def test_routes_and_strategy_prompt(monkeypatch):
     assert c.post("/dong-thuan/gui", follow_redirects=False).status_code == 303
     prompt = strategy._build_prompt(OID, "")
     assert "SỐ LIỆU ĐỒNG THUẬN" in prompt and "Bảng video ghép" in prompt
+
+
+def test_full_scan_batches():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    now = _setup()
+    with db.tx() as c:
+        c.execute("DELETE FROM chrome_video_metrics")
+        c.execute("DELETE FROM chrome_reports")
+        for i in range(12):  # thêm 12 video cũ → tổng 15
+            ct = int((now - timedelta(days=200 + i)).timestamp())
+            c.execute("INSERT OR REPLACE INTO videos(id, open_id, title, create_time, view_count) VALUES(?,?,?,?,?)",
+                      (f"71000000000000000{i:02d}", OID, f"cu {i}", ct, 300))
+    md = chrome_reports.full_scan_md(10)
+    assert "còn lại: 15" in md and "ĐỢT KẾ TIẾP: quét đúng 10 video" in md
+    nxt = md.split("## ĐỢT KẾ TIẾP")[1].split("## Tất cả video")[0]
+    assert "7000000000000000002" in nxt  # mới nhất trước
+    rid = chrome_reports.add(_report(now))  # báo cáo có 2 video
+    consensus.ingest(rid)
+    md2 = chrome_reports.full_scan_md(10)
+    assert "còn lại: 13" in md2 and "7000000000000000002" not in md2.split("## Tất cả video")[0]
+    c = TestClient(app)
+    c.post("/login", data={"password": settings.app_password})
+    assert "quét TOÀN BỘ" in c.get("/danh-gia/toan-bo").text
+    import io, zipfile
+    skill = zipfile.ZipFile(io.BytesIO(c.get("/danh-gia/skill.zip").content)).read("tiktok-studio-quet/SKILL.md").decode()
+    assert "/danh-gia/toan-bo" in skill and "toàn bộ" in skill

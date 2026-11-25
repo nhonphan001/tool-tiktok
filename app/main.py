@@ -862,6 +862,14 @@ def chrome_context(days: int = 14):
     return HTMLResponse(chrome_reports.context_md(max(1, min(days, 60))), media_type="text/plain; charset=utf-8")
 
 
+@app.get("/danh-gia/toan-bo")
+def chrome_full_scan(batch: int = 10):
+    """Danh sách cho chế độ "toàn bộ" của skill: video chưa có số Claude in Chrome, chia đợt."""
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.full_scan_md(max(1, min(batch, 25))), media_type="text/plain; charset=utf-8")
+
+
 @app.get("/danh-gia/skill.zip")
 def chrome_skill_zip():
     """Gói skill tiktok-studio-quet (SKILL.md + references) để tải lên Claude."""
