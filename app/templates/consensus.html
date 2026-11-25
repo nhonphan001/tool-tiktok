@@ -7,7 +7,7 @@
 <p class="muted">Tổng = TikTok API · trả phí = trang Quảng bá · tự nhiên = tổng − trả phí · giữ chân / follower / nguồn view = TikTok Studio.
   Tool tự gửi bản mới vào Doc {% if doc %}<a href="https://docs.google.com/document/d/{{ doc }}/edit" target="_blank" rel="noopener">BAO_CAO_DONG_THUAN__GUI_GEMINI.md</a>{% else %}<b>(chưa cấu hình)</b>{% endif %}
   sau mỗi báo cáo Claude in Chrome được lưu.</p>
-<div class="row" style="gap:6px;margin-bottom:8px">{% for d in (7, 14, 21, 30) %}<a class="btn small {{ '' if d==days else 'sec' }}" href="/dong-thuan?days={{ d }}">{{ d }} ngày</a>{% endfor %}
+<div class="row" style="gap:6px;margin-bottom:8px">{% for d in (7, 14, 21, 30, 400) %}<a class="btn small {{ '' if d==days else 'sec' }}" href="/dong-thuan?days={{ d }}">{{ d }} ngày</a>{% endfor %}
   <a class="btn small sec" href="/danh-gia">← Đánh giá</a></div>
 <div class="card"><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.45;margin:0">{{ md }}</pre></div>
 {% endblock %}

@@ -380,6 +380,9 @@ def build_md(open_id: str | None = None, days: int = 21) -> str:
     return "\n".join(L)
 
 
+PUSH_DAYS = 400  # Doc cho Gemini: mọi video (cả tháng 3) để có số nền đầy đủ sau lượt quét toàn bộ
+
+
 def push() -> str:
     """Ghi đè Doc đồng thuận trong GUI_GEMINI. Trả 'ok' hoặc lỗi."""
     if not settings.consensus_doc_gemini:
@@ -387,7 +390,7 @@ def push() -> str:
     try:
         from .notebooklm import push_drive
 
-        push_drive(settings.consensus_doc_gemini, build_md())
+        push_drive(settings.consensus_doc_gemini, build_md(days=PUSH_DAYS))
         db.log_sync("consensus", "ok", "BAO_CAO_DONG_THUAN__GUI_GEMINI")
         return "ok"
     except Exception as e:  # noqa: BLE001

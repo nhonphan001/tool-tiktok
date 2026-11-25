@@ -949,7 +949,7 @@ def finals_sync_now(request: Request):
 def consensus_page(request: Request, days: int = 21):
     from . import consensus
 
-    days = max(3, min(days, 60))
+    days = max(3, min(days, 400))
     consensus.init()
     return render(request, "consensus.html", active="chrome", md=consensus.build_md(days=days), days=days,
                   doc=settings.consensus_doc_gemini)
@@ -959,7 +959,7 @@ def consensus_page(request: Request, days: int = 21):
 def consensus_md(days: int = 21):
     from . import consensus
 
-    return HTMLResponse(consensus.build_md(days=max(3, min(days, 60))), media_type="text/markdown; charset=utf-8",
+    return HTMLResponse(consensus.build_md(days=max(3, min(days, 400))), media_type="text/markdown; charset=utf-8",
                         headers={"Content-Disposition": "attachment; filename=BAO_CAO_DONG_THUAN.md"})
 
 
