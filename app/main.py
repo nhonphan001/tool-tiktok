@@ -365,6 +365,126 @@ def laso_package(request: Request, text: str = Form(""), line: int = Form(...)):
     return RedirectResponse("/requests#moi", status_code=303)
 
 
+# ------------------------------------------------------------------ khách hàng thân thiết + soạn trả lời
+def _cust_form(form) -> dict:
+    return {k: str(form.get(k) or "") for k in ("alias", "tiktok", "gioi", "dd", "mm", "yy", "t", "lich", "nhuan",
+                                                 "tier", "tags", "note")}
+
+
+@app.get("/khach-hang", response_class=HTMLResponse)
+def customers_page(request: Request, q: str = "", tier: str = ""):
+    from . import customers
+
+    return render(request, "customers.html", active="customers", rows=customers.all_customers(q, tier), q=q, tier=tier,
+                  tiers=customers.TIERS, counts=customers.counts(), c=None, msgs=[], ch=None, col=None,
+                  channels=customers.CHANNELS)
+
+
+@app.post("/khach-hang/tu-laso")
+def customer_from_laso(request: Request, text: str = Form(""), line: int = Form(...)):
+    """Lưu khách từ 1 dòng ở trang Lá số (kèm ngày giờ sinh + tin nhắn)."""
+    from . import customers
+
+    row = _laso_row(text, line)
+    if not row:
+        flash(request, "Dòng này chưa lập được lá số", "error")
+        return RedirectResponse("/laso", status_code=303)
+    m = re.search(r"\b(?:Chị|chị|Anh|anh|Cô|cô|Em|em|Bé|bé|Chú|chú|Bác|bác)\s+((?!Kim\b)[A-ZĐ][a-zà-ỹ]+)", text or "")
+    alias = (f"{'Chị' if row.get('gioi') == 'nu' else 'Anh' if row.get('gioi') == 'nam' else 'Khách'} {m.group(1)}"
+             if m else f"Khách {row['chart']['tu_tru'].split(' – ')[0]} {row.get('y')}")
+    cid = customers.save({"alias": alias, "gioi": row.get("gioi") or "", "dd": row.get("d"), "mm": row.get("m"),
+                          "yy": row.get("y"),
+                          "t": f"{row['h']:02d}:{row['mi']:02d}" if row.get("h") is not None else "",
+                          "lich": "am" if row.get("lunar") else "duong"})
+    customers.add_message(cid, "tin_nhan", "khach", text)
+    flash(request, "Đã lưu khách — kiểm tra lại tên gọi và ngày sinh", "success")
+    return RedirectResponse(f"/khach-hang/{cid}", status_code=303)
+
+
+@app.get("/khach-hang/{cid}", response_class=HTMLResponse)
+def customer_detail(request: Request, cid: int):
+    from . import customers
+
+    c = customers.get(cid)
+    if not c:
+        flash(request, "Không tìm thấy khách", "error")
+        return RedirectResponse("/khach-hang", status_code=303)
+    ch = customers.chart(c)
+    return render(request, "customers.html", active="customers", rows=[], q="", tier="", tiers=customers.TIERS,
+                  counts=customers.counts(), c=c, msgs=customers.messages(cid), ch=ch,
+                  col=customers.colors(ch) if ch else None, facts=customers.year_facts(ch) if ch else [],
+                  channels=customers.CHANNELS)
+
+
+@app.post("/khach-hang")
+async def customer_create(request: Request):
+    from . import customers
+
+    form = await request.form()
+    cid = customers.save(_cust_form(form))
+    msg = str(form.get("message") or "")
+    if msg.strip():
+        customers.add_message(cid, str(form.get("channel") or "tin_nhan"), "khach", msg)
+    flash(request, "Đã lưu khách", "success")
+    return RedirectResponse(f"/khach-hang/{cid}", status_code=303)
+
+
+@app.post("/khach-hang/{cid}")
+async def customer_update(request: Request, cid: int):
+    from . import customers
+
+    customers.save(_cust_form(await request.form()), cid)
+    flash(request, "Đã cập nhật khách", "success")
+    return RedirectResponse(f"/khach-hang/{cid}", status_code=303)
+
+
+@app.post("/khach-hang/{cid}/xoa")
+def customer_delete(request: Request, cid: int):
+    from . import customers
+
+    customers.delete(cid)
+    flash(request, "Đã xoá khách và lịch sử trao đổi", "success")
+    return RedirectResponse("/khach-hang", status_code=303)
+
+
+@app.post("/khach-hang/{cid}/tin")
+async def customer_message(request: Request, cid: int):
+    from . import customers
+
+    form = await request.form()
+    ch = str(form.get("channel") or "tin_nhan")
+    customers.add_message(cid, ch, "khach", str(form.get("message") or ""))
+    customers.add_message(cid, ch, "cokim", str(form.get("reply") or ""))
+    flash(request, "Đã lưu vào lịch sử trao đổi", "success")
+    return RedirectResponse(f"/khach-hang/{cid}#lich-su", status_code=303)
+
+
+@app.post("/api/khach-hang/goi-y")
+async def customer_suggest(request: Request):
+    """Mẫu trả lời bình luận công khai + tin nhắn riêng. ai=1 → Gemini viết lại (tốn token)."""
+    from . import customers
+
+    form = await request.form()
+    cid = int(form.get("cid") or 0)
+    c = customers.get(cid) if cid else _cust_form(form)
+    if not c:
+        return JSONResponse({"error": "Không tìm thấy khách"}, status_code=404)
+    msg = str(form.get("message") or "")
+    ch = customers.chart(c)
+    if str(form.get("ai") or "") == "1":
+        if not ch:
+            return JSONResponse({"error": "Cần ngày sinh để AI viết theo lá số"}, status_code=400)
+        if not settings.gemini_api_key and settings.gemini_backend != "vertex":
+            return JSONResponse({"error": "Chưa cấu hình Gemini API (Cài đặt → Gemini)"}, status_code=400)
+        try:
+            return customers.draft_ai(msg, c, ch)
+        except Exception as e:  # noqa: BLE001
+            return JSONResponse({"error": str(e)[:300]}, status_code=502)
+    out = customers.templates(msg, c, ch)
+    out["issues"] = customers._issues(out["public"]) + customers._issues(out["private"])
+    return out
+
+
 @app.get("/laso", response_class=HTMLResponse)
 def laso_page(request: Request):
     q = request.query_params

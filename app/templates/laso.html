@@ -57,6 +57,8 @@
       <button type="button" class="btn small" onclick="quickReply(this)">⚡ Trả lời nhanh (AI)</button>
       <form method="post" action="/laso/package" style="margin:0"><input type="hidden" name="text" value="{{ text }}"><input type="hidden" name="line" value="{{ r.line }}">
         <button class="btn sec small">📦 Tạo gói SX</button></form>
+      <form method="post" action="/khach-hang/tu-laso" style="margin:0"><input type="hidden" name="text" value="{{ text }}"><input type="hidden" name="line" value="{{ r.line }}">
+        <button class="btn sec small" title="Lưu khách + ngày sinh + tin nhắn để soạn trả lời riêng và theo dõi lịch sử">💾 Lưu khách</button></form>
     </div>
   </div>
   <div class="reply-out" hidden></div>

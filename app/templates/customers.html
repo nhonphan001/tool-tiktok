@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+{% macro cust_fields(c) %}
+  <div class="row" style="gap:8px">
+    <div style="flex:2;min-width:160px"><label>Tên gọi</label><input name="alias" value="{{ c.alias if c else '' }}" placeholder="Chị Ngọc (Quý Sửu 73)"></div>
+    <div style="flex:2;min-width:140px"><label>Nick TikTok (không bắt buộc)</label><input name="tiktok" value="{{ c.tiktok if c else '' }}"></div>
+    <div style="flex:1;min-width:90px"><label>Giới</label><select name="gioi"><option value="">—</option>
+      <option value="nu" {{ 'selected' if c and c.gioi=='nu' }}>Nữ</option><option value="nam" {{ 'selected' if c and c.gioi=='nam' }}>Nam</option></select></div>
+  </div>
+  <div class="row" style="gap:8px">
+    <div style="flex:1;min-width:60px"><label>Ngày</label><input name="dd" value="{{ c.dd if c and c.dd else '' }}"></div>
+    <div style="flex:1;min-width:60px"><label>Tháng</label><input name="mm" value="{{ c.mm if c and c.mm else '' }}"></div>
+    <div style="flex:1;min-width:80px"><label>Năm</label><input name="yy" value="{{ c.yy if c and c.yy else '' }}"></div>
+    <div style="flex:1;min-width:80px"><label>Giờ (hh:mm)</label><input name="t" value="{{ c.t if c else '' }}" placeholder="19:00"></div>
+    <div style="flex:1;min-width:100px"><label>Lịch</label><select name="lich"><option value="duong">Dương</option>
+      <option value="am" {{ 'selected' if c and c.lich=='am' }}>Âm</option></select></div>
+    <div style="flex:1;min-width:110px"><label>Mức</label><select name="tier">{% for k, v in tiers.items() %}
+      <option value="{{ k }}" {{ 'selected' if c and c.tier==k }}>{{ v }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="row" style="gap:8px">
+    <div style="flex:1;min-width:160px"><label>Nhãn (phân tách dấu phẩy)</label><input name="tags" value="{{ c.tags if c else '' }}" placeholder="đã làm video, hỏi sức khỏe"></div>
+    <div style="flex:2;min-width:200px"><label>Ghi chú</label><input name="note" value="{{ c.note if c else '' }}"></div>
+  </div>
+{% endmacro %}
+
+{% if not c %}
+<div class="row" style="justify-content:space-between"><h1>Khách hàng ({{ rows|length }})</h1>
+  <div class="muted small">Thân thiết {{ counts.get('than_thiet', 0) }} · Quen {{ counts.get('quen', 0) }} · Mới {{ counts.get('moi', 0) }}</div></div>
+<p class="muted">Khách chỉ được lưu khi anh bấm Lưu. Dữ liệu (ngày sinh, tin nhắn) <b>chỉ nằm trên TikTok Manager</b>: không đồng bộ Drive, không gửi Gemini/Claude trong báo cáo. Khách nhắn từ 3 lần trở lên tự lên mức <b>Thân thiết</b>.</p>
+
+<div class="card" style="margin-bottom:12px"><h2>✍️ Soạn trả lời nhanh</h2>
+  <p class="muted small">Dán tin nhắn/bình luận của khách + ngày giờ sinh (nếu có) → tool đưa 2 mẫu: <b>bình luận công khai</b> (≤150 ký tự, hẹn nhắn riêng) và <b>tin nhắn riêng</b> (lá số, năm 2027, màu Dụng/Kỵ thần, sức khỏe → khuyên đi khám). Mẫu không tốn token; “Viết bằng AI” cho Gemini viết lại theo tin nhắn.</p>
+  <form id="quick-form" method="post" action="/khach-hang">
+    <label>Tin nhắn của khách</label><textarea name="message" rows="4" required></textarea>
+    <div class="row" style="gap:8px"><div style="flex:1"><label>Nhận qua</label><select name="channel">{% for k, v in channels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div></div>
+    {{ cust_fields(None) }}
+    <div class="row" style="gap:6px;margin-top:8px">
+      <button type="button" class="btn" onclick="suggest(this, 0)">Gợi ý trả lời</button>
+      <button type="button" class="btn sec" onclick="suggest(this, 1)">✨ Viết bằng AI</button>
+      <button class="btn sec">💾 Lưu khách + tin nhắn</button></div>
+  </form>
+  <div class="sug-out" hidden></div>
+</div>
+
+<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Danh sách</h2>
+  <form method="get" class="row" style="gap:6px;margin:0"><input name="q" value="{{ q }}" placeholder="Tìm tên, nick, năm, nhãn">
+    <select name="tier"><option value="">Tất cả</option>{% for k, v in tiers.items() %}<option value="{{ k }}" {{ 'selected' if tier==k }}>{{ v }}</option>{% endfor %}</select>
+    <button class="btn sec small">Lọc</button></form></div>
+  <div class="scroll"><table><tr><th>Khách</th><th>Mức</th><th>Năm sinh</th><th>Lần trao đổi</th><th>Liên hệ gần nhất</th><th>Nhãn</th></tr>
+  {% for r in rows %}<tr><td><a href="/khach-hang/{{ r.id }}">{{ r.alias }}</a>{% if r.tiktok %} <span class="muted small">@{{ r.tiktok }}</span>{% endif %}</td>
+    <td>{% if r.tier=='than_thiet' %}<span class="badge ok">⭐ {{ tiers[r.tier] }}</span>{% else %}{{ tiers.get(r.tier, r.tier) }}{% endif %}</td>
+    <td>{{ r.yy or '—' }}</td><td>{{ r.n_msgs }}</td><td>{{ (r.last_contact or r.created_at)|localtime }}</td><td class="small">{{ r.tags }}</td></tr>
+  {% else %}<tr><td colspan="6" class="muted">Chưa có khách. Lưu từ ô “Soạn trả lời nhanh” hoặc nút “💾 Lưu khách” ở trang Lá số.</td></tr>{% endfor %}</table></div>
+</div>
+{% else %}
+<div class="row" style="justify-content:space-between"><h1>{{ c.alias }} {% if c.tier=='than_thiet' %}<span class="badge ok">⭐ Thân thiết</span>{% else %}<span class="badge">{{ tiers.get(c.tier) }}</span>{% endif %}</h1>
+  <a class="btn sec small" href="/khach-hang">← Danh sách</a></div>
+{% if ch %}<div class="card" style="margin-bottom:12px"><h2>Lá số (tool tính)</h2>
+  <p><b>{{ ch.tu_tru }}</b> · Nhật chủ {{ ch.nhat_chu }} {{ ch.nhat_chu_hanh }} ({{ ch.nhat_chu_ta }}) · {{ ch.trang_thai }} · Dụng {{ ch.dung_than }} · Hỷ {{ ch.hy_than }} · Kỵ {{ ch.ky_than|join(', ') }}</p>
+  <p>🎨 <b>Màu hợp:</b> {% for h, m in col.hop %}{{ m }} ({{ h }}){{ '; ' if not loop.last }}{% endfor %} · <b>Màu nên dùng ít:</b> {% for h, m in col.it %}{{ m }} ({{ h }}){{ '; ' if not loop.last }}{% endfor %}{% if col.sat_nguong %} <span class="muted small">(sát ngưỡng vượng nhược — chỉ là hướng gợi ý)</span>{% endif %}</p>
+  <div class="small"><b>Năm 2027:</b><ul style="margin:4px 0">{% for f in facts %}<li>{{ f }}</li>{% endfor %}</ul></div>
+  {% for w in ch.canh_bao %}<div class="small" style="color:#b7791f">⚠ {{ w }}</div>{% endfor %}
+</div>{% else %}<div class="flash info">Chưa có ngày sinh hợp lệ — thêm ngày sinh để tool lập lá số và gợi ý theo lá số.</div>{% endif %}
+
+<div class="card" style="margin-bottom:12px"><h2>✍️ Soạn trả lời</h2>
+  <form id="reply-form" method="post" action="/khach-hang/{{ c.id }}/tin"><input type="hidden" name="cid" value="{{ c.id }}">
+    <label>Tin nhắn mới của khách</label><textarea name="message" rows="4"></textarea>
+    <div class="row" style="gap:8px"><div style="flex:1"><label>Nhận / trả lời qua</label><select name="channel">{% for k, v in channels.items() %}<option value="{{ k }}" {{ 'selected' if k=='tin_nhan' }}>{{ v }}</option>{% endfor %}</select></div></div>
+    <div class="row" style="gap:6px;margin-top:8px">
+      <button type="button" class="btn" onclick="suggest(this, 0)">Gợi ý trả lời</button>
+      <button type="button" class="btn sec" onclick="suggest(this, 1)">✨ Viết bằng AI</button></div>
+    <div class="sug-out" hidden></div>
+    <label style="margin-top:8px">Câu Cô Kim đã gửi (dán bản cuối cùng để lưu lịch sử)</label><textarea name="reply" rows="4"></textarea>
+    <button class="btn sec" style="margin-top:6px">Lưu vào lịch sử</button>
+  </form>
+</div>
+
+<div class="card" id="lich-su" style="margin-bottom:12px"><h2>Lịch sử trao đổi ({{ msgs|length }})</h2>
+  {% for m in msgs %}<div style="border-top:1px solid var(--border);padding:6px 0">
+    <div class="muted small">{{ m.at|localtime }} · {{ channels.get(m.channel, m.channel) }} · {{ 'Khách' if m.direction=='khach' else 'Cô Kim' }}</div>
+    <div style="white-space:pre-wrap">{{ m.text }}</div></div>{% else %}<p class="muted">Chưa có.</p>{% endfor %}
+</div>
+
+<div class="card"><h2>Thông tin khách</h2>
+  <form method="post" action="/khach-hang/{{ c.id }}">{{ cust_fields(c) }}<button class="btn" style="margin-top:8px">Lưu</button></form>
+  <form method="post" action="/khach-hang/{{ c.id }}/xoa" onsubmit="return confirm('Xoá khách và toàn bộ lịch sử trao đổi?')" style="margin-top:8px"><button class="btn sec small">Xoá khách</button></form>
+</div>
+{% endif %}
+<script>
+const esc = s => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function suggest(btn, ai){
+  const form = btn.closest('form'), out = form.parentElement.querySelector('.sug-out') || form.querySelector('.sug-out');
+  const fd = new FormData(form); fd.append('ai', ai);
+  btn.disabled = true; const o = btn.textContent; btn.textContent = ai ? 'Gemini đang viết…' : 'Đang soạn…';
+  out.hidden = false; out.innerHTML = '<div class="pending" style="padding:8px 0"><span class="spinner"></span> Đang soạn…</div>';
+  try {
+    const r = await fetch('/api/khach-hang/goi-y', {method:'POST', body:fd}); const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || ('Lỗi ' + r.status));
+    const badge = (d.issues && d.issues.length) ? '<span class="badge error">Cần sửa: ' + esc(d.issues.join(', ')) + '</span>' : '<span class="badge ok">Sạch</span>';
+    const item = (t, s, big) => '<div class="kit-item" style="margin-top:10px"><div class="kit-head"><b>' + t + '</b><span class="row" style="gap:6px">'
+      + badge + '<button type="button" class="btn sec small" onclick="copyKit(this)">Chép</button></span></div><div class="kit-text' + (big ? ' big' : '') + '" style="white-space:pre-wrap">' + esc(s) + '</div>'
+      + '<div class="muted small">' + (s||'').length + ' ký tự</div></div>';
+    out.innerHTML = item('💬 Bình luận công khai (≤150 ký tự)', d.public, true) + item('✉️ Tin nhắn riêng (hộp thư TikTok)', d.private, false)
+      + (d.idea ? '<div class="muted small" style="margin-top:6px">💡 Ý video trả lời: ' + esc(d.idea) + '</div>' : '')
+      + (ai ? '<div class="muted small">≈ $' + (d.cost_usd||0).toFixed(4) + ' · bấm lại để viết bản khác</div>' : '<div class="muted small">Mẫu không tốn token — chỉnh lời cho mềm trước khi gửi.</div>');
+  } catch (e) { out.innerHTML = '<div class="flash error" style="margin-top:10px">' + esc(e.message) + '</div>'; }
+  btn.disabled = false; btn.textContent = o;
+}
+function copyKit(btn){
+  const t = btn.closest('.kit-item').querySelector('.kit-text').innerText.trim();
+  const done = () => { const o = btn.textContent; btn.textContent = 'Đã chép ✓'; setTimeout(() => btn.textContent = o, 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done); else { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+}
+</script>
+{% endblock %}
