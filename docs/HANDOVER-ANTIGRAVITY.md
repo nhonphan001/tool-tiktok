@@ -232,3 +232,52 @@ Tóm tắt điều cốt lõi:
 7. `docs/PHANHOI-2511-DEXUAT-LICH-VA-DANHGIA__YEUCAU.md`
 8. `docs/HUONG-DAN-SKILL-CLAUDE-IN-CHROME.md`
 9. `README.md` (cài đặt và cấu hình)
+
+---
+
+## Phụ lục C: Bổ sung bàn giao (25/11/2026 · 16:58 GMT+7 — từ Gemini đối chiếu thực tế cùng anh Nhơn)
+
+*(Giữ nguyên toàn bộ nội dung bàn giao gốc phía trên; phần dưới cập nhật thêm 5 mốc trạng thái mới nhất đến `16:58` ngày `25/11/2026` và cảnh báo vận hành.)*
+
+### C.1. Cập nhật trạng thái thực tế Gói 30 & Gói 31 (Bổ sung Mục 6 & Mục 7)
+
+- **Gói 30 — Trà sáng: Dành một chén trà để tha thứ cho chính mình (`ID: 7711956219509886215`):**
+  - Đã đăng lúc `11:09` ngày `25/11/2026` (**video 100% tự nhiên đầu tiên** của tuần thử nghiệm `25/11–01/12/2026`).
+  - Số liệu sau 5 giờ (quét lúc `16:09` ngày `25/11`): `175` lượt xem, `19` lượt thích (`10,86%`), `1` bình luận, `1` chia sẻ, `1` lưu, `4` follower mới (`2,29%` follow/view tự nhiên).
+  - **Thời gian xem trung bình:** `6,87 giây / 30 giây` (tăng **`+46%`** so với Gói 29 tự nhiên ngày `24/11` chỉ đạt `4,7 giây`).
+  - **Tỷ lệ xem hết video:** `5,7%` (gấp **`2,2 lần`** so với Gói 29 `2,6%` và Gói 17 `2,4%`).
+  - **Xác nhận nhân khẩu học tự nhiên `[Dữ kiện]`:** Ngay khi dừng Quảng bá, tệp người xem thực của Gói 30 đảo ngược hoàn toàn sang **Nữ `60%`** · Nam `39%`, trong đó **`71%` từ 35 tuổi trở lên** (`35–44`: `27%`, `55+`: `27%`, `25–34`: `21%`, `45–54`: `17%`). Bác bỏ nhận định cũ cho rằng kênh có tệp tự nhiên `61% Nam`.
+  - **Từ khóa Tìm kiếm 7 ngày cần giữ cho Loại 1:** `tu vi canh ngo 1990 nữ menh`, `thân 1993`, `đinh hợi 2007 2026`, `1999 nữ năm 2028`, `54 ngày đếm ngược 2026`.
+
+- **Gói 31 — Nữ Giáp Tý 1984 bước vào năm Đinh Mùi 2027 (Loại 1 · 7 cảnh · ô `19:00 × Kiểu A`):**
+  - **Đã hoàn tất hậu kỳ P8b và tải lên thư mục `04_VIDEO_DA_DUYET_SAN_SANG_DANG`**, sẵn sàng đăng lúc `19:00` tối `25/11/2026` (100% tự nhiên, KHÔNG Quảng bá).
+  - Thông số thành phẩm (đạt 5/5 mục tự kiểm `CHOT-2511`): độ dài `66,58 giây` (`> 61s`), `-14 LUFS`, vào thoại `0,00s`, chữ Hook khung 0 không fade-in, đủ 5 chữ chương, giữ nguyên dấu AI `✦`.
+  - `file_video_final_drive`: `1jp7mnENhovopQQM9d05qdrx7ojEXnQgF` (`Goi_31_GiapTy1984_Final_Sub.mp4` · `5,84 MB`).
+  - `file_video_clean_drive`: `10wwnmJml1nCV408v1QyAZppI6lZEXeQc` (`Goi_31_GiapTy1984_Clean_Master.mp4` · `5,86 MB`).
+
+### C.2. Cảnh báo trực diện về "Bẫy Quảng bá" khi đọc TikTok Studio (Bổ sung Mục 6)
+
+Khi đọc trực tiếp TikTok Studio, **tuyệt đối KHÔNG** dùng các chỉ số bị nhiễu bởi chiến dịch Quảng bá `15–24/11` (~1 triệu đồng, `2.020` follower mua) để ra quyết định nội dung:
+1. **KHÔNG** lấy mốc `4,4K–11K` view (Gói 17, 19, 26, 28) hay `+1,4K` follower/tuần làm chuẩn so sánh cho video tự nhiên. Nền tự nhiên hiện là `200–350` view/video.
+2. **KHÔNG** dời lịch đăng sang khung `06:00–06:30` sáng: đỉnh `06:00` trên Studio là của tệp follower mua; bảng đồng thuận `75/75` video đã chứng minh `6` video tự nhiên khung `06h–07h` yếu nhất kênh (`239–258` view, giữ chân 2s chỉ `27%–33%`). Khung tự nhiên mạnh nhất là `19h`, `11h` và `12h`.
+3. **KHÔNG** chuyển 50% nội dung sang phục vụ `61% Nam`: tệp `61% Nam` là đối tượng quảng cáo; tệp tự nhiên thật đo trên Gói 30 là **`60% Nữ`**.
+4. **KHÔNG** đưa Bát Tự / Can Chi / lời mời "comment năm sinh" vào tuyến Trà sáng Loại 3: bắt buộc giữ sạch Bát Tự để luôn đủ điều kiện chạy Quảng bá khi cần (`CHOT-2411`). Toàn bộ Bát Tự / năm sinh dồn sang Loại 1 (7 cảnh `> 61 giây`).
+
+### C.3. Bổ sung ràng buộc kỹ thuật thư mục `04` và P8b (Bổ sung Mục 2 & Mục 5)
+
+- `app/finals.py` tự quét thư mục `04_VIDEO_DA_DUYET_SAN_SANG_DANG` mỗi 10 phút theo quy ước tên:
+  - Bản đăng: `Goi_<n>_<MoTaNgan>_Final_Sub.mp4`
+  - Bản sạch: `Goi_<n>_<MoTaNgan>_Clean_Master.mp4`
+  - Bản sửa: chèn `_v2`, `_v3` ngay trước đuôi `_Final_Sub.mp4` / `_Clean_Master.mp4`.
+- **Cấm** đặt bản nháp/bản thử có chữ `Final`, `Sub`, `Clean`, `Master` hoặc clip thô (`Goi_<n>_canh_<k>`) trong thư mục `04`.
+- Chuẩn P8b khóa cứng: chữ Hook khung 0 hiện tức thì `0,00s` (KHÔNG fade-in), cắt sạch khoảng lặng đầu để Cô Kim vào thoại ngay `0,00s`, MP4 `< 7 MB`; Loại 1 quay buổi tối vẫn bắt buộc dùng **phòng trà gỗ sáng ấm có đèn bàn dịu**, **cấm phòng tối** (Gói 24 quay phòng tối giữ chân 2s chỉ `37%`).
+
+### C.4. Lưu ý sửa Cảnh 7 Gói 34 trước khi gửi Gemini (Bổ sung Mục 10.2 & Phụ lục A)
+
+- Cảnh 7 trong Phụ lục A vi phạm quy tắc `B8` (nhắc màu sắc trong video công khai).
+- Khi viết lại Cảnh 7 (và bổ sung ý **Sửu – Mùi xung / Sửu – Mùi – Tuất hình**), **không** dùng câu gợi ý ngắn 24 âm tiết vì sẽ làm tổng tụt từ `231` xuống `222` âm tiết (nguy cơ thành phẩm dưới `61 giây`).
+- **Bắt buộc:** giữ Cảnh 7 dài **`32–34` âm tiết** để tổng toàn bài **`≥ 232` âm tiết**, rồi chạy lại `packages.check()` xác nhận 0 lỗi trước khi gửi `SANXUAT-ddmm-GOI-34-TRA-LOI-QUY-SUU-1973__YEUCAU.md`.
+
+### C.5. Nhịp bàn giao tiếp theo với Gemini (Cập nhật Mục 10.1)
+
+- **Gói 32** và **Gói 33** (lịch đăng `26/11`): chờ Gemini đọc `GUI_GEMINI`, sản xuất ảnh + prompt và trả `…__XONG.md` vào `GUI_CLAUDE` → Antigravity kiểm chéo theo Mục 8 (`packages.check()`, giây CTA cuối Cảnh 1, âm tiết, đối chiếu `battu.py`) rồi báo anh Nhơn nhập vào tool.
