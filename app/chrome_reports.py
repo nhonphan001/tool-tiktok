@@ -1,10 +1,10 @@
-"""Đánh giá chuyên sâu bằng Claude in Chrome (TikTok Studio / Promote).
+"""Đánh giá chuyên sâu TikTok Studio / Quảng bá — đã bàn giao cho An (Antigravity).
 
-Vòng lặp:
-1. Tool soạn yêu cầu cho 1 gói đã đăng (video_request) hoặc cho cả tuần (week_request).
-2. Anh Nhơn dán vào Claude in Chrome. Claude in Chrome đọc Studio ở chế độ chỉ đọc và trả về file .md có khối JSON.
-3. Anh tải file .md lên tool (add). Báo cáo được lưu theo gói và đưa vào dữ liệu lập chiến lược (recent_for_prompt).
-Không gọi AI, không tốn token.
+Phân công dữ liệu:
+- TikTok Manager (VPS): tự quét TikTok Display API 4 lần/ngày (0 token, chạy 24/7).
+- An (Antigravity, tiếp quản từ Claude in Chrome): đọc TikTok Studio / trang Quảng bá / Bình luận ở chế độ chỉ đọc,
+  đẩy báo cáo .md có khối JSON về tool qua API (`POST /api/public/studio/report`) hoặc tải lên trang `/danh-gia`.
+Không gọi AI, không tốn token phía tool.
 """
 import json
 import re
@@ -75,7 +75,7 @@ def video_request(p: dict) -> str:
     loai_txt = {1: "Loại 1: giải mã lá số (không quảng cáo)", 2: "Loại 2: giỏ hàng", 3: "Loại 3: trà sáng / chữa lành"}[loai]
     scenes = "\n".join(f"{i}. {(p.get(f'scene{i}') or '').strip()}" for i in range(1, ns + 1) if (p.get(f"scene{i}") or "").strip())
     goi = p.get("goi") or p["id"]
-    return f"""# Yêu cầu cho Claude in Chrome: đánh giá chuyên sâu Gói {goi}
+    return f"""# Yêu cầu cho An (Antigravity): đánh giá chuyên sâu Gói {goi}
 
 **Video:** {link}
 **Đăng lúc:** {posted} · **{loai_txt}** · {ns} cảnh × {packages.clip_seconds()} giây
@@ -144,7 +144,7 @@ def week_request(days: int = 7) -> str:
                         f"{(p.get('title') or '')[:50]} | {v.get('share_url') or p['video_id']} |")
     table = ("| Gói | Đăng | Loại | Cảnh | Tiêu đề | Link |\n|---|---|---|---|---|---|\n" + "\n".join(rows)) if rows else \
         "(Tool chưa gắn video nào trong khoảng này: lấy tất cả video đăng trong " + str(days) + " ngày qua trên Studio.)"
-    return f"""# Yêu cầu cho Claude in Chrome: đánh giá tuần ({days} ngày qua) kênh @{_username()}
+    return f"""# Yêu cầu cho An (Antigravity): đánh giá tuần ({days} ngày qua) kênh @{_username()}
 
 **Thời điểm yêu cầu:** {_now()}. Anh Nhơn đã đăng nhập TikTok Studio và trang Promote.
 {"**Đây là tuần thử nghiệm KHÔNG quảng bá** — mục tiêu là đo sức lan toả tự nhiên của nội dung." if settings.ads_paused else ""}
@@ -178,7 +178,7 @@ def add(body: str, title: str = "", pid: int | None = None, video_id: str = "") 
     body = (body or "")[:MAX_BODY]
     if not title:
         m = re.search(r"^#\s+(.+)$", body, re.M)
-        title = (m.group(1).strip() if m else "Đánh giá Claude in Chrome")[:200]
+        title = (m.group(1).strip() if m else "Đánh giá TikTok Studio (An)")[:200]
     if not video_id:
         m = re.search(r'"video_id"\s*:\s*"(\d{8,})"', body)
         video_id = m.group(1) if m else ""
@@ -289,7 +289,7 @@ def context_md(days: int = 14) -> str:
     since = datetime.now(VN) - timedelta(days=days)
     vids = [v for v in (analytics.get_videos(oid) if oid else []) if v.get("posted_local") and v["posted_local"] >= since]
     by_vid = {p.get("video_id"): p for p in packages.all_packages() if p.get("video_id")}
-    out = [f"# TikTok Manager: ngữ cảnh cho Claude in Chrome ({_now()})", "",
+    out = [f"# TikTok Manager: ngữ cảnh quét Studio cho An (Antigravity) ({_now()})", "",
            f"- Kênh: @{acc.get('username') or 'tiemtragiaima'} · follower theo API lần quét gần nhất: "
            f"{snap.get('follower_count', 'không rõ')} ({str(snap.get('taken_at') or '')[:16]})",
            f"- Trạng thái quảng bá: {'TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ' if settings.ads_paused else 'có thể có Quảng bá'}",

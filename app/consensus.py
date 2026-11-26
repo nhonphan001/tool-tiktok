@@ -310,15 +310,15 @@ def build_md(open_id: str | None = None, days: int = 21) -> str:
     dif = diffs()
     reps = chrome_reports.list_reports(limit=8)
     n_chrome = sum(1 for r in rows if r["chrome"])
-    L = [f"# BÁO CÁO ĐỒNG THUẬN TikTok Manager + Claude in Chrome · {now:%d/%m/%Y %H:%M}", "",
-         "> **Dành cho Gemini phân tích và đánh giá.** Tool tự soạn, ghi đè Doc này sau mỗi báo cáo Claude in Chrome mới. Không tốn token.",
+    L = [f"# BÁO CÁO ĐỒNG THUẬN TikTok Manager (Display API) + An (TikTok Studio) · {now:%d/%m/%Y %H:%M}", "",
+         "> **Dành cho Gemini phân tích và đánh giá.** Tool tự soạn, ghi đè Doc này sau mỗi báo cáo TikTok Studio mới từ An (Antigravity). Không tốn token.",
          "> **Quy tắc ghép số:**",
-         "> - **Tổng** (view, thích, bình luận, chia sẻ) = TikTok API (chính xác, quét 4 lần/ngày).",
-         "> - **Trả phí** = trang Quảng bá (Claude in Chrome).",
+         "> - **Tổng** (view, thích, bình luận, chia sẻ) = TikTok Display API (VPS tự quét 4 lần/ngày, chính xác).",
+         "> - **Trả phí** = trang Quảng bá (An · Antigravity đọc chỉ-đọc).",
          "> - **Tự nhiên** = tổng − trả phí.",
-         "> - **Giữ chân / follower theo video / nguồn view** = TikTok Studio (Claude in Chrome, số đọc biểu đồ có sai số ±2 điểm).",
+         "> - **Giữ chân / follower theo video / nguồn view** = TikTok Studio (An · Antigravity đọc chỉ-đọc, số biểu đồ có sai số ±2 điểm).",
          f"> **Trạng thái:** {'TUẦN THỬ NGHIỆM KHÔNG QUẢNG BÁ (từ 25/11)' if settings.ads_paused else 'có thể có Quảng bá'} · "
-         f"{len(rows)} video trong {days} ngày · {n_chrome} video đã có số Claude in Chrome.", "",
+         f"{len(rows)} video trong {days} ngày · {n_chrome} video đã có số TikTok Studio.", "",
          "## 1. Kênh (API)", ""]
     if fdays:
         L += ["| Ngày | " + " | ".join(d for d, _ in fdays) + " |", "|---|" + "---|" * len(fdays),

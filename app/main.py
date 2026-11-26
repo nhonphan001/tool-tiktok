@@ -1070,6 +1070,7 @@ def chrome_page(request: Request, days: int = 7):
     days = max(1, min(days, 30))
     return render(request, "chrome_reports.html", active="chrome", rows=chrome_reports.list_reports(),
                   week=chrome_reports.week_request(days), days=days, ads_paused=settings.ads_paused,
+                  api_ready=bool(settings.api_token),
                   pk={p["id"]: p for p in packages.all_packages()})
 
 
@@ -1889,7 +1890,7 @@ CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "x-a
 
 @app.options("/api/public/{rest:path}", include_in_schema=False)
 def api_public_options(rest: str):
-    return JSONResponse({}, headers={**CORS, "Access-Control-Allow-Methods": "GET, OPTIONS"})
+    return JSONResponse({}, headers={**CORS, "Access-Control-Allow-Methods": "GET, POST, OPTIONS"})
 
 
 def _public_summary() -> dict | None:
@@ -1970,6 +1971,146 @@ def api_public_report(request: Request):
     acc = db.get_active_account()
     text = report.build_report(acc["open_id"]) if acc else "Chưa kết nối kênh"
     return HTMLResponse(text, media_type="text/markdown; charset=utf-8", headers=CORS)
+
+
+# ---------------- API bàn giao TikTok Studio + Quảng bá + Bình luận cho An (Antigravity) ----------------
+@app.get("/api/public/studio/status")
+def api_studio_status(request: Request):
+    """Trạng thái bàn giao luồng TikTok Studio cho An (Antigravity), không chứa dữ liệu cá nhân."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import chrome_reports, comment_stats
+
+    reps = chrome_reports.list_reports(limit=5)
+    last_scan = db.query_one("SELECT started_at, finished_at, status, message, videos_count FROM scans ORDER BY id DESC LIMIT 1")
+    cdata = comment_stats.dashboard_data(role="all")
+    return JSONResponse({
+        "studio_owner": "An (Antigravity)",
+        "display_api_owner": "TikTok Manager VPS (APScheduler 4 lần/ngày)",
+        "ads_paused": bool(settings.ads_paused),
+        "clock_vn": chrome_reports.clock_text().strip(),
+        "latest_api_scan": last_scan,
+        "studio_reports_recent": [
+            {"id": r["id"], "created_at": r["created_at"], "title": r["title"], "video_id": r["video_id"], "mode": r.get("mode", "")}
+            for r in reps
+        ],
+        "comments_kpi": cdata["kpi"],
+    }, headers=CORS)
+
+
+@app.get("/api/public/studio/clock")
+def api_studio_clock(request: Request):
+    """Mốc giờ máy chủ VN cho An ghi run.started_at / run.finished_at (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.clock_text(), media_type="text/plain; charset=utf-8", headers=CORS)
+
+
+@app.get("/api/public/studio/context")
+def api_studio_context(request: Request, days: int = 14):
+    """Trang ngữ cảnh (gói ↔ video, kịch bản, nghi Quảng bá) cho An đọc qua API (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.context_md(max(1, min(days, 60))), media_type="text/plain; charset=utf-8", headers=CORS)
+
+
+@app.get("/api/public/studio/full-scan")
+def api_studio_full_scan(request: Request, batch: int = 10):
+    """Danh sách video chưa quét Studio cho An chạy chế độ toàn bộ (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import chrome_reports
+
+    return HTMLResponse(chrome_reports.full_scan_md(max(1, min(batch, 25))), media_type="text/plain; charset=utf-8", headers=CORS)
+
+
+@app.post("/api/public/studio/report")
+async def api_studio_report(request: Request):
+    """An đẩy thẳng báo cáo quét TikTok Studio (.md có khối JSON) → lưu, tách số liệu & cập nhật Báo cáo đồng thuận."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import chrome_reports, consensus
+
+    ctype = (request.headers.get("content-type") or "").lower()
+    body = title = video_id = ""
+    pid = None
+    push_consensus = True
+    if "application/json" in ctype:
+        try:
+            data = await request.json()
+        except Exception:  # noqa: BLE001
+            return JSONResponse({"error": "invalid_json"}, status_code=400, headers=CORS)
+        if not isinstance(data, dict):
+            return JSONResponse({"error": "invalid_payload"}, status_code=400, headers=CORS)
+        body = str(data.get("body") or data.get("markdown") or data.get("text") or "").strip()
+        title = str(data.get("title") or "").strip()
+        video_id = str(data.get("video_id") or "").strip()
+        pid = int(data["pid"]) if str(data.get("pid") or "").isdigit() else None
+        if "push_consensus" in data:
+            push_consensus = bool(data["push_consensus"])
+    else:
+        body = (await request.body()).decode("utf-8", errors="replace").strip()
+
+    if len(body) < 50:
+        return JSONResponse({"error": "body_too_short", "min_chars": 50}, status_code=400, headers=CORS)
+
+    rid = chrome_reports.add(body, title=title, pid=pid, video_id=video_id)
+    if pid and not (chrome_reports.get(rid) or {}).get("video_id"):
+        vid = (packages.get(pid) or {}).get("video_id") or ""
+        if vid:
+            with db.tx() as c:
+                c.execute("UPDATE chrome_reports SET video_id=? WHERE id=?", (vid, rid))
+    ingested = consensus.ingest(rid)
+    consensus_status = consensus.push() if push_consensus else "skipped"
+    return JSONResponse({
+        "ok": True,
+        "report_id": rid,
+        "url": f"/danh-gia/{rid}.md",
+        "ingested_videos": ingested,
+        "consensus_status": consensus_status,
+    }, headers=CORS)
+
+
+@app.post("/api/public/studio/comments")
+async def api_studio_comments(request: Request):
+    """An đẩy danh sách bình luận tiktokstudio/comment vào SQLite cục bộ. Chỉ nhận ghi, trả KPI ẩn danh (0% PII)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import comment_stats
+
+    raw = (await request.body()).decode("utf-8", errors="replace").strip()
+    note = ""
+    try:
+        parsed = None
+        if raw.startswith("{"):
+            obj = __import__("json").loads(raw)
+            if isinstance(obj, dict):
+                note = str(obj.get("note") or "").strip()
+        parsed = comment_stats.parse_import_payload(raw)
+        if not parsed:
+            raise ValueError("Danh sách bình luận trống.")
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400, headers=CORS)
+
+    res = comment_stats.import_comments(parsed, source="antigravity_api", note=note or "Đẩy từ An qua API")
+    kpi_out = comment_stats.dashboard_data(role="all")["kpi"]
+    return JSONResponse({"ok": True, **res, "kpi": kpi_out}, headers=CORS)
+
+
+@app.post("/api/public/studio/consensus/push")
+def api_studio_consensus_push(request: Request):
+    """An kích hoạt tách lại số liệu Studio & gửi Báo cáo đồng thuận cho Gemini (cần API_TOKEN)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import consensus
+
+    n = consensus.ingest_all()
+    status = consensus.push()
+    return JSONResponse({"ok": True, "ingested_rows": n, "consensus_status": status}, headers=CORS)
 
 
 @app.get("/api/overview")

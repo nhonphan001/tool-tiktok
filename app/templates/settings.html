@@ -111,12 +111,18 @@
     <p class="muted">Lần quét tự động tiếp theo: {{ next_run|localtime }}</p>
   </div>
 </div>
-<div class="card" style="margin-top:16px"><h2>API chỉ-đọc cho bảng điều hành / Gemini</h2>
+<div class="card" style="margin-top:16px"><h2>API cho bảng điều hành / Gemini / An (Antigravity)</h2>
   {% if s.api_token %}
   <p>Đã bật. Gửi token qua header <code>x-api-token</code> hoặc tham số <code>?token=</code>:</p>
-  <ul class="ins"><li><code>{{ s.base_url }}/api/public/summary</code> — JSON: số liệu, KPI, video, vấn đề tuân thủ</li>
-  <li><code>{{ s.base_url }}/api/public/report.md</code> — báo cáo Markdown đầy đủ</li></ul>
-  {% else %}<p class="muted">Đang tắt. Đặt <code>API_TOKEN=</code> (chuỗi ngẫu nhiên dài) trong file .env trên VPS rồi khởi động lại để bật.</p>{% endif %}
+  <ul class="ins">
+    <li><code>GET {{ s.base_url }}/api/public/summary</code> — JSON: số liệu API, KPI, video, vấn đề tuân thủ</li>
+    <li><code>GET {{ s.base_url }}/api/public/report.md</code> — báo cáo Markdown đầy đủ</li>
+    <li><code>GET {{ s.base_url }}/api/public/studio/status</code> — trạng thái bàn giao Studio (An · Antigravity)</li>
+    <li><code>GET {{ s.base_url }}/api/public/studio/context?days=14</code> &amp; <code>/full-scan</code> &amp; <code>/clock</code> — ngữ cảnh cho An quét TikTok Studio</li>
+    <li><code>POST {{ s.base_url }}/api/public/studio/report</code> — An đẩy báo cáo Studio (.md + JSON) → tự tách số liệu &amp; gửi Báo cáo đồng thuận</li>
+    <li><code>POST {{ s.base_url }}/api/public/studio/comments</code> — An đẩy JSON bình luận <code>tiktokstudio/comment</code> vào SQLite cục bộ (chỉ nhận ghi, không lộ nick ra API)</li>
+  </ul>
+  {% else %}<p class="muted">Đang tắt. Đặt <code>API_TOKEN=</code> (chuỗi ngẫu nhiên dài) trong file .env trên VPS rồi khởi động lại để bật cổng API cho bảng điều hành, Gemini và An (Antigravity).</p>{% endif %}
 </div>
 <div class="grid g2" style="margin-top:16px">
   <div class="card scroll"><h2>Nhật ký quét</h2><table>
