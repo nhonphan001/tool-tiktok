@@ -23,7 +23,7 @@ Do **Gói 33** (*Nữ Canh Ngọ 1990*) hoàn tất lúc `15:18` và được an
 | T5 26/11 | Gói 32 "Rót chén trà cho người thương" *(đã đăng)* | **19:00** Gói 33 Nữ Canh Ngọ 1990 *(đăng tối nay)* | `19:00 × B` | 32, 33 |
 | **T6 27/11** | Giữa ngày săn sale, chậm lại bên ấm trà | **12:30** Nữ Bính Dần 1986 · Năm Đinh Mùi 2027 | **`12:30 × B`** *(đổi từ 19:00 để cân bằng phép thử)* | **35, 36** |
 | **T7 28/11** | Buông chuyện ngoài tầm với | **12:30** Nữ Mậu Thìn 1988 · Năm Đinh Mùi 2027 | `12:30 × A` | 37, 38 |
-| **CN 29/11** | Một ngày nghỉ trọn vẹn | **19:00** **Gói 34** Trả lời chị Quý Sửu 1973 *(20/02/1973 19:00 nữ)* | ngoài phép thử | 39, **34** |
+| **CN 29/11** | Một ngày nghỉ trọn vẹn | **19:00** **Gói 34** Trả lời 1 bình luận thật mới *(chọn tuổi khác, KHÔNG lặp Quý Sửu 1973 đã đăng ở Gói 27)* | ngoài phép thử | 39, **34** |
 | **T2 30/11** | Đầu tuần nhẹ nhàng *(KHÔNG dùng "an lành" / "an yên")* | **12:30** Nữ Tân Mùi 1991 · Năm Đinh Mùi 2027 | `12:30 × B` | 40, 41 |
 | **T3 01/12** | Mốc 01/12: "Còn đúng 30 ngày khép lại 2026" | **19:00** Nữ Quý Dậu 1993 · Năm Đinh Mùi 2027 | `19:00 × A` | 42, 43 |
 | **T4 02/12** | Mỉm cười với chuyện chưa trọn | **19:00** Kiến thức nền: "Dụng Thần là gì?" | ngoài phép thử | 44, 45 |
