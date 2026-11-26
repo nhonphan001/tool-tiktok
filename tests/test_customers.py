@@ -27,6 +27,30 @@ def test_colors_facts_templates():
         assert not r["promise"] and not r["offsite"], (text, r)
     no = customers.templates("cô xem giúp", {"gioi": "nam"}, None)
     assert "ngày giờ sinh" in no["public"] and "anh" in no["public"].lower()
+    assert len(no["public"]) <= 150 and "bình luận" in no["public"].lower()
+    assert "giờ sinh" in no["private"].lower() and "4 trụ" in no["private"].lower()
+
+    # Trường hợp có ngày tháng năm sinh nhưng THIẾU GIỜ SINH -> gợi tò mò theo Nhật chủ & nhắc bổ sung giờ sinh
+    c_no_hour = {"alias": "Chị Lan", "gioi": "nu", "dd": "17", "mm": "4", "yy": "1984", "t": "", "lich": "duong"}
+    ch_no_hour = customers.chart(c_no_hour)
+    t3 = customers.templates("Ôi em 17 tháng 4 1984", c_no_hour, ch_no_hour)
+    assert t3["missing"] == ["giờ sinh"]
+    assert len(t3["public"]) <= 150
+    assert "giờ sinh" in t3["public"] and "4 trụ" in t3["public"] and "hộp thư" in t3["public"]
+    assert "Tân Kim" in t3["public"]  # cá nhân hóa theo Nhật chủ, không chung chung
+    assert "1984" not in t3["public"] and "Lan" not in t3["public"]
+    assert "Trụ Giờ" in t3["private"] and "giờ sinh" in t3["private"]
+    for text in (t3["public"], t3["private"]):
+        r = compliance.check(text, False)
+        assert not r["promise"] and not r["offsite"], (text, r)
+
+    # Trường hợp thiếu cả giờ sinh lẫn giới tính
+    c_min = {"alias": "Khách", "gioi": "", "dd": "28", "mm": "5", "yy": "1984", "t": "", "lich": "duong"}
+    ch_min = customers.chart(c_min)
+    t4 = customers.templates("sinh 28/5/1984", c_min, ch_min)
+    assert t4["missing"] == ["giờ sinh", "giới tính"]
+    assert len(t4["public"]) <= 150 and "giờ sinh" in t4["public"] and "giới tính" in t4["public"]
+    assert "Đại vận" in t4["private"]
 
 
 def test_save_messages_tiers_delete():

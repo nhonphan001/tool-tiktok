@@ -95,24 +95,79 @@ def _xung(c: dict) -> str:
     return {"nu": "chị", "nam": "anh"}.get(g, "mình")
 
 
+def missing_fields(c: dict, ch: dict | None) -> list[str]:
+    """Liệt kê thông tin còn thiếu để lập trọn vẹn Tứ Trụ + Đại vận."""
+    if not ch:
+        return ["ngày tháng năm sinh", "giờ sinh", "dương/âm lịch", "giới tính"]
+    miss = []
+    if not (ch.get("tru") and len(ch["tru"]) >= 4 and ch["tru"][3]):
+        miss.append("giờ sinh")
+    if not (c.get("gioi") or "").strip():
+        miss.append("giới tính")
+    return miss
+
+
+def _curiosity_hook(ch: dict, facts: list[str]) -> str:
+    """Chọn móc câu tò mò ngắn (≤28 ký tự), sát lá số thật, không hù dọa, không hứa hẹn."""
+    joined = " ".join(facts)
+    if "được tiếp sức" in joined or "đúng Dụng thần" in joined:
+        return "có 1 điểm tiếp sức rất hay"
+    if "lục xung" in joined or "Kỵ thần" in joined:
+        return "có 1 nút thắt cần gỡ khéo"
+    if "Sắp đổi đại vận" in joined:
+        return "sắp bước vào nhịp chuyển mới"
+    return "có bước chuyển rất đáng xem"
+
+
 def templates(message: str, c: dict, ch: dict | None) -> dict:
     x = _xung(c)
     msg = (message or "").lower()
     asks_health = bool(re.search(r"sức\s*khỏe|bệnh|đau|xương|khớp|mệt|ốm", msg))
+    miss = missing_fields(c, ch)
     if not ch:
-        public = (f"Cảm ơn {x} đã tin Cô Kim. {x.capitalize()} để lại ngày giờ sinh dương lịch (giờ, ngày, tháng, năm) để Cô Kim "
-                  "giải mã kỹ hơn nha.")
-        return {"public": public[:150], "private": public, "facts": []}
+        public = (f"Cô Kim chào {x} 🍵 {x.capitalize()} bình luận thêm ngày giờ sinh (đủ ngày, tháng, năm, giờ & dương/âm) "
+                  f"để Cô Kim soi điểm chuyển năm {YEAR_NEXT} cho {x} nha!")
+        private = "\n".join([
+            f"Cô Kim chào {x}. Cô Kim đọc lời nhắn của {x} rồi nha 🍵",
+            f"Để lập trọn vẹn lá số Bát Tự 4 trụ và xem kỹ nhịp chuyển năm Đinh Mùi {YEAR_NEXT}, {x} nhắn giúp Cô Kim đủ 4 thông tin này nha:",
+            "- Ngày, tháng, năm sinh (ghi rõ Dương lịch hay Âm lịch)",
+            "- Giờ sinh (nếu không nhớ chính xác phút thì ước chừng sáng, trưa, chiều hay tối cũng được ạ)",
+            "- Giới tính (để Cô Kim xem luôn chu kỳ Đại vận 10 năm)",
+            f"Khi đủ 4 trụ, Cô Kim sẽ gửi riêng phần giải mã chi tiết Nhật chủ, điểm đáng lưu ý năm {YEAR_NEXT} và hướng màu sắc hài hòa cho {x} nha!",
+        ])
+        return {"public": public[:150], "private": private, "facts": [], "missing": miss}
+
     yr = battu.name(battu.ganzhi(YEAR_NEXT - 4))
-    public = (f"Thương {x} nhiều. Năm {yr} {YEAR_NEXT} Cô Kim thấy có điểm tiếp sức cho {x}. Cô Kim nhắn riêng chi tiết "
-              f"cho {x} trong hộp thư nha.")
-    if asks_health:
-        public = (f"Thương {x} nhiều. Chuyện sức khỏe {x} đi khám bác sĩ cho kỹ nha. Phần lá số năm {YEAR_NEXT}, "
-                  f"Cô Kim nhắn riêng cho {x} trong hộp thư nha.")
     facts = year_facts(ch)
     col = colors(ch)
+    nc_lbl = f"{ch['nhat_chu']} {ch['nhat_chu_hanh']}"
+    hook = _curiosity_hook(ch, facts)
+    no_hour = "giờ sinh" in miss
+    no_gender = "giới tính" in miss
+
+    if no_hour:
+        ask_extra = "giờ sinh & giới tính" if no_gender else "giờ sinh"
+        if asks_health:
+            public = (f"Thương {x}, nhớ đi khám bác sĩ nha. Lá số {nc_lbl} năm {YEAR_NEXT} {hook} — "
+                      f"bình luận thêm {ask_extra} để Cô Kim chốt 4 trụ gửi hộp thư!")
+        else:
+            public = (f"Lá số {nc_lbl} của {x} năm {YEAR_NEXT} {hook} 🍵 "
+                      f"Bình luận thêm {ask_extra} để Cô Kim chốt đủ 4 trụ rồi nhắn riêng trong hộp thư nha!")
+    else:
+        if asks_health:
+            public = (f"Thương {x}, chuyện sức khỏe nhớ đi khám bác sĩ nha. Lá số {nc_lbl} năm {YEAR_NEXT} {hook}, "
+                      f"Cô Kim nhắn riêng trong hộp thư rồi nha!")
+        else:
+            public = (f"Lá số {nc_lbl} của {x} năm {YEAR_NEXT} {hook} 🍵 "
+                      f"Cô Kim vừa soi đủ 4 trụ và nhắn riêng trong hộp thư, {x} vào xem nha!")
+
     lines = [f"Cô Kim chào {x}. Cô Kim đọc tin nhắn mà thương {x} lắm.",
              f"Lá số của {x}: {ch['tu_tru']}, Nhật chủ {ch['nhat_chu']} ({ch['nhat_chu_ta']}), {ch['trang_thai'].lower()}."]
+    if no_hour:
+        lines.append(f"Lưu ý nhỏ: hiện Cô Kim mới nhận được 3 trụ (chưa có giờ sinh nên thiếu Trụ Giờ — trụ quyết định độ chuẩn của Dụng thần và hậu vận). "
+                     f"Nếu {x} nhớ khoảng giờ sinh (dù chỉ nhớ sáng, trưa, chiều hay tối, kèm dương hay âm lịch), {x} nhắn thêm cho Cô Kim để chốt lại đủ 4 trụ thật tròn vẹn nha!")
+    if no_gender:
+        lines.append(f"Ngoài ra, nếu {x} nhắn thêm giới tính, Cô Kim sẽ tính luôn chu kỳ Đại vận 10 năm cho {x} nha.")
     lines.append(f"Năm {yr} {YEAR_NEXT} (dữ kiện tool tính, anh Nhơn diễn giải lại cho mềm trước khi gửi):")
     lines += [f"- {f}" for f in facts]
     if asks_health:
@@ -125,17 +180,21 @@ def templates(message: str, c: dict, ch: dict | None) -> dict:
                      + (" Lá số của " + x + " ở sát ngưỡng vượng nhược nên đây là hướng gợi ý, không cần kiêng tuyệt đối."
                         if col["sat_nguong"] else " Đây là hướng gợi ý cho dễ chịu, không phải kiêng tuyệt đối."))
     lines.append(f"Cô Kim chúc {x} giữ sức, nhẹ lòng. Có gì {x} cứ nhắn Cô Kim nha.")
-    return {"public": public[:150], "private": "\n".join(lines), "facts": facts}
+    return {"public": public[:150], "private": "\n".join(lines), "facts": facts, "missing": miss}
 
 
 # --------------------------------------------------------------------------- AI
 AI_SYSTEM = """Bạn là Cô Kim của kênh TikTok "Tiệm Trà Giải Mã": người pha trà, giải mã Bát Tự nhẹ nhàng, giọng miền Nam ấm,
 xưng "Cô Kim", gọi khách theo cách khách xưng hô (chị/anh/con). Viết 2 bản trả lời cho tin nhắn của khách:
 
-1. "binh_luan": trả lời BÌNH LUẬN CÔNG KHAI, tối đa 150 ký tự. Không lặp ngày sinh, không nêu chi tiết sức khỏe hay
-   chuyện riêng của khách, không nêu màu sắc. Cảm ơn + 1 ý ấm áp + hẹn "Cô Kim nhắn riêng cho chị trong hộp thư nha".
-2. "tin_nhan": TIN NHẮN RIÊNG trong hộp thư TikTok, 500–1.000 ký tự, chia 4–6 đoạn ngắn: đồng cảm → lá số → năm tới (cả
-   mặt thuận và mặt cần lưu ý) → trả lời đúng câu khách hỏi → lời chúc.
+1. "binh_luan": trả lời BÌNH LUẬN CÔNG KHAI, tối đa 150 ký tự.
+   - KHÔNG viết chung chung kiểu "cảm ơn đã quan tâm". Phải cài 1 chi tiết GÂY TÒ MÒ tự nhiên từ đúng Nhật chủ hoặc điểm chuyển năm 2027
+     (ví dụ: có điểm tiếp sức bất ngờ, có 1 nút thắt cần gỡ khéo, sắp bước sang nhịp mới) để khách muốn bình luận tiếp hoặc mở hộp thư ngay.
+   - Nếu khách THIẾU GIỜ SINH (mới có 3 trụ) hoặc thiếu dương/âm lịch / giới tính: BẮT BUỘC gợi ý khéo để khách bình luận bổ sung
+     đủ thông tin để Cô Kim chốt đủ 4 trụ Bát Tự hoàn chỉnh rồi nhắn hộp thư.
+   - Không lặp ngày sinh, không nêu tên khách, không nêu chi tiết sức khỏe hay chuyện riêng, không nêu màu sắc. Dùng từ "bình luận" (không dùng "comment").
+2. "tin_nhan": TIN NHẮN RIÊNG trong hộp thư TikTok, 500–1.000 ký tự, chia 4–6 đoạn ngắn: đồng cảm → lá số (nếu thiếu giờ sinh thì nhắc khéo
+   bổ sung khoảng giờ sinh sáng/trưa/chiều/tối để hoàn thiện Trụ Giờ & Dụng thần) → năm tới (cả mặt thuận và mặt cần lưu ý) → trả lời đúng câu khách hỏi → lời chúc.
 
 BẮT BUỘC:
 - Chỉ dùng đúng lá số và DỮ KIỆN NĂM TỚI do TikTok Manager tính. Không tự tính thêm can chi, không đổi Nhật chủ/Dụng thần.
@@ -152,10 +211,13 @@ def draft_ai(message: str, c: dict, ch: dict) -> dict:
 
     col = colors(ch)
     facts = year_facts(ch)
+    miss = missing_fields(c, ch)
+    miss_note = (f"\nThông tin CÒN THIẾU của khách: {', '.join(miss)} (BẮT BUỘC gợi ý khách bình luận/nhắn bổ sung để chốt đủ 4 trụ Bát Tự hoàn chỉnh)."
+                 if miss else "\nKhách đã cung cấp ĐỦ 4 trụ (có giờ sinh) và giới tính — gợi tò mò để khách mở hộp thư đọc ngay.")
 
     def ask(extra: str = ""):
         prompt = (f"Tin nhắn của khách (đã ẩn tên), xưng hô gợi ý: {_xung(c)}\n{comment_reply.anonymize(message)[:2000]}\n\n"
-                  f"Lá số TikTok Manager tính: {comment_reply.chart_brief(ch)}\n"
+                  f"Lá số TikTok Manager tính: {comment_reply.chart_brief(ch)}{miss_note}\n"
                   f"Dữ kiện năm {YEAR_NEXT}:\n- " + "\n- ".join(facts) + "\n"
                   f"Màu hợp: {'; '.join(f'{m} (hành {h})' for h, m in col['hop'])}\n"
                   f"Màu nên dùng ít: {'; '.join(f'{m} (hành {h})' for h, m in col['it'])}"
@@ -179,7 +241,7 @@ def draft_ai(message: str, c: dict, ch: dict) -> dict:
         bad = _issues(pub) + _issues(pri)
         usage = {**usage, "cost_usd": (usage.get("cost_usd") or 0) + (u2.get("cost_usd") or 0)}
     return {"public": pub[:150], "private": pri, "idea": str(d.get("goi_y_video") or ""), "issues": bad,
-            "cost_usd": round(float(usage.get("cost_usd") or 0), 5)}
+            "missing": miss, "cost_usd": round(float(usage.get("cost_usd") or 0), 5)}
 
 
 def _issues(text: str) -> list[str]:
