@@ -507,6 +507,80 @@ def laso_comments(request: Request, text: str = Form("")):
     return render(request, "laso.html", f={}, result=None, error=None, rows=rows, text=text, summary="", qs="")
 
 
+# ------------------------------------------------------------------ thống kê bình luận TikTok Studio
+@app.get("/binh-luan", response_class=HTMLResponse)
+def comment_stats_page(request: Request, role: str = "viewer", status: str = "all", cat: str = "all",
+                       vkey: str = "", q: str = "", show_nick: int = 0):
+    from . import comment_stats
+
+    data = comment_stats.dashboard_data(role=role, status=status, cat=cat, vkey=vkey, q=q)
+    return render(
+        request, "comment_stats.html", active="comment_stats",
+        role=role, status=status, cat=cat, vkey=vkey, q=q, show_nick=bool(show_nick),
+        **data,
+    )
+
+
+@app.post("/binh-luan/import")
+async def comment_stats_import(request: Request):
+    from . import comment_stats
+
+    form = await request.form()
+    note = str(form.get("note") or "").strip()
+    raw = str(form.get("payload") or "").strip()
+    up = form.get("file")
+    if not raw and up is not None and hasattr(up, "read"):
+        data_bytes = await up.read()
+        if data_bytes:
+            raw = data_bytes.decode("utf-8", errors="replace").strip()
+    if not raw:
+        flash(request, "Hãy dán JSON hoặc chọn tệp .json từ TikTok Studio trước khi nhập.", "error")
+        return RedirectResponse("/binh-luan#nhap-du-lieu", status_code=303)
+    try:
+        items = comment_stats.parse_import_payload(raw)
+        if not items:
+            raise ValueError("Danh sách bình luận trống.")
+        res = comment_stats.import_comments(items, source="tiktok_studio", note=note)
+        flash(
+            request,
+            f"Đã nhập {res['total']} bình luận từ TikTok Studio (thêm mới {res['inserted']}, cập nhật {res['updated']}).",
+            "success",
+        )
+    except ValueError as e:
+        flash(request, f"Lỗi dữ liệu nhập: {e}", "error")
+    return RedirectResponse("/binh-luan", status_code=303)
+
+
+@app.post("/binh-luan/xoa-tat-ca")
+def comment_stats_clear(request: Request):
+    from . import comment_stats
+
+    n = comment_stats.clear_all()
+    flash(request, f"Đã xoá {n} bình luận lưu cục bộ trên TikTok Manager.", "success")
+    return RedirectResponse("/binh-luan", status_code=303)
+
+
+@app.get("/binh-luan/bao-cao.md")
+def comment_stats_markdown():
+    from . import comment_stats
+
+    md_text = comment_stats.to_markdown()
+    return HTMLResponse(
+        md_text,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=thong_ke_binh_luan_an_danh.md"},
+    )
+
+
+@app.post("/binh-luan/{cid}/trang-thai")
+def comment_stats_toggle_replied(request: Request, cid: int, replied: int = Form(1), back: str = Form("/binh-luan")):
+    from . import comment_stats
+
+    comment_stats.set_manual_replied(cid, bool(replied))
+    target = back if back.startswith("/binh-luan") else "/binh-luan"
+    return RedirectResponse(target, status_code=303)
+
+
 @app.get("/packages", response_class=HTMLResponse)
 def packages_page(request: Request):
     items = packages.all_packages()

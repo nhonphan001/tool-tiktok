@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Thống kê bình luận · TikTok Manager{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div>
+    <h1 style="margin-bottom:4px">💬 Thống kê bình luận TikTok Studio</h1>
+    <div class="muted small">
+      Nguồn: <code>tiktokstudio/comment</code> (chỉ đọc · lưu cục bộ trên TikTok Manager, không đồng bộ Drive, không gửi nick ra ngoài).
+      {% if kpi.last_import %} · Cập nhật gần nhất: <b>{{ kpi.last_import|localtime }}</b>{% endif %}
+    </div>
+  </div>
+  <div class="row" style="gap:6px">
+    {% if kpi.total %}<a class="btn sec small" href="/binh-luan/bao-cao.md">📥 Xuất báo cáo ẩn danh (.md)</a>{% endif %}
+    <a class="btn sec small" href="#nhap-du-lieu">＋ Nhập từ Studio</a>
+  </div>
+</div>
+
+{% if kpi.total %}
+<div class="grid g4" style="margin:14px 0">
+  <div class="card stat">
+    <div class="label">Tổng bình luận gốc</div>
+    <div class="value">{{ kpi.total|num }}</div>
+    <div class="sub">Khách: <b>{{ kpi.viewer_total }}</b> · Kênh: {{ kpi.creator_total }}</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Khách chưa trả lời</div>
+    <div class="value {{ 'down' if kpi.unreplied else 'up' }}">{{ kpi.unreplied|num }}</div>
+    <div class="sub">Đã trả lời: <b>{{ kpi.replied }}/{{ kpi.viewer_total }}</b> ({{ kpi.reply_rate_pct }}%)</div>
+  </div>
+  <div class="card stat">
+    <div class="label">Xin lá số / Có ngày-năm sinh</div>
+    <div class="value">{{ kpi.xin_la_so|num }}</div>
+    <div class="sub">Đủ ngày sinh: <b>{{ kpi.xin_la_so_full }}</b> · Chưa TL: <b class="{{ 'down' if kpi.xin_la_so_unreplied else 'up' }}">{{ kpi.xin_la_so_unreplied }}</b></div>
+  </div>
+  <div class="card stat">
+    <div class="label">Video có bình luận</div>
+    <div class="value">{{ kpi.video_count|num }}</div>
+    <div class="sub">Có BL khách: {{ kpi.video_with_viewer }} · Tổng thích BL: <b>{{ kpi.total_likes|num }}</b></div>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="card">
+    <h2>Phân bổ bình luận khách theo nhóm</h2>
+    <canvas id="catChart" height="170"></canvas>
+  </div>
+  <div class="card">
+    <h2>Top video có nhiều bình luận khách nhất</h2>
+    <canvas id="vidChart" height="170"></canvas>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="card scroll">
+    <h2>Bảng 1 · Theo nhóm bình luận</h2>
+    <table>
+      <tr><th>Nhóm</th><th class="n">Số lượng</th><th class="n">Tỷ lệ</th><th class="n">Đã TL</th><th class="n">Chưa TL</th><th class="n">Thích</th></tr>
+      {% for c in cat_stats %}<tr>
+        <td><a href="/binh-luan?role={{ 'creator' if c.key=='kenh' else 'viewer' }}&cat={{ c.key }}#chi-tiet">{{ c.label }}</a></td>
+        <td class="n"><b>{{ c.count }}</b></td>
+        <td class="n">{{ c.pct }}%</td>
+        <td class="n">{{ c.replied }}</td>
+        <td class="n">{% if c.unreplied %}<span class="down"><b>{{ c.unreplied }}</b></span>{% else %}0{% endif %}</td>
+        <td class="n">{{ c.likes }}</td>
+      </tr>{% endfor %}
+    </table>
+  </div>
+
+  <div class="card scroll">
+    <h2>Bảng 2 · Tuổi / Can Chi khách nhắc nhiều nhất</h2>
+    <table>
+      <tr><th>Can Chi</th><th class="n">Bình luận khách</th><th class="n">Đủ ngày sinh</th><th class="n">Chưa trả lời</th></tr>
+      {% for cc in canchi_stats[:12] %}<tr>
+        <td><a href="/binh-luan?role=viewer&q={{ cc.can_chi|urlencode }}#chi-tiet"><b>{{ cc.can_chi }}</b></a></td>
+        <td class="n">{{ cc.count }}</td>
+        <td class="n">{{ cc.full_date }}</td>
+        <td class="n">{% if cc.unreplied %}<span class="down">{{ cc.unreplied }}</span>{% else %}0{% endif %}</td>
+      </tr>{% else %}<tr><td colspan="4" class="muted">Chưa nhận diện được tuổi/Can Chi nào.</td></tr>{% endfor %}
+    </table>
+    <p class="muted small" style="margin:8px 0 0">Dùng bảng này để chọn tuổi đang có nhu cầu cao nhất cho Gói Loại 1 tiếp theo.</p>
+  </div>
+</div>
+
+<div class="card scroll" style="margin-bottom:16px">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <h2 style="margin:0">Bảng 3 · Thống kê theo từng Video / Gói SX ({{ video_stats|length }} video)</h2>
+    <span class="muted small">Bấm vào tiêu đề video để lọc danh sách bình luận bên dưới</span>
+  </div>
+  <table>
+    <tr>
+      <th>Gói</th><th>Video (caption)</th><th class="n">BL khách</th><th class="n">BL kênh</th>
+      <th class="n">Xin lá số</th><th class="n">Đã TL</th><th class="n">Chưa TL</th><th class="n">Thích BL</th><th>Mới nhất</th>
+    </tr>
+    {% for v in video_stats %}<tr>
+      <td class="nw">
+        {% if v.pkg_id %}<a href="/packages/{{ v.pkg_id }}"><b>Gói {{ v.goi }}</b></a>{% if v.loai %} <span class="badge loai-{{ v.loai }}">L{{ v.loai }}</span>{% endif %}
+        {% elif v.goi %}<b>Gói {{ v.goi }}</b>{% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="small" style="max-width:360px">
+        <a href="/binh-luan?role=all&vkey={{ v.vkey }}#chi-tiet">{{ v.short_caption }}</a>
+        {% if v.video_id %} · <a class="muted" href="/videos/{{ v.video_id }}">xem video</a>{% endif %}
+      </td>
+      <td class="n"><b>{{ v.viewer }}</b></td>
+      <td class="n muted">{{ v.creator }}</td>
+      <td class="n">{% if v.xin_la_so %}<span class="badge ok">{{ v.xin_la_so }}</span>{% else %}0{% endif %}</td>
+      <td class="n">{{ v.replied }}</td>
+      <td class="n">{% if v.unreplied %}<span class="down"><b>{{ v.unreplied }}</b></span>{% else %}0{% endif %}</td>
+      <td class="n">{{ v.likes }}</td>
+      <td class="small nw muted">{{ v.latest_time or '—' }}</td>
+    </tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card" id="chi-tiet" style="margin-bottom:16px">
+  <div class="row" style="justify-content:space-between;margin-bottom:10px">
+    <h2 style="margin:0">Bảng 4 · Chi tiết bình luận ({{ rows|length }})</h2>
+    <div class="row" style="gap:6px">
+      <a class="btn sec small" href="/binh-luan?role=viewer&status=unreplied&cat=xin_la_so#chi-tiet">🔥 Xin lá số chưa TL ({{ kpi.xin_la_so_unreplied }})</a>
+      <a class="btn sec small" href="/binh-luan?role=viewer&status=unreplied#chi-tiet">Chưa trả lời ({{ kpi.unreplied }})</a>
+      <a class="btn sec small" href="/binh-luan?role={{ role }}&status={{ status }}&cat={{ cat }}&vkey={{ vkey }}&q={{ q|urlencode }}&show_nick={{ 0 if show_nick else 1 }}#chi-tiet">{{ '🙈 Ẩn nick' if show_nick else '👁 Hiện nick (nội bộ)' }}</a>
+    </div>
+  </div>
+  <form method="get" action="/binh-luan#chi-tiet" class="row" style="gap:8px;margin-bottom:12px">
+    <input type="hidden" name="show_nick" value="{{ 1 if show_nick else 0 }}">
+    <select name="role" style="max-width:155px">
+      <option value="viewer" {{ 'selected' if role=='viewer' }}>Chỉ khách ({{ kpi.viewer_total }})</option>
+      <option value="all" {{ 'selected' if role=='all' }}>Tất cả ({{ kpi.total }})</option>
+      <option value="creator" {{ 'selected' if role=='creator' }}>Chỉ kênh ({{ kpi.creator_total }})</option>
+    </select>
+    <select name="status" style="max-width:155px">
+      <option value="all" {{ 'selected' if status=='all' }}>Mọi trạng thái</option>
+      <option value="unreplied" {{ 'selected' if status=='unreplied' }}>Chưa trả lời</option>
+      <option value="replied" {{ 'selected' if status=='replied' }}>Đã trả lời</option>
+    </select>
+    <select name="cat" style="max-width:205px">
+      <option value="all" {{ 'selected' if cat=='all' }}>Mọi phân loại</option>
+      {% for k, lbl in categories.items() %}<option value="{{ k }}" {{ 'selected' if cat==k }}>{{ lbl }}</option>{% endfor %}
+    </select>
+    {% if vkey %}<input type="hidden" name="vkey" value="{{ vkey }}">{% endif %}
+    <input name="q" value="{{ q }}" placeholder="Tìm nội dung, ngày sinh, Can Chi, gói…" style="max-width:240px">
+    <button class="btn small">Lọc</button>
+    {% if vkey or q or cat!='all' or status!='all' or role!='viewer' %}<a class="btn sec small" href="/binh-luan#chi-tiet">Xoá lọc</a>{% endif %}
+  </form>
+
+  <div class="scroll">
+    <table>
+      <tr>
+        <th>Thời gian</th><th>Người gửi</th><th>Nội dung bình luận</th><th>Nhóm</th>
+        <th>Ngày sinh / Lá số</th><th>Trạng thái</th><th>Video / Gói</th><th>Hành động</th>
+      </tr>
+      {% for r in rows %}<tr>
+        <td class="small nw muted">{{ r.time_text or '—' }}<div class="muted">♥ {{ r.likes }}{% if r.reply_count %} · 💬 {{ r.reply_count }}{% endif %}</div></td>
+        <td class="small nw">
+          {% if r.is_creator %}<span class="badge">Kênh</span>
+          {% else %}{{ '@' + r.author_display if show_nick and r.author_display else r.author_masked }}{% endif %}
+        </td>
+        <td style="min-width:210px;max-width:340px;white-space:pre-wrap">{{ r.text_display }}</td>
+        <td class="nw"><span class="badge {{ 'ok' if r.category=='xin_la_so' else '' }}">{{ r.cat_label }}</span></td>
+        <td class="small" style="min-width:150px">
+          {% if r.birth_summary %}<b>{{ r.birth_summary }}</b>{% else %}<span class="muted">—</span>{% endif %}
+          {% if r.birth and r.birth.tu_tru %}<div class="muted">{{ r.birth.tu_tru }}</div>
+          <div class="muted">NC {{ r.birth.nhat_chu }} · Dụng {{ r.birth.dung_than }}</div>{% endif %}
+        </td>
+        <td class="nw">
+          {% if r.is_creator %}<span class="muted small">Bình luận kênh</span>
+          {% else %}
+            <form method="post" action="/binh-luan/{{ r.id }}/trang-thai" style="margin:0">
+              <input type="hidden" name="replied" value="{{ 0 if r.is_replied else 1 }}">
+              <input type="hidden" name="back" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}#chi-tiet">
+              <button class="btn sec small" title="Bấm để đổi trạng thái đã/chưa trả lời">
+                {% if r.is_replied %}<span class="up">✓ Đã TL</span>{% else %}<span class="down">○ Chưa TL</span>{% endif %}
+              </button>
+            </form>
+          {% endif %}
+        </td>
+        <td class="small" style="max-width:220px">
+          {% if r.pkg_id %}<a href="/packages/{{ r.pkg_id }}"><b>Gói {{ r.goi }}</b></a> · {% elif r.goi %}<b>Gói {{ r.goi }}</b> · {% endif %}
+          <a class="muted" href="/binh-luan?role=all&vkey={{ r.vkey }}#chi-tiet">{{ r.short_caption[:65] }}</a>
+        </td>
+        <td class="small nw">
+          {% if r.birth and r.birth.has_full_date %}
+            <a class="btn sec small" href="/laso?dd={{ r.birth.dd }}&mm={{ r.birth.mm }}&yy={{ r.birth.yy }}{% if r.birth.t %}&t={{ r.birth.t }}{% endif %}{% if r.birth.lich=='am' %}&lich=am{% endif %}{% if r.birth.nhuan %}&nhuan=1{% endif %}{% if r.birth.gioi %}&gioi={{ r.birth.gioi }}{% endif %}">Lá số</a>
+          {% endif %}
+          {% if not r.is_creator and r.text %}
+            <form method="post" action="/laso/comments" style="display:inline;margin:0">
+              <input type="hidden" name="text" value="{{ r.text }}">
+              <button class="btn sec small" title="Mở sang trang Lá số để soạn trả lời AI, Tạo gói SX hoặc Lưu khách">Soạn TL</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>{% else %}<tr><td colspan="8" class="muted">Không có bình luận nào khớp bộ lọc.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom:16px">
+  <h2>Chưa có dữ liệu bình luận nào</h2>
+  <p class="muted">Hãy nhập tệp JSON hoặc dán khối JSON thu được từ <code>https://www.tiktok.com/tiktokstudio/comment</code> ở khung bên dưới để tool tự động lập toàn bộ bảng thống kê, nhận diện ngày sinh và tính Tứ Trụ Bát Tự.</p>
+</div>
+{% endif %}
+
+<div class="card" id="nhap-du-lieu">
+  <h2>＋ Nhập dữ liệu bình luận từ TikTok Studio</h2>
+  <p class="muted small">Dán mảng JSON (hoặc báo cáo Markdown có khối <code>```json [...] ```</code>) hay chọn tệp <code>.json</code> lấy từ <code>tiktokstudio/comment</code>. Nhập lại nhiều lần sẽ tự cập nhật lượt thích &amp; trạng thái trả lời mà không nhân đôi dòng.</p>
+  <form method="post" action="/binh-luan/import" enctype="multipart/form-data">
+    <div class="row" style="gap:10px">
+      <div style="flex:1;min-width:220px"><label>Chọn tệp .json (tuỳ chọn)</label><input type="file" name="file" accept=".json,.md,.txt"></div>
+      <div style="flex:1;min-width:220px"><label>Ghi chú đợt nhập (tuỳ chọn)</label><input name="note" placeholder="VD: Quét tiktokstudio/comment 26/11/2026"></div>
+    </div>
+    <label>Hoặc dán trực tiếp nội dung JSON vào đây</label>
+    <textarea name="payload" rows="6" placeholder='[{"idx":1,"author_display":"...","is_creator":false,"text":"...","time_text":"2 giờ trước","likes":0,"reply_count":0,"replied_by_creator":false,"video_caption":"..."}]'></textarea>
+    <div class="row" style="justify-content:space-between;margin-top:10px">
+      <button class="btn">Nhập &amp; lập bảng thống kê</button>
+      {% if kpi.total %}
+      <button type="submit" formaction="/binh-luan/xoa-tat-ca" class="btn sec small" onclick="return confirm('Xoá toàn bộ dữ liệu bình luận đang lưu cục bộ trên TikTok Manager?')">🗑 Xoá toàn bộ dữ liệu bình luận</button>
+      {% endif %}
+    </div>
+  </form>
+  {% if imports %}
+  <details class="sub" style="margin-top:12px">
+    <summary class="muted small">Lịch sử nhập dữ liệu ({{ imports|length }} lần gần nhất)</summary>
+    <table style="margin-top:6px">
+      <tr><th>Thời điểm</th><th class="n">Tổng dòng</th><th class="n">Thêm mới</th><th class="n">Cập nhật</th><th>Ghi chú</th></tr>
+      {% for im in imports %}<tr>
+        <td class="small nw">{{ im.imported_at|localtime }}</td>
+        <td class="n">{{ im.total_rows }}</td>
+        <td class="n">{{ im.inserted_rows }}</td>
+        <td class="n">{{ im.updated_rows }}</td>
+        <td class="small muted">{{ im.note or im.source }}</td>
+      </tr>{% endfor %}
+    </table>
+  </details>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if kpi.total %}
+<script>
+const C = {{ charts|tojson }};
+new Chart(document.getElementById('catChart'), {
+  type: 'bar',
+  data: {
+    labels: C.cat_labels,
+    datasets: [{ label: 'Bình luận khách', data: C.cat_values, backgroundColor: ['#fe2c55','#f5a524','#14a44d','#8b95a7'], borderRadius: 5 }]
+  },
+  options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+new Chart(document.getElementById('vidChart'), {
+  type: 'bar',
+  data: {
+    labels: C.vid_labels,
+    datasets: [
+      { label: 'Đã trả lời', data: C.vid_replied, backgroundColor: '#14a44d', borderRadius: 4 },
+      { label: 'Chưa trả lời', data: C.vid_unreplied, backgroundColor: '#fe2c55', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } }
+});
+</script>
+{% endif %}
+{% endblock %}
