@@ -43,3 +43,17 @@ Tất cả endpoint đều yêu cầu xác thực bằng **`API_TOKEN`** (gửi 
 3. **Cách kích hoạt trên VPS:**
    - Đảm bảo trong `/root/tool-tiktok/.env` đã có biến `API_TOKEN=<chuỗi ngẫu nhiên dài>`.
    - Cập nhật VPS: `cd /root/tool-tiktok && git pull && docker compose up -d --build`.
+
+---
+
+## 4. Phương án vận hành 4 tầng chống trùng lặp (CHỐT 26/11/2026)
+
+Đã được anh Nhơn chốt ngày **26/11/2026** để tối ưu hạn mức, tránh trùng lặp giữa **Display API**, **An (Studio + Bình luận)** và **Google AI Studio (Gemini API)**:
+
+| Tầng | Phụ trách | Tần suất | Phạm vi chính xác (KHÔNG dẫm chân tầng khác) |
+|---|---|---|---|
+| **Tầng 1 · Số tổng 24/7** | **VPS · TikTok Display API** (`app/scanner.py`) | Tự động 4 lần/ngày (`05:00, 11:00, 17:00, 23:00`) · **0 token** | Follower tổng, view/thích/BL/chia sẻ từng video, lịch sử theo giờ, tự gắn Gói SX ↔ Video, dò `promo_suspects`. Là nguồn chuẩn cho mọi số tổng. |
+| **Tầng 2 · Quét nhanh hằng ngày** | **An (Antigravity)** | 1 lần/ngày (chỉ đọc phần API không có) | ① `tiktokstudio/comment` → đẩy `/binh-luan` (`POST /api/public/studio/comments`) để xử lý ngay ca **Xin lá số chưa trả lời**; ② Chi tiết Studio (giữ chân 2s/10s, xem TB, xem hết, nguồn view, follower mới, lượt lưu) **chỉ cho video mới đăng 24–48 giờ**; ③ Xác nhận nhanh 1 lần trên `promote/web/dashboard` có lệnh mới không. |
+| **Tầng 3 · Tổng hợp sâu hằng tuần** | **An (Antigravity)** | 1 lần/tuần (Thứ Hai) | Tổng hợp đủ 7 ngày: so sánh nhóm tự nhiên (Loại 1/3, khung giờ, số cảnh), nguồn lưu lượng & từ khoá tìm kiếm, nhân khẩu học tự nhiên, chênh lệch API ↔ Studio, top tuổi/Can Chi từ `/binh-luan` → đẩy `/danh-gia` & Báo cáo đồng thuận. |
+| **Tầng 4 · Sáng tạo & Tư vấn đầu ra** | **Google AI Studio (Gemini API)** | Theo nhu cầu / sau Báo cáo đồng thuận tuần | Lập Chiến lược tuần trên dữ liệu sạch, soạn kịch bản Gói SX theo Bộ quy tắc Bản 2, chỉ gọi `✨ Viết bằng AI` trên `/khach-hang` khi cần cá nhân hoá sâu (bình thường dùng mẫu nhanh 0 token). |
+

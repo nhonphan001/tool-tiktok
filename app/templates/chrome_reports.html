@@ -16,6 +16,14 @@
     🔌 <b>Cổng API cho An:</b> {% if api_ready %}<span class="badge ok">Đã bật API_TOKEN</span> — nhận trực tiếp <code>POST /api/public/studio/report</code> và <code>POST /api/public/studio/comments</code>.
     {% else %}<span class="badge">Chưa đặt API_TOKEN</span> — đặt <code>API_TOKEN=</code> trong <code>.env</code> trên VPS để An đẩy tự động không cần mở web (vẫn dùng được tải thủ công bên dưới).{% endif %}
   </div>
+  <div class="kit-item" style="margin-top:10px">
+    <b>📌 Lịch phối hợp chống trùng lặp (Chốt 26/11/2026)</b>
+    <ul class="ins small" style="margin-top:4px">
+      <li><b>VPS · Display API (4 lần/ngày, 0 token):</b> nguồn chuẩn cho mọi số tổng &amp; lịch sử theo giờ — An không quét lặp số tổng video cũ.</li>
+      <li><b>An · Hằng ngày (nhanh):</b> quét <code>tiktokstudio/comment</code> → <code>/binh-luan</code> + chỉ đọc chi tiết Studio cho <b>video mới 24–48 giờ</b> + xác nhận nhanh Promote.</li>
+      <li><b>An · Hằng tuần (Thứ Hai, sâu):</b> tổng hợp 7 ngày tự nhiên + nguồn lưu lượng + Can Chi → cập nhật Báo cáo đồng thuận để <b>Gemini API (AI Studio)</b> lập chiến lược tuần kế tiếp.</li>
+    </ul>
+  </div>
 </div>
 <div class="card" style="margin-bottom:12px">
   <div class="row" style="justify-content:space-between"><h2 style="margin:0">Yêu cầu đánh giá tuần</h2>
