@@ -7,16 +7,16 @@ os.environ.setdefault("DISABLE_SCHEDULER", "1")
 from app import db, gemini_requests as gr, packages, script_ai, strategy  # noqa: E402
 from app.config import settings  # noqa: E402
 
-GOOD = ["Chị Canh Ngọ chín mươi, sang năm hai không hai bảy nên tiến mạnh hay giữ nhịp chậm lại? Comment năm sinh để Cô Kim xem giúp, rồi nghe Cô Kim nói nha.",
+GOOD = ["Chị Canh Ngọ một chín chín mươi, sang năm hai không hai bảy nên tiến hay chậm lại? Bình luận năm sinh để Cô Kim xem giúp nha.",
         "Canh là thanh kim loại thô ngồi trên chữ Ngọ là lửa mùa hè, nên chị giống thanh kiếm được lửa rèn, càng va chạm càng cứng cỏi, nói thẳng mà sống rất tình.",
         "Mệnh Lộ Bàng Thổ là đất bên đường, ai đi qua cũng dựa được, nên chị hay là chỗ dựa cho cả nhà, mà ít ai hỏi chị có mệt hay không đâu.",
         "Năm Bính Ngọ này, Ngọ gặp Ngọ là tự hình, Bính lại là Thất Sát với Canh, nên nhiều chị thấy áp lực dồn dập, hay tự trách mình chưa đủ tốt với ai.",
-        "Nhiều người không biết, chị sinh trước sáng mùng bốn tháng hai năm chín mươi thì Bát Tự tính là Kỷ Tỵ, còn sinh tháng Một năm chín mốt vẫn là Canh Ngọ.",
+        "Nhiều người không biết, chị sinh trước sáng mùng bốn tháng hai năm một chín chín mươi thì tính là Kỷ Tỵ, tháng Một năm một chín chín mốt vẫn là Canh Ngọ.",
         "Sang năm Đinh Mùi, Ngọ với Mùi là lục hợp, Đinh là Chính Quan với Canh, công việc dễ có người ghi nhận, nhưng trách nhiệm cũng nặng hơn trước nhiều lắm.",
         "Nên câu trả lời là tiến, nhưng tiến từng bước chắc, đừng gồng một mình, mệt thì nghỉ ngơi nha. Để lại ngày sinh dưới bình luận để Cô Kim giải mã nha."]
 
 
-def _resp(canh, hook="Nữ Canh Ngọ 1990 · Năm Đinh Mùi 2027", cap="Chị nào tuổi Canh Ngọ 1990 comment năm sinh nha #cokim"):
+def _resp(canh, hook="Nữ Canh Ngọ 1990 · Năm Đinh Mùi 2027", cap="Chị nào tuổi Canh Ngọ 1990 bình luận năm sinh nha #cokim"):
     return json.dumps({"tieu_de": "x", "canh": canh, "chu_tren_hinh": hook, "chu_chuong": {"2": "1. Tính cách"},
                        "caption": cap, "binh_luan_ghim": "Chị em Canh Ngọ năm nay áp lực nhất chuyện gì?",
                        "goi_y_hinh": ["rót trà"] * len(canh)}, ensure_ascii=False)

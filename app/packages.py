@@ -378,7 +378,7 @@ def check(p: dict) -> dict:
     if loai == 3 and "theo doi" not in cap_norm and "follow" not in cap_norm:
         add("warn", "CTA", "Thêm CTA tăng follow: “bấm theo dõi Cô Kim”.")
     if loai == 1 and not re.search(r"ngay\s*(gio\s*)?sinh|nam\s*sinh|con\s*giap", cap_norm):
-        add("warn", "CTA", "Gợi ý CTA: “comment năm sinh để Cô Kim xem giúp” hoặc “để lại ngày sinh dưới bình luận để Cô Kim giải mã”.")
+        add("warn", "CTA", "Gợi ý CTA: “bình luận năm sinh để Cô Kim xem giúp” hoặc “để lại ngày sinh dưới bình luận để Cô Kim giải mã”.")
 
     # Hiệu suất (số liệu Studio 24/11: mọi video mất ~50% người xem ở giây 2; chỉ 2–6% xem tới cảnh cuối)
     cta_rx = {1: r"ngay\s*(gio\s*)?sinh|nam\s*sinh|con\s*giap|theo\s*doi", 2: r"gio\s*hang", 3: r"theo\s*doi|follow"}[loai]
@@ -388,7 +388,7 @@ def check(p: dict) -> dict:
         late = any(re.search(cta_rx, scene_norms[i]) for i in filled[2:])
         if late and not early:
             add("warn", "Hiệu suất", "Câu kêu gọi chỉ nằm ở các cảnh sau — chỉ 2–6% người xem tới cuối. Đưa 1 câu kêu gọi ngắn lên "
-                                     "cuối cảnh 1 (giây 3–8), vd “comment năm sinh” / “theo dõi Cô Kim để mỗi sáng…”.")
+                                     "cuối cảnh 1 (giây 3–8), vd “bình luận năm sinh” / “theo dõi Cô Kim để mỗi sáng…”.")
         elif early:
             # Ước tính giây của câu kêu gọi đầu tiên trong video thành phẩm (đã cắt lặng): 3,9 âm tiết/giây + ~0,5 giây giữa cảnh
             before, sec = 0, None
@@ -421,6 +421,20 @@ def check(p: dict) -> dict:
         if hits:
             found = ", ".join(f"“{h}”" for h in hits)
             add("warn", "Hiệu suất", f"{label}: có chữ chỉ giờ ({found}) — video được đề xuất nhiều ngày sau khi đăng, bỏ mốc giờ.")
+
+    # Quy tắc bản 2 (26/11): dùng "bình luận" thay cho "comment"; đọc đủ 4 số năm sinh bằng chữ
+    for label, t in parts:
+        if t.strip() and re.search(r"\bcomment\b", compliance.normalize(t)):
+            add("warn", "Hiệu suất", f"{label}: dùng từ “comment” — đổi sang “bình luận” cho tự nhiên tiếng Việt.")
+    if loai == 1:
+        _chi_n = "|".join(compliance.normalize(x) for x in battu.CHI)
+        _dec = r"(?:nam|sau|bay|tam|chin)\s+(?:muoi|mot|hai|ba|tu|bon|lam|nam|sau|bay|tam|chin)"
+        short_yr = re.compile(rf"(?<!mot chin )(?<!hai khong )\b(?:(?:{_chi_n})|nam)\s+({_dec})\b")
+        for i in filled:
+            sn = compliance.normalize(p.get(f"scene{i + 1}") or "")
+            m = short_yr.search(sn)
+            if m:
+                add("warn", "Hiệu suất", f"Cảnh {i + 1}: đọc tắt năm sinh 2 chữ số (“{m.group(0)}”) — đọc đủ 4 số bằng chữ (vd “một chín chín mươi”).")
 
     errors = sum(1 for i in items if i["level"] == "error")
     warns = sum(1 for i in items if i["level"] == "warn")

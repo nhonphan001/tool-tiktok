@@ -50,7 +50,7 @@ FORTUNE_RULES = [
 ]
 
 ALLOWED_CTA = ["bấm giỏ hàng góc trái", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "bấm theo dõi Cô Kim",
-               "comment năm sinh để Cô Kim xem giúp", "comment con giáp của cả nhà"]
+               "bình luận năm sinh để Cô Kim xem giúp", "bình luận con giáp của cả nhà"]
 
 
 def normalize(text: str) -> str:

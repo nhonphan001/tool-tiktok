@@ -1,5 +1,5 @@
-BỘ QUY TẮC KỊCH BẢN TIỆM TRÀ GIẢI MÃ (bản 1, chốt 25/11/2026)
-Tổng hợp mọi quy tắc và chỉnh sửa từ 17/11 đến 25/11 (anh Nhơn, Claude, Gemini, số liệu TikTok Studio 75/75 video).
+BỘ QUY TẮC KỊCH BẢN TIỆM TRÀ GIẢI MÃ (bản 2, chốt 26/11/2026)
+Tổng hợp mọi quy tắc và chỉnh sửa từ 17/11 đến 26/11 (anh Nhơn, Claude, Gemini, Antigravity, số liệu TikTok Studio).
 Áp dụng cho MỌI kịch bản, không cần nhắc lại.
 
 A. MỞ ĐẦU VÀ GIỮ CHÂN (mọi video mất ~50% người xem ở giây 2; chỉ 2–6% xem tới cảnh cuối)
@@ -13,8 +13,8 @@ A6. Móc cụ thể thắng móc chung chung: con số đếm ngược ("Chỉ c
 B. LOẠI 1 – LÁ SỐ (không bao giờ quảng bá; TikTok từ chối quảng bá Bát Tự)
 B1. Ưu tiên lá số theo NĂM SINH cụ thể 1970–1995 (đông người, có lượt Tìm kiếm 19–35%) hoặc trả lời một bình luận thật (nhóm 4). Bỏ dạng nhóm mơ hồ ("nữ sinh mùa Đông").
 B2. 7 cảnh × 10 giây, thành phẩm > 61 giây: mỗi cảnh 24–34 âm tiết, tổng ≥ 232 âm tiết.
-B3. Bố cục: (1) gọi người xem + câu kêu gọi "comment năm sinh để Cô Kim xem giúp" → (2) tính cách theo hình ảnh can chi → (3) nạp âm → (4) năm 2026 → (5) MÓC GIỮA VIDEO (vd ranh giới Lập Xuân: sinh trước ngày Lập Xuân thì Bát Tự tính tuổi năm trước) → (6) năm 2027 CẢ HAI MẶT → (7) lời khuyên + "để lại ngày sinh dưới bình luận để Cô Kim giải mã".
-B4. Câu đầu: gọi con giáp + 2 số cuối năm bằng CHỮ ("Chị nào tuổi Giáp Tý tám tư…", "Chị Canh Ngọ chín mươi…"). Năm đủ 4 số chỉ để trên chữ hook. Trong lời thoại và prompt luôn viết năm bằng chữ.
+B3. Bố cục: (1) gọi người xem + câu kêu gọi "bình luận năm sinh để Cô Kim xem giúp" → (2) tính cách theo hình ảnh can chi → (3) nạp âm → (4) năm 2026 → (5) MÓC GIỮA VIDEO (vd ranh giới Lập Xuân: sinh trước ngày Lập Xuân thì Bát Tự tính tuổi năm trước) → (6) năm 2027 CẢ HAI MẶT → (7) lời khuyên + "để lại ngày sinh dưới bình luận để Cô Kim giải mã".
+B4. Câu đầu: gọi con giáp + ĐỦ 4 SỐ năm sinh bằng CHỮ ("Chị nào tuổi Giáp Tý một chín tám tư…", "Chị Canh Ngọ một chín chín mươi…"). KHÔNG đọc tắt 2 số cuối ("tám tư", "chín mươi", "bảy ba"). Năm dạng chữ số (1990) chỉ để trên chữ hook/caption. Trong lời thoại và prompt luôn viết đủ 4 số năm bằng chữ.
 B5. Chữ hook = từ khoá tìm kiếm: "Nữ <Can Chi> <năm> · Năm Đinh Mùi 2027" (+ câu hỏi ngắn nếu còn chỗ). Chữ chương: "1. Tính cách · 2. Năm 2026 · <móc> · 3. Năm 2027 · 4. Lời khuyên".
 B6. Chỉ dùng lá số TikTok Manager tính (mục "Lá số" của thư). Không tự tính can chi, Nhật chủ, Dụng thần. Không nối lá số với vật phẩm.
 B7. Sức khỏe: không đoán bệnh, không hứa khỏi; nói "Cô Kim không xem bệnh được, chị đi khám bác sĩ cho kỹ", lá số chỉ nhắc nhịp nghỉ ngơi.
@@ -25,7 +25,7 @@ C. LOẠI 3 – TRÀ SÁNG CÔ KIM (11:00 mỗi ngày)
 C1. 3–4 cảnh × 10 giây, khoảng 30 giây, mỗi cảnh 24–34 âm tiết. Nắng ban ngày.
 C2. Lời hứa follow ở cuối cảnh 1: "Bấm theo dõi Cô Kim, mỗi sáng mình cùng…" và lặp ở dòng đầu caption.
 C3. Không lá số, không Bát Tự, không can chi, không mời để lại ngày sinh → giữ đủ điều kiện quảng bá về sau.
-C4. Bình luận ghim là một câu hỏi đời thường dễ trả lời ("Sáng nay cả nhà rót trà mời ai đầu tiên?"). Không "comment 'trà' để nhận…".
+C4. Bình luận ghim là một câu hỏi đời thường dễ trả lời ("Sáng nay cả nhà rót trà mời ai đầu tiên?"). Không "bình luận 'trà' để nhận…".
 C5. Ngày có dịp dùng bản gắn dịp (Rằm, mùng 1, 01/12 "còn 30 ngày", Đông chí 21/12, 31/12, Ông Táo); ngày thường dùng bản thường xanh.
 
 D. LOẠI 2 – GIỎ HÀNG (tối đa 2 video/tuần, 12:00)
@@ -34,9 +34,9 @@ D2. Không nhắc lá số, tuổi, Bát Tự; không hashtag #battu #tutru #pho
 D3. Không dùng sản phẩm đốt/khói (nhang, nụ trầm, trầm hương đốt) hay vật phẩm "hộ mệnh".
 
 E. CAPTION, CHỮ, LỜI (mọi loại)
-E1. Caption ≤ 250 ký tự; dòng đầu là lý do để follow/comment; 4–5 hashtag (#tiemtragiaima #cokim + chủ đề).
+E1. Caption ≤ 250 ký tự; dòng đầu là lý do để theo dõi/bình luận; 4–5 hashtag (#tiemtragiaima #cokim + chủ đề).
 E2. Không ghi giờ ("tối nay", "trưa nay", "19h", "lúc 7 giờ") ở caption, chữ trên hình, lời thoại (video được đề xuất nhiều ngày sau). Lời thoại được nói giờ SINH.
-E3. Câu kêu gọi được phép: "bấm theo dõi Cô Kim", "comment năm sinh để Cô Kim xem giúp", "comment con giáp của cả nhà", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "bấm giỏ hàng góc trái".
+E3. Câu kêu gọi được phép: "bấm theo dõi Cô Kim", "bình luận năm sinh để Cô Kim xem giúp", "bình luận con giáp của cả nhà", "để lại ngày sinh dưới bình luận để Cô Kim giải mã", "bấm giỏ hàng góc trái". Không dùng từ tiếng Anh "comment" trong lời thoại, caption hay bình luận ghim — luôn dùng "bình luận".
 E4. Cấm (B.1/B.4/C.7/C.8): link, bio, web, Zalo, Shopee; hứa may mắn, tài lộc, rước lộc, bình an, "an lành", phù hộ, chữa bệnh, giàu có, chắc chắn; hù dọa; lửa, hào quang, linh vật phát sáng, chắp tay khấn, nhang, mâm cúng.
 E5. Luôn bật nhãn "Nội dung do AI tạo"; giữ dấu AI ✦ (C.10a).
 

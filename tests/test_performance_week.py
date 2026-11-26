@@ -159,3 +159,27 @@ def test_checker_standalone_fortune_loai1_scenes_and_all_times():
     assert any("Caption:" in m and "toi nay" in m and "19h" in m for m in time_msgs)
     assert any("Chữ trên hình:" in m and "toi nay" in m for m in time_msgs)
     assert any("Cảnh 1:" in m and "toi nay" in m for m in time_msgs)
+
+
+def test_v2_rules_binh_luan_and_full_four_digit_birth_year():
+    base = {
+        "goi": "95", "loai": 1, "on_screen": "Nữ Canh Ngọ 1990 · Năm Đinh Mùi 2027",
+        "caption": "Chị nào tuổi Canh Ngọ 1990 comment năm sinh để Cô Kim xem giúp #tiemtragiaima #cokim",
+        "pinned": "Comment năm sinh để Cô Kim xem giúp nha.",
+        "scene1": "Chị Canh Ngọ chín mươi, năm tới nên tiến hay chậm? Comment năm sinh để Cô Kim xem giúp nha.",
+        "scene2": S, "scene3": S, "scene4": S, "scene5": S, "scene6": S, "scene7": S,
+    }
+    msgs = _perf(base)
+    assert any("Cảnh 1:" in m and "bình luận" in m for m in msgs)
+    assert any("Caption:" in m and "bình luận" in m for m in msgs)
+    assert any("Bình luận ghim:" in m and "bình luận" in m for m in msgs)
+    assert any("đọc tắt năm sinh 2 chữ số" in m and "ngo chin muoi" in m for m in msgs)
+
+    ok = {
+        **base,
+        "caption": "Chị nào tuổi Canh Ngọ 1990 bình luận năm sinh để Cô Kim xem giúp #tiemtragiaima #cokim",
+        "pinned": "Bình luận năm sinh để Cô Kim xem giúp nha.",
+        "scene1": "Chị Canh Ngọ một chín chín mươi, năm tới nên tiến hay chậm? Bình luận năm sinh để Cô Kim xem giúp nha.",
+    }
+    msgs_ok = _perf(ok)
+    assert not any("comment" in m.lower() or "đọc tắt năm sinh" in m for m in msgs_ok)
