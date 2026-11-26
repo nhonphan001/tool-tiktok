@@ -242,12 +242,11 @@ Tóm tắt điều cốt lõi:
 ### C.1. Cập nhật trạng thái thực tế Gói 30 & Gói 31 (Bổ sung Mục 6 & Mục 7)
 
 - **Gói 30 — Trà sáng: Dành một chén trà để tha thứ cho chính mình (`ID: 7711956219509886215`):**
-  - Đã đăng lúc `11:09` ngày `25/11/2026` (**video 100% tự nhiên đầu tiên** của tuần thử nghiệm `25/11–01/12/2026`).
-  - Số liệu sau 5 giờ (quét lúc `16:09` ngày `25/11`): `175` lượt xem, `19` lượt thích (`10,86%`), `1` bình luận, `1` chia sẻ, `1` lưu, `4` follower mới (`2,29%` follow/view tự nhiên).
-  - **Thời gian xem trung bình:** `6,87 giây / 30 giây` (tăng **`+46%`** so với Gói 29 tự nhiên ngày `24/11` chỉ đạt `4,7 giây`).
-  - **Tỷ lệ xem hết video:** `5,7%` (gấp **`2,2 lần`** so với Gói 29 `2,6%` và Gói 17 `2,4%`).
-  - **Xác nhận nhân khẩu học tự nhiên `[Dữ kiện]`:** Ngay khi dừng Quảng bá, tệp người xem thực của Gói 30 đảo ngược hoàn toàn sang **Nữ `60%`** · Nam `39%`, trong đó **`71%` từ 35 tuổi trở lên** (`35–44`: `27%`, `55+`: `27%`, `25–34`: `21%`, `45–54`: `17%`). Bác bỏ nhận định cũ cho rằng kênh có tệp tự nhiên `61% Nam`.
-  - **Từ khóa Tìm kiếm 7 ngày cần giữ cho Loại 1:** `tu vi canh ngo 1990 nữ menh`, `thân 1993`, `đinh hợi 2007 2026`, `1999 nữ năm 2028`, `54 ngày đếm ngược 2026`.
+  - `[Dữ kiện]` Đã đăng lúc `11:09` ngày `25/11/2026` (**video 100% tự nhiên đầu tiên** của tuần thử nghiệm `25/11–01/12/2026`).
+  - `[Dữ kiện]` Số liệu sau 5 giờ (quét lúc `16:09` ngày `25/11`): `175` lượt xem, `19` lượt thích (`10,86%`), `1` bình luận, `1` chia sẻ, `1` lưu, `4` follower mới (`2,29%` follow/view tự nhiên), thời gian xem trung bình `6,87 giây / 30 giây`, tỷ lệ xem hết `5,7%`.
+  - `[Giả thuyết — chưa đủ dữ liệu]` So sánh giữ chân Gói 30 (`+46%` xem trung bình so với Gói 29 `4,7 giây`; tỷ lệ xem hết `5,7%` gấp `2,2 lần` Gói 29 `2,6%` và Gói 17 `2,4%`): **lệch mốc thời gian đo** (`5 giờ` so với `> 24 giờ`), **Gói 17 có trả phí** (~95% view trả phí) nên không cùng điều kiện tự nhiên, và chưa có số `%` giữ chân giây 2 (`ret_2s`). **Chờ Gói 31–33 và số liệu 24–48 giờ rồi mới kết luận lại.**
+  - `[Giả thuyết — chưa đủ dữ liệu]` Nhân khẩu học tự nhiên toàn kênh là **"60% Nữ"**: số liệu trên riêng Gói 30 lúc 5 giờ là `60% Nữ` · `39% Nam` (`71%` từ `35+`), nhưng cỡ mẫu chỉ **`n = 1` video / `175` view**, Studio chưa tách xong *New vs Returning* / *Followers vs Non-followers*, và Gói 30 là Loại 3 chữa lành. Chưa đủ cơ sở kết luận cho toàn kênh — **chờ Gói 31–33 rồi mới kết luận lại.**
+  - `[Giả thuyết — chưa đủ dữ liệu]` 5 từ khóa Tìm kiếm 7 ngày (`tu vi canh ngo 1990 nữ menh`, `thân 1993`, `đinh hợi 2007 2026`, `1999 nữ năm 2028`, `54 ngày đếm ngược 2026`): tổng lưu lượng Search toàn kênh chỉ `0,2%` / `26K` view (≈ `1` lượt tìm mỗi từ khóa), cỡ mẫu quá nhỏ (`2007`, `1999` cũng ngoài khung ưu tiên `1970–1995` của B1). **Chờ Gói 31–33 rồi mới kết luận lại.**
 
 - **Gói 31 — Nữ Giáp Tý 1984 bước vào năm Đinh Mùi 2027 (Loại 1 · 7 cảnh · ô `19:00 × Kiểu A`):**
   - **Đã hoàn tất hậu kỳ P8b và tải lên thư mục `04_VIDEO_DA_DUYET_SAN_SANG_DANG`**, sẵn sàng đăng lúc `19:00` tối `25/11/2026` (100% tự nhiên, KHÔNG Quảng bá).
@@ -260,7 +259,7 @@ Tóm tắt điều cốt lõi:
 Khi đọc trực tiếp TikTok Studio, **tuyệt đối KHÔNG** dùng các chỉ số bị nhiễu bởi chiến dịch Quảng bá `15–24/11` (~1 triệu đồng, `2.020` follower mua) để ra quyết định nội dung:
 1. **KHÔNG** lấy mốc `4,4K–11K` view (Gói 17, 19, 26, 28) hay `+1,4K` follower/tuần làm chuẩn so sánh cho video tự nhiên. Nền tự nhiên hiện là `200–350` view/video.
 2. **KHÔNG** dời lịch đăng sang khung `06:00–06:30` sáng: đỉnh `06:00` trên Studio là của tệp follower mua; bảng đồng thuận `75/75` video đã chứng minh `6` video tự nhiên khung `06h–07h` yếu nhất kênh (`239–258` view, giữ chân 2s chỉ `27%–33%`). Khung tự nhiên mạnh nhất là `19h`, `11h` và `12h`.
-3. **KHÔNG** chuyển 50% nội dung sang phục vụ `61% Nam`: tệp `61% Nam` là đối tượng quảng cáo; tệp tự nhiên thật đo trên Gói 30 là **`60% Nữ`**.
+3. **KHÔNG** chuyển 50% nội dung sang phục vụ `61% Nam`: tệp `61% Nam` trên Studio 7 ngày bị nhiễu bởi đối tượng quảng cáo; tín hiệu tự nhiên ban đầu trên Gói 30 là `60% Nữ` (`[Giả thuyết]`, `n = 1` video / `175` view — chờ Gói 31–33 để xác nhận).
 4. **KHÔNG** đưa Bát Tự / Can Chi / lời mời "comment năm sinh" vào tuyến Trà sáng Loại 3: bắt buộc giữ sạch Bát Tự để luôn đủ điều kiện chạy Quảng bá khi cần (`CHOT-2411`). Toàn bộ Bát Tự / năm sinh dồn sang Loại 1 (7 cảnh `> 61 giây`).
 
 ### C.3. Bổ sung ràng buộc kỹ thuật thư mục `04` và P8b (Bổ sung Mục 2 & Mục 5)

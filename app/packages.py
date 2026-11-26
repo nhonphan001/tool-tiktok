@@ -347,9 +347,12 @@ def check(p: dict) -> dict:
 
     # Cảnh trống giữa chừng + độ dài video
     ns = n_scenes(p)
+    has_any_scene = any(str(p.get(f"scene{i}") or "").strip() for i in range(1, ns + 1))
     missing = [str(i) for i in range(1, ns + 1) if not str(p.get(f"scene{i}") or "").strip()]
-    if missing and any(str(p.get(f"scene{i}") or "").strip() for i in range(1, ns + 1)):
+    if missing and has_any_scene:
         add("warn", "Số cảnh", f"Gói {ns} cảnh nhưng cảnh {', '.join(missing)} chưa có lời thoại.")
+    if loai == 1 and has_any_scene and ns < 7:
+        add("warn", "Số cảnh", f"Video lá số (Loại 1) cần 7 cảnh (> 61 giây, tổng ≥ 232 âm tiết), đang có {ns} cảnh.")
     if ns >= 6:
         total = sum(syllables(p.get(f"scene{i}") or "") for i in range(1, ns + 1))
         est = total / 3.9 + ns * 0.5  # giọng 3,9 âm tiết/giây + ~0,5 giây ngắt giữa cảnh sau khi cắt lặng
@@ -414,10 +417,10 @@ def check(p: dict) -> dict:
     nay_rx = re.compile(r"\b(toi|trua|chieu|dem)\s*nay\b")  # lời thoại có thể nói giờ sinh (“sinh lúc 19 giờ”) → chỉ bắt “tối nay…”
     for label, t, rx in (("Caption", cap, time_rx), ("Chữ trên hình", hook, time_rx),
                          *[(f"Cảnh {i + 1}", p.get(f"scene{i + 1}") or "", nay_rx) for i in filled]):
-        m = rx.search(compliance.normalize(t))
-        if m:
-            add("warn", "Hiệu suất", f"{label}: có chữ chỉ giờ (“{m.group(0)}”) — video được đề xuất nhiều ngày sau khi đăng, bỏ mốc giờ.")
-            break
+        hits = list(dict.fromkeys(m.group(0).strip() for m in rx.finditer(compliance.normalize(t))))
+        if hits:
+            found = ", ".join(f"“{h}”" for h in hits)
+            add("warn", "Hiệu suất", f"{label}: có chữ chỉ giờ ({found}) — video được đề xuất nhiều ngày sau khi đăng, bỏ mốc giờ.")
 
     errors = sum(1 for i in items if i["level"] == "error")
     warns = sum(1 for i in items if i["level"] == "warn")

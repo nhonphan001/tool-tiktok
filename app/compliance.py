@@ -38,8 +38,8 @@ FORTUNE_RULES = [
     ("tam_linh_vat_pham", "công dụng tâm linh (trấn trạch, trừ tà, giải hạn, khai quang, linh khí...)",
      r"tran\s*trach|tru\s*ta|giai\s*han|hoa\s*giai|khai\s*quang|linh\s*khi|tich\s*ta"),
     ("may_man_tai_loc", "hứa may mắn / tài lộc / điều lành",
-     r"(don|hut|thu\s*hut|mang\s*lai|mang\s*den|kich|kich\s*hoat|vuong)\s*(dieu\s*lanh|may\s*man|tai\s*loc|loc\s*la|vuong\s*khi)"
-     r"|(ruoc|don|hut)\s*loc\b|phu\s*ho"),
+     r"(don|hut|thu\s*hut|mang\s*lai|mang\s*den|kich|kich\s*hoat|vuong|muon|cau|xin|them|gap)\s*(dieu\s*lanh|may\s*man|tai\s*loc|loc\s*la|vuong\s*khi)"
+     r"|(ruoc|don|hut)\s*loc\b|phu\s*ho|\btai\s*loc\b"),
     ("binh_an", "hứa bình an (phong thủy bình an, cầu bình an...)",
      r"(phong\s*thuy|giu|mang\s*lai|mang\s*den|cau|uoc\s*nguyen|giu\s*gin)\s*binh\s*an"),
     ("bu_khuyet_la_so", "nối lá số với vật phẩm (thiếu hành → dùng vật phẩm)",

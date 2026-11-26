@@ -133,3 +133,29 @@ def test_cta_second_estimate():
     assert any("giây 11" in m and "CUỐI CẢNH 1" in m for m in msgs)
     s1b = "Bạn đã kịp tha thứ cho chính mình chưa? Bấm theo dõi Cô Kim, mỗi sáng mình cùng ngồi xuống uống chén trà nóng nha."
     assert _perf({**base, "scene1": s1b, "scene2": S}) == []
+
+
+def test_checker_standalone_fortune_loai1_scenes_and_all_times():
+    from app import compliance
+
+    # (a) compliance.py bắt "tài lộc" đứng riêng và "muốn/cầu/... may mắn" nhưng không bắt nhầm lời chúc thường ngày
+    r = compliance.check("Chị nào muốn may mắn tài lộc năm 2027 thì comment nha", has_cart=False)
+    assert any(x["code"] == "may_man_tai_loc" for x in r["fortune"])
+    assert any(x["code"] == "may_man_tai_loc" for x in compliance.check("Năm 2027 tài lộc dồi dào", False)["fortune"])
+    assert any(x["code"] == "may_man_tai_loc" for x in compliance.check("Chị nào muốn may mắn năm tới", False)["fortune"])
+    assert compliance.check("Chào buổi sáng, chúc cả nhà một ngày may mắn", True)["level"] == "ok"
+
+    # (b) Loại 1 < 7 cảnh bị cảnh báo "Số cảnh" & liệt kê đủ mọi chữ chỉ giờ (không dừng ở lỗi đầu tiên)
+    p = {
+        "goi": "99", "loai": 1, "on_screen": "Tối nay xem lá số",
+        "caption": "Tối nay 19h Cô Kim giải mã tuổi Bính Dần 1986, chị nào muốn may mắn tài lộc thì comment nha",
+        "scene1": "Chị Bính Dần tám sáu ơi, tối nay ngồi uống trà nghe Cô Kim nói nha. Comment năm sinh để Cô Kim xem giúp.",
+        "scene2": S, "scene3": S, "scene4": S,
+    }
+    items = packages.check(p)["items"]
+    assert any(i["rule"] == "B.4" and "Caption:" in i["msg"] for i in items)
+    assert any(i["rule"] == "Số cảnh" and "7 cảnh" in i["msg"] for i in items)
+    time_msgs = [i["msg"] for i in items if i["rule"] == "Hiệu suất" and "chỉ giờ" in i["msg"]]
+    assert any("Caption:" in m and "toi nay" in m and "19h" in m for m in time_msgs)
+    assert any("Chữ trên hình:" in m and "toi nay" in m for m in time_msgs)
+    assert any("Cảnh 1:" in m and "toi nay" in m for m in time_msgs)
