@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Tổng duyệt quy trình · TikTok Manager{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+  <div>
+    <h1 style="margin-bottom:4px">📋 Bảng Tổng Duyệt Quy Trình (Đầu cuối · 3 phút đọc &amp; duyệt)</h1>
+    <div class="muted small">
+      Bộ phận Kiểm toán (An + TikTok Manager) tự soi toàn bộ 6 khâu thay anh Nhơn · Cập nhật: <b>{{ audit.generated_at }}</b>
+      {% if audit.last_approved %} · Lần anh Nhơn ký duyệt gần nhất: <b>{{ audit.last_approved.approved_at|localtime }}</b>{% endif %}
+    </div>
+  </div>
+  <div class="row" style="gap:6px">
+    <form method="post" action="/tong-duyet/lam-moi" style="margin:0">
+      <button class="btn sec small">🔄 Chạy kiểm toán &amp; làm mới ý tưởng</button>
+    </form>
+    <a class="btn sec small" href="/tong-duyet/ban-tin.md">📥 Tải Bản tin (.md)</a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;border-left:5px solid {% if audit.overall=='error' %}var(--err){% elif audit.overall=='warn' %}#f5a524{% else %}var(--ok){% endif %}">
+  <div class="row" style="justify-content:space-between;align-items:center;gap:12px">
+    <div>
+      <div style="font-size:18px;font-weight:700">{{ audit.overall_label }} — Tổng quan 6 chốt kiểm toán</div>
+      <div class="muted small" style="margin-top:4px">
+        🔴 Cần xử lý: <b>{{ audit.counts.error }}</b> ·
+        🟡 Cần lưu ý: <b>{{ audit.counts.warn }}</b> ·
+        🟢 Ổn định: <b>{{ audit.counts.ok }}</b>/{{ audit.counts.total }} ·
+        💡 Ý tưởng chờ anh duyệt: <b>{{ audit.pending_ideas|length }}</b>
+      </div>
+    </div>
+    <form method="post" action="/tong-duyet/ky-duyet" class="row" style="gap:6px;margin:0">
+      <input name="decision_note" placeholder="Ghi chú chỉ đạo (không bắt buộc)" style="width:240px">
+      <button class="btn">✓ Ký duyệt bản tin hôm nay</button>
+    </form>
+  </div>
+</div>
+
+<div class="card scroll" style="margin-bottom:16px">
+  <h2>A · Kết quả 6 chốt Kiểm toán &amp; Chống trùng lặp</h2>
+  <table>
+    <tr><th>Chốt kiểm toán</th><th>Đèn</th><th>Tình trạng hiện tại</th><th>Chi tiết &amp; Đề xuất</th><th>Xử lý nhanh</th></tr>
+    {% for c in audit.checks %}
+    <tr>
+      <td class="nw"><b>{{ c.name }}</b></td>
+      <td class="nw">
+        {% if c.level == 'ok' %}<span class="badge ok">🟢 Ổn</span>
+        {% elif c.level == 'warn' %}<span class="badge" style="color:#b7791f;border-color:#f5a524">🟡 Lưu ý</span>
+        {% else %}<span class="badge error">🔴 Xử lý</span>{% endif %}
+      </td>
+      <td><b>{{ c.headline }}</b></td>
+      <td class="small muted" style="max-width:360px">{{ c.detail }}</td>
+      <td class="nw"><a class="btn sec small" href="{{ c.action_url }}">{{ c.action_label }}</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h2 style="margin:0">B · Đầu vào: Ý tưởng chờ anh duyệt ({{ audit.pending_ideas|length }})</h2>
+      <a class="btn sec small" href="/y-tuong">Mở trang Ý tưởng →</a>
+    </div>
+    {% if audit.pending_ideas %}
+      {% for it in audit.pending_ideas[:5] %}
+      <div style="border-top:1px solid var(--border);padding:8px 0">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:180px">
+            <span class="badge loai-{{ it.loai }}">L{{ it.loai }}</span>
+            <span class="badge {{ 'ok' if it.score >= 85 else '' }}">{{ it.score }}đ</span>
+            <b>{{ it.title }}</b>
+            <div class="muted small" style="margin-top:2px">{{ it.rationale }}</div>
+            {% if it.dup_warning %}<div class="small" style="color:#b7791f">⚠ {{ it.dup_warning }}</div>{% endif %}
+          </div>
+          <div class="row" style="gap:4px;flex:none">
+            <form method="post" action="/y-tuong/{{ it.id }}/duyet" style="margin:0"><button class="btn small">✓ Duyệt</button></form>
+            <form method="post" action="/y-tuong/{{ it.id }}/bo-qua" style="margin:0"><input type="hidden" name="back" value="/tong-duyet"><button class="btn sec small">✕</button></form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted small">Chưa có ý tưởng chờ duyệt. Bấm <b>“🔄 Chạy kiểm toán &amp; làm mới ý tưởng”</b> để tự sinh lô ý tưởng mới.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h2 style="margin:0">C · Gói SX chờ đăng / Cảnh báo QA ({{ audit.flagged_pkgs|length }})</h2>
+      <a class="btn sec small" href="/packages">Mở Gói SX →</a>
+    </div>
+    {% if audit.flagged_pkgs %}
+      {% for p in audit.flagged_pkgs[:6] %}
+      <div style="border-top:1px solid var(--border);padding:8px 0">
+        <div class="row" style="justify-content:space-between;gap:6px">
+          <div>
+            <a href="/packages/{{ p.id }}"><b>Gói {{ p.goi }}</b></a>
+            <span class="badge loai-{{ p.loai }}">L{{ p.loai }}</span>
+            {% if p.is_ready %}<span class="badge ok">✅ Sẵn sàng đăng</span>{% else %}<span class="muted small">{{ p.status }}</span>{% endif %}
+            <div class="small">{{ p.title }}</div>
+            {% for e in p.errors %}<div class="small down">✗ {{ e }}</div>{% endfor %}
+            {% for w in p.warns %}<div class="small" style="color:#b7791f">⚠ {{ w }}</div>{% endfor %}
+          </div>
+          <a class="btn sec small" href="/packages/{{ p.id }}">Mở</a>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted small">🟢 Không có gói chưa đăng nào bị lỗi đỏ hay cảnh báo quy tắc.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if audit.latest_an_note %}
+<div class="card" style="margin-bottom:16px">
+  <h2>D · Ghi nhận kiểm toán gần nhất từ An (Antigravity)</h2>
+  <div class="muted small" style="margin-bottom:8px">{{ audit.latest_an_note.created_at|localtime }} · Chế độ: {{ audit.latest_an_note.kind }}</div>
+  <div class="md">{{ audit.latest_an_note.summary_md|markdown|safe }}</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Nhật ký Kiểm toán &amp; Ký duyệt ({{ audit.logs|length }} lần gần nhất)</h2>
+  <div class="scroll">
+    <table>
+      <tr><th>Thời điểm</th><th>Nguồn / Loại</th><th>Trạng thái</th><th>Ký duyệt của anh Nhơn</th><th>Ghi chú chỉ đạo</th></tr>
+      {% for lg in audit.logs %}
+      <tr>
+        <td class="small nw">{{ lg.created_at|localtime }}</td>
+        <td class="small nw">{{ lg.agent }} · {{ lg.kind }}</td>
+        <td class="nw"><span class="badge {{ 'ok' if lg.overall=='ok' else ('error' if lg.overall=='error' else '') }}">{{ lg.overall }}</span></td>
+        <td class="small nw">{% if lg.approved_at %}<span class="up">✓ {{ lg.approved_at|localtime }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="small">{{ lg.decision_note or (lg.summary_md[:90] if lg.summary_md else '—') }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Chưa có bản ghi kiểm toán nào. Bấm “✓ Ký duyệt bản tin hôm nay” sau khi xem xong để lưu mốc.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

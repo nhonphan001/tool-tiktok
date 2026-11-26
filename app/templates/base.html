@@ -11,9 +11,11 @@
   <a class="brand" href="/">Tik<span>Tok</span> Manager</a>
   <div class="tabs" id="navtabs">
   <a class="tab {{ 'on' if active=='dashboard' }}" href="/">Tổng quan{% if badges.get('dashboard') %}<span class="nav-dot" title="{{ badges['dashboard'] }} mục mới chưa xem">{{ badges['dashboard'] }}</span>{% endif %}</a>
+  <a class="tab {{ 'on' if active=='process_audit' }}" href="/tong-duyet">Tổng duyệt</a>
   <a class="tab {{ 'on' if active in ('videos','video_detail') }}" href="/videos">Video</a>
   <a class="tab {{ 'on' if active=='analytics' }}" href="/analytics">Phân tích</a>
   <a class="tab {{ 'on' if active=='strategy' }}" href="/strategy">Chiến lược{% if badges.get('strategy') %}<span class="nav-dot" title="{{ badges['strategy'] }} mục mới chưa xem">{{ badges['strategy'] }}</span>{% endif %}</a>
+  <a class="tab {{ 'on' if active=='ideation' }}" href="/y-tuong">Ý tưởng</a>
   <a class="tab {{ 'on' if active in ('packages','package') }}" href="/packages">Gói SX{% if badges.get('packages') %}<span class="nav-dot" title="{{ badges['packages'] }} mục mới chưa xem">{{ badges['packages'] }}</span>{% endif %}</a>
   <a class="tab {{ 'on' if active=='requests' }}" href="/requests">Yêu cầu Gemini{% if badges.get('requests') %}<span class="nav-dot" title="{{ badges['requests'] }} mục mới chưa xem">{{ badges['requests'] }}</span>{% endif %}</a>
   <a class="tab {{ 'on' if active=='mail' }}" href="/hop-thu">Hộp thư{% if badges.get('mail') %}<span class="nav-dot" title="{{ badges['mail'] }} mục mới chưa xem">{{ badges['mail'] }}</span>{% endif %}</a>

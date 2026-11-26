@@ -121,6 +121,8 @@
     <li><code>GET {{ s.base_url }}/api/public/studio/context?days=14</code> &amp; <code>/full-scan</code> &amp; <code>/clock</code> — ngữ cảnh cho An quét TikTok Studio</li>
     <li><code>POST {{ s.base_url }}/api/public/studio/report</code> — An đẩy báo cáo Studio (.md + JSON) → tự tách số liệu &amp; gửi Báo cáo đồng thuận</li>
     <li><code>POST {{ s.base_url }}/api/public/studio/comments</code> — An đẩy JSON bình luận <code>tiktokstudio/comment</code> vào SQLite cục bộ (chỉ nhận ghi, không lộ nick ra API)</li>
+    <li><code>GET/POST {{ s.base_url }}/api/public/studio/audit</code> — Bộ phận Kiểm toán (An) đọc 6 chốt kiểm toán &amp; nộp Bản tin Tổng duyệt lên <code>/tong-duyet</code></li>
+    <li><code>POST {{ s.base_url }}/api/public/studio/ideas</code> — Bộ phận Ý tưởng (An) nộp lô ý tưởng đầu vào lên <code>/y-tuong</code></li>
   </ul>
   {% else %}<p class="muted">Đang tắt. Đặt <code>API_TOKEN=</code> (chuỗi ngẫu nhiên dài) trong file .env trên VPS rồi khởi động lại để bật cổng API cho bảng điều hành, Gemini và An (Antigravity).</p>{% endif %}
 </div>

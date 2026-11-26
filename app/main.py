@@ -581,6 +581,138 @@ def comment_stats_toggle_replied(request: Request, cid: int, replied: int = Form
     return RedirectResponse(target, status_code=303)
 
 
+# ------------------------------------------------------------------ Bộ phận Ý tưởng (Đầu vào) & Tổng duyệt (Đầu cuối)
+@app.get("/y-tuong", response_class=HTMLResponse)
+def ideation_page(request: Request, status: str = "pending"):
+    from . import ideation
+
+    all_rows = ideation.list_ideas("all", limit=200)
+    counts = {
+        "pending": sum(1 for r in all_rows if r["status"] == "pending"),
+        "approved": sum(1 for r in all_rows if r["status"] == "approved"),
+        "rejected": sum(1 for r in all_rows if r["status"] == "rejected"),
+        "all": len(all_rows),
+    }
+    rows = all_rows if status == "all" else [r for r in all_rows if r["status"] == status]
+    return render(request, "ideation.html", active="ideation", rows=rows, status=status, counts=counts)
+
+
+@app.post("/y-tuong/de-xuat")
+def ideation_generate(request: Request):
+    from . import ideation
+
+    res = ideation.generate_batch()
+    flash(
+        request,
+        f"Bộ phận Ý tưởng đã tổng hợp: thêm mới {res['created']} ý tưởng (bỏ qua trùng {res['skipped']}, đang chờ duyệt {res['total_pending']}).",
+        "success",
+    )
+    return RedirectResponse("/y-tuong?status=pending", status_code=303)
+
+
+@app.post("/y-tuong/moi")
+async def ideation_create(request: Request):
+    from . import ideation
+
+    f = await request.form()
+    try:
+        ideation.save_idea({
+            "title": f.get("title"),
+            "loai": f.get("loai") or 1,
+            "publish_slot": f.get("publish_slot") or "19:00",
+            "score": f.get("score") or 85,
+            "hook_idea": f.get("hook_idea") or "",
+            "brief": f.get("brief") or "",
+            "source": "manual",
+            "dup_warning": ideation.find_duplicate_package([str(f.get("title") or "")[:30]]),
+        })
+        flash(request, "Đã thêm ý tưởng mới vào danh sách chờ duyệt.", "success")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse("/y-tuong?status=pending", status_code=303)
+
+
+@app.post("/y-tuong/{iid}/duyet")
+def ideation_approve(request: Request, iid: int):
+    from . import ideation
+
+    it = ideation.get(iid)
+    if not it:
+        flash(request, "Không tìm thấy ý tưởng", "error")
+        return RedirectResponse("/y-tuong", status_code=303)
+    ideation.set_status(iid, "approved")
+    request.session["pre_request"] = ideation.prefill_request(it)
+    flash(request, f"Đã duyệt ý tưởng “{it['title'][:50]}” — đã điền sẵn form Yêu cầu Gemini bên dưới.", "success")
+    return RedirectResponse("/requests#moi", status_code=303)
+
+
+@app.post("/y-tuong/{iid}/bo-qua")
+def ideation_reject(request: Request, iid: int, back: str = Form("/y-tuong")):
+    from . import ideation
+
+    ideation.set_status(iid, "rejected")
+    target = back if back.startswith(("/y-tuong", "/tong-duyet")) else "/y-tuong"
+    flash(request, "Đã chuyển ý tưởng sang mục Bỏ qua.", "info")
+    return RedirectResponse(target, status_code=303)
+
+
+@app.post("/y-tuong/{iid}/xoa")
+def ideation_delete(request: Request, iid: int):
+    from . import ideation
+
+    ideation.delete(iid)
+    flash(request, "Đã xoá ý tưởng.", "info")
+    return RedirectResponse("/y-tuong", status_code=303)
+
+
+@app.get("/tong-duyet", response_class=HTMLResponse)
+def process_audit_page(request: Request):
+    from . import process_audit
+
+    audit = process_audit.run_audit()
+    return render(request, "process_audit.html", active="process_audit", audit=audit)
+
+
+@app.post("/tong-duyet/lam-moi")
+def process_audit_refresh(request: Request):
+    from . import ideation, process_audit
+
+    gen = ideation.generate_batch()
+    audit = process_audit.run_audit()
+    process_audit.record_log("hang_ngay", "system", audit["overall"], f"Kiểm toán nhanh: {audit['counts']}", snapshot=audit["counts"])
+    flash(
+        request,
+        f"Đã chạy kiểm toán 6 chốt ({audit['overall_label']}) và bổ sung {gen['created']} ý tưởng mới.",
+        "success",
+    )
+    return RedirectResponse("/tong-duyet", status_code=303)
+
+
+@app.post("/tong-duyet/ky-duyet")
+def process_audit_approve(request: Request, decision_note: str = Form("")):
+    from . import process_audit
+
+    audit = process_audit.run_audit()
+    process_audit.record_log(
+        "hang_ngay", "anh_nhon", audit["overall"],
+        process_audit.to_markdown(audit), snapshot=audit["counts"],
+        approve=True, decision_note=decision_note.strip(),
+    )
+    flash(request, "Đã lưu mốc ký duyệt Bản tin Tổng duyệt hôm nay.", "success")
+    return RedirectResponse("/tong-duyet", status_code=303)
+
+
+@app.get("/tong-duyet/ban-tin.md")
+def process_audit_markdown():
+    from . import process_audit
+
+    return HTMLResponse(
+        process_audit.to_markdown(),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=ban_tin_tong_duyet.md"},
+    )
+
+
 @app.get("/packages", response_class=HTMLResponse)
 def packages_page(request: Request):
     items = packages.all_packages()
@@ -1648,6 +1780,10 @@ def strategy_delete(request: Request, sid: int):
 
 FILES_DIR = os.path.join(BASE_DIR, "files")
 DOC_TITLES = {
+    "QUY_TRINH_V4_Y_TUONG_VA_TONG_DUYET.md": (
+        "Quy trình Vận hành V4 – Bộ phận Ý tưởng & Tổng duyệt Đầu cuối (27/11/2026)",
+        "Bản đồ 8 bộ phận V4, luồng Đầu vào (/y-tuong) → Sản xuất & Đo lường → Kiểm toán 6 chốt (/tong-duyet), lịch 06:30 hằng ngày & sáng Thứ Hai",
+    ),
     "QUY_TRINH_LUONG_TU_DONG_V3_ANTIGRAVITY.pdf": (
         "Quy trình luồng tự động – Bản V3 Antigravity (PDF, 5 trang · 26/11/2026)",
         "Kiến trúc 6 bộ phận, sơ đồ Swimlane Gói 35+, 3 vòng lặp tự động, bản đồ module app/, luồng Bát Tự VN, Bộ quy tắc bản 2 & Google Drive",
@@ -2111,6 +2247,74 @@ def api_studio_consensus_push(request: Request):
     n = consensus.ingest_all()
     status = consensus.push()
     return JSONResponse({"ok": True, "ingested_rows": n, "consensus_status": status}, headers=CORS)
+
+
+@app.get("/api/public/studio/audit")
+def api_studio_audit_get(request: Request):
+    """An đọc kết quả 6 chốt kiểm toán (ẩn danh 100%, 0% PII) trước khi lập Bản tin Tổng duyệt sáng 06:30."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import process_audit
+
+    d = process_audit.run_audit()
+    return JSONResponse({
+        "generated_at": d["generated_at"],
+        "overall": d["overall"],
+        "counts": d["counts"],
+        "checks": d["checks"],
+        "flagged_pkgs": d["flagged_pkgs"],
+        "pending_ideas_count": len(d["pending_ideas"]),
+    }, headers=CORS)
+
+
+@app.post("/api/public/studio/audit")
+async def api_studio_audit_post(request: Request):
+    """An nộp Bản tin Kiểm toán & Đề xuất tối ưu lên trang /tong-duyet để anh Nhơn chỉ việc xem & ký duyệt."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import process_audit
+
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400, headers=CORS)
+    if not isinstance(data, dict) or not str(data.get("summary_md") or "").strip():
+        return JSONResponse({"error": "missing_summary_md"}, status_code=400, headers=CORS)
+    d = process_audit.run_audit()
+    lid = process_audit.record_log(
+        kind=str(data.get("kind") or "hang_ngay"),
+        agent="antigravity",
+        overall=str(data.get("overall") or d["overall"]),
+        summary_md=str(data.get("summary_md") or "").strip(),
+        snapshot=d["counts"],
+    )
+    return JSONResponse({"ok": True, "audit_id": lid, "url": "/tong-duyet"}, headers=CORS)
+
+
+@app.post("/api/public/studio/ideas")
+async def api_studio_ideas_post(request: Request):
+    """An nộp lô Ý tưởng đầu vào đã rà soát & chấm điểm lên trang /y-tuong (và hiện trên /tong-duyet)."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    from . import ideation
+
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400, headers=CORS)
+    items = data if isinstance(data, list) else (data.get("ideas") if isinstance(data, dict) else None)
+    if not isinstance(items, list) or not items:
+        return JSONResponse({"error": "empty_ideas"}, status_code=400, headers=CORS)
+    created = 0
+    for it in items[:15]:
+        if isinstance(it, dict) and str(it.get("title") or "").strip():
+            payload = dict(it)
+            payload.setdefault("source", "antigravity")
+            if not payload.get("dup_warning"):
+                payload["dup_warning"] = ideation.find_duplicate_package([str(payload["title"])[:30]])
+            ideation.save_idea(payload)
+            created += 1
+    return JSONResponse({"ok": True, "created": created, "url": "/y-tuong"}, headers=CORS)
 
 
 @app.get("/api/overview")

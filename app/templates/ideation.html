@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Ý tưởng đầu vào · TikTok Manager{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div>
+    <h1 style="margin-bottom:4px">💡 Bộ phận Ý tưởng (Đầu vào quy trình)</h1>
+    <div class="muted small">Tự động gom nhu cầu từ <code>/binh-luan</code>, mô thức thắng tự nhiên từ <code>/dong-thuan</code>, tiết khí gần nhất và tự đối chiếu <code>packages</code> để <b>chống trùng tuổi/chủ đề</b> (0 token AI).</div>
+  </div>
+  <div class="row" style="gap:6px">
+    <form method="post" action="/y-tuong/de-xuat" style="margin:0">
+      <button class="btn">✨ Tự sinh lô ý tưởng mới (0 token)</button>
+    </form>
+    <a class="btn sec small" href="/tong-duyet">📋 Về trang Tổng duyệt</a>
+  </div>
+</div>
+
+<div class="row" style="gap:6px;margin:12px 0">
+  <a class="btn small {{ '' if status=='pending' else 'sec' }}" href="/y-tuong?status=pending">Chờ duyệt ({{ counts.pending }})</a>
+  <a class="btn small {{ '' if status=='approved' else 'sec' }}" href="/y-tuong?status=approved">Đã duyệt ({{ counts.approved }})</a>
+  <a class="btn small {{ '' if status=='rejected' else 'sec' }}" href="/y-tuong?status=rejected">Bỏ qua ({{ counts.rejected }})</a>
+  <a class="btn small {{ '' if status=='all' else 'sec' }}" href="/y-tuong?status=all">Tất cả ({{ counts.all }})</a>
+</div>
+
+{% if rows %}
+  {% for it in rows %}
+  <div class="card" style="margin-bottom:12px;{% if it.dup_warning %}border-color:#f5a524{% endif %}">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:240px">
+        <div class="row" style="gap:6px;margin-bottom:4px">
+          <span class="badge loai-{{ it.loai }}">Loại {{ it.loai }} · {{ it.scenes }} cảnh</span>
+          <span class="badge {{ 'ok' if it.score >= 85 else '' }}">Điểm {{ it.score }}/100</span>
+          <span class="badge">{{ it.source_label }}</span>
+          <span class="muted small">Khung {{ it.publish_slot }} · {{ it.status_label }}</span>
+        </div>
+        <h2 style="margin:4px 0 6px">{{ it.title }}</h2>
+        {% if it.hook_idea %}<div class="small" style="margin-bottom:4px"><b>Hook gợi ý:</b> {{ it.hook_idea }}</div>{% endif %}
+        {% if it.rationale %}<div class="muted small" style="margin-bottom:4px">{{ it.rationale }}</div>{% endif %}
+        {% if it.dup_warning %}<div class="small" style="color:#b7791f;margin-bottom:4px">⚠ <b>Cảnh báo chống trùng:</b> {{ it.dup_warning }}</div>{% endif %}
+        {% if it.brief %}
+        <details class="sub"><summary class="muted small">Xem nội dung Brief (tự điền sang Yêu cầu Gemini)</summary>
+          <pre class="block" style="margin-top:6px">{{ it.brief }}</pre>
+        </details>
+        {% endif %}
+      </div>
+      <div class="row" style="gap:6px;flex:none">
+        {% if it.status == 'pending' %}
+        <form method="post" action="/y-tuong/{{ it.id }}/duyet" style="margin:0">
+          <button class="btn small">✓ Duyệt → Tạo Gói SX</button>
+        </form>
+        <form method="post" action="/y-tuong/{{ it.id }}/bo-qua" style="margin:0">
+          <button class="btn sec small">✕ Bỏ qua</button>
+        </form>
+        {% else %}
+        <form method="post" action="/y-tuong/{{ it.id }}/duyet" style="margin:0">
+          <button class="btn sec small">Mở tạo Gói SX</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/y-tuong/{{ it.id }}/xoa" onsubmit="return confirm('Xoá ý tưởng này?')" style="margin:0">
+          <button class="btn sec small">Xoá</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card" style="margin-bottom:16px">
+    <h2>Chưa có ý tưởng nào trong mục này</h2>
+    <p class="muted">Bấm nút <b>“✨ Tự sinh lô ý tưởng mới (0 token)”</b> ở góc trên để Bộ phận Ý tưởng tự tổng hợp từ bình luận thật, dữ liệu tự nhiên và tiết khí gần nhất.</p>
+  </div>
+{% endif %}
+
+<div class="card" style="margin-top:16px">
+  <h2>＋ Thêm ý tưởng thủ công</h2>
+  <form method="post" action="/y-tuong/moi">
+    <div class="row" style="gap:8px">
+      <div style="flex:3;min-width:220px"><label>Tiêu đề ý tưởng</label><input name="title" required placeholder="VD: Nữ Ất Sửu 1985 · Bước chuyển năm Đinh Mùi 2027"></div>
+      <div style="flex:1;min-width:110px"><label>Loại</label><select name="loai">
+        <option value="1">Loại 1 (Lá số · 7c)</option>
+        <option value="3">Loại 3 (Trà sáng · 4c)</option>
+        <option value="2">Loại 2 (Giỏ hàng)</option>
+      </select></div>
+      <div style="flex:1;min-width:100px"><label>Khung giờ</label><input name="publish_slot" value="19:00" placeholder="19:00"></div>
+      <div style="flex:1;min-width:90px"><label>Điểm (1–100)</label><input type="number" name="score" min="1" max="100" value="85"></div>
+    </div>
+    <label>Hook gợi ý (giây 0–2)</label><input name="hook_idea" placeholder="Chữ trên hình ≤ 70 ký tự + câu mở đầu">
+    <label>Yêu cầu chi tiết (Brief gửi Gemini)</label><textarea name="brief" rows="3" placeholder="Nội dung chính, lưu ý Bộ quy tắc Bản 2..."></textarea>
+    <p style="margin-top:10px"><button class="btn sec">Lưu vào danh sách chờ duyệt</button></p>
+  </form>
+</div>
+{% endblock %}
