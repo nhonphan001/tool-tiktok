@@ -49,7 +49,7 @@ def test_colors_facts_templates():
     ch_min = customers.chart(c_min)
     t4 = customers.templates("sinh 28/5/1984", c_min, ch_min)
     assert t4["missing"] == ["giờ sinh", "giới tính"]
-    assert len(t4["public"]) <= 150 and "giờ sinh" in t4["public"] and "giới tính" in t4["public"]
+    assert len(t4["public"]) <= 150 and t4["public"].endswith("nha!") and "giờ sinh" in t4["public"] and "giới tính" in t4["public"]
     assert "Đại vận" in t4["private"]
 
 

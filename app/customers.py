@@ -152,7 +152,7 @@ def templates(message: str, c: dict, ch: dict | None) -> dict:
                       f"bình luận thêm {ask_extra} để Cô Kim chốt 4 trụ gửi hộp thư!")
         else:
             public = (f"Lá số {nc_lbl} của {x} năm {YEAR_NEXT} {hook} 🍵 "
-                      f"Bình luận thêm {ask_extra} để Cô Kim chốt đủ 4 trụ rồi nhắn riêng trong hộp thư nha!")
+                      f"Bình luận thêm {ask_extra} để Cô Kim chốt đủ 4 trụ rồi nhắn hộp thư nha!")
     else:
         if asks_health:
             public = (f"Thương {x}, chuyện sức khỏe nhớ đi khám bác sĩ nha. Lá số {nc_lbl} năm {YEAR_NEXT} {hook}, "
