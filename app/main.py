@@ -1573,6 +1573,10 @@ def strategy_delete(request: Request, sid: int):
 
 FILES_DIR = os.path.join(BASE_DIR, "files")
 DOC_TITLES = {
+    "QUY_TRINH_LUONG_TU_DONG_V3_ANTIGRAVITY.pdf": (
+        "Quy trình luồng tự động – Bản V3 Antigravity (PDF, 5 trang · 26/11/2026)",
+        "Kiến trúc 6 bộ phận, sơ đồ Swimlane Gói 35+, 3 vòng lặp tự động, bản đồ module app/, luồng Bát Tự VN, Bộ quy tắc bản 2 & Google Drive",
+    ),
     "QUY_TRINH_CHOT_V2.pdf": ("Quy trình luồng tự động – bản chốt V2 (PDF, 10 trang)",
                               "Kiến trúc, lịch tự động, luồng sản xuất, cổng tuân thủ, hộp thư, Gói 16, quy trình chốt P1–P13"),
     "QUY_TRINH_CHOT_V2.md": ("Quy trình chốt V2 (văn bản)", "Bảng P1–P13, P8a/P8b, quy tắc C.10a, thư mục Drive"),

@@ -671,9 +671,12 @@ def test_docs_pages_require_login_and_serve_pdf():
     c.post("/login", data={"password": os.environ.get("APP_PASSWORD", "admin")})
     from app.config import settings
     c.post("/login", data={"password": settings.app_password})
-    assert "Quy trình luồng tự động" in c.get("/tai-lieu").text
+    docs_html = c.get("/tai-lieu").text
+    assert "Quy trình luồng tự động" in docs_html and "QUY_TRINH_LUONG_TU_DONG_V3_ANTIGRAVITY.pdf" in docs_html
     r = c.get("/tai-lieu/QUY_TRINH_CHOT_V2.pdf")
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content[:4] == b"%PDF"
+    r3 = c.get("/tai-lieu/QUY_TRINH_LUONG_TU_DONG_V3_ANTIGRAVITY.pdf")
+    assert r3.status_code == 200 and r3.headers["content-type"] == "application/pdf" and r3.content[:4] == b"%PDF"
     assert "P8a" in c.get("/tai-lieu/xem/QUY_TRINH_CHOT_V2.md").text
     assert c.get("/tai-lieu/../../etc/passwd").status_code in (404, 307, 303, 302)
 
