@@ -28,8 +28,8 @@
         💡 Ý tưởng chờ anh duyệt: <b>{{ audit.pending_ideas|length }}</b>
       </div>
     </div>
-    <form method="post" action="/tong-duyet/ky-duyet" class="row" style="gap:6px;margin:0">
-      <input name="decision_note" placeholder="Ghi chú chỉ đạo (không bắt buộc)" style="width:240px">
+    <form method="post" action="/tong-duyet/ky-duyet" class="row" style="gap:6px;margin:0;flex:1;min-width:240px;justify-content:flex-end">
+      <input name="decision_note" placeholder="Ghi chú chỉ đạo (không bắt buộc)" style="flex:1;min-width:160px;max-width:280px">
       <button class="btn">✓ Ký duyệt bản tin hôm nay</button>
     </form>
   </div>

@@ -1305,7 +1305,7 @@ def consensus_page(request: Request, days: int = 21):
 
     days = max(3, min(days, 400))
     consensus.init()
-    return render(request, "consensus.html", active="chrome", md=consensus.build_md(days=days), days=days,
+    return render(request, "consensus.html", active="consensus", md=consensus.build_md(days=days), days=days,
                   doc=settings.consensus_doc_gemini)
 
 

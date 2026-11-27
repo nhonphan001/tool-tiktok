@@ -112,8 +112,10 @@ def test_process_audit_and_web_routes():
     rmd = c.get("/tong-duyet/ban-tin.md")
     assert rmd.status_code == 200 and "text/markdown" in rmd.headers["content-type"]
 
-    # Tài liệu V4 có mặt trong /tai-lieu
+    # Tài liệu V4 có mặt trong /tai-lieu & thanh điều hướng 5 khu + bottom-nav mobile hoạt động
     assert "QUY_TRINH_V4_Y_TUONG_VA_TONG_DUYET.md" in c.get("/tai-lieu").text
+    assert 'class="hub-tabs"' in rt.text and 'class="bottom-nav"' in rt.text
+    assert 'class="subnav"' in ry.text and "Ý tưởng" in ry.text and "Gói SX" in ry.text
 
 
 def test_audit_and_ideas_studio_api():
