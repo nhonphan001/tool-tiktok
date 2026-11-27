@@ -84,10 +84,15 @@ def parse(text: str, name: str = "") -> dict:
         or re.search(r"^#+\s*Yêu cầu sản xuất Gói\s*\d+\s*[—–-]\s*(.+)$", t, re.M)
     if m:
         out["title"] = _clean(re.sub(r"\s*\([^()]*\)\s*\**\s*$", "", m.group(1).replace("**", "")))
-    m = re.search(r"^\s*loai(?:_video)?:\s*([123])\b", t, re.M)
+    m = re.search(r"^\s*loai(?:_video)?:\s*([123])\b", t, re.M | re.I) \
+        or re.search(r"\bLoại\s*([123])\b", t, re.I)
     if m:
         out["loai"] = int(m.group(1))
-    elif re.search(r"Loại\s*2|Video sản phẩm", t):
+    elif re.search(r"Video\s+tăng\s+follow", t, re.I):
+        out["loai"] = 3
+    elif re.search(r"Video\s+giải\s+mã\s+lá\s+số", t, re.I):
+        out["loai"] = 1
+    elif re.search(r"Video\s+sản\s+phẩm", t, re.I):
         out["loai"] = 2
     m = re.search(rf"ma_san_pham:\s*({SKU_RX})", t) or re.search(rf"SKU:\s*({SKU_RX})", t) \
         or re.search(rf"san_pham:\s*({SKU_RX})", t) or re.search(rf"\b({SKU_RX})\b", t)
@@ -119,12 +124,20 @@ def parse(text: str, name: str = "") -> dict:
     out.update(parse_videos(t))
     imgs = {}
     for m in re.finditer(r"canh_([1-8])_[\d_]*s?\s*:\s*\"?\s*([A-Za-z0-9_-]{25,60})", t):
-        imgs[int(m.group(1))] = m.group(2)
+        val = m.group(2)
+        if val.upper().startswith("GOI_") or "_CANH_" in val.upper():
+            continue  # tên file ảnh giữ chỗ, không phải Google Drive file ID thật
+        imgs[int(m.group(1))] = val
     if imgs:
         out["images"] = imgs
     prompts = _video_prompts(t)
     if prompts:
         out["prompts"] = prompts
+        for i, pr in prompts.items():
+            if not out.get(f"scene{i}"):
+                ms = re.search(r'speaks[^":\n]{0,60}:\s*"([^"]{15,}?)(?:"|$)', pr, re.I)
+                if ms:
+                    out[f"scene{i}"] = _clean(ms.group(1))
     return out
 
 

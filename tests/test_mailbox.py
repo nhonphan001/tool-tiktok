@@ -100,3 +100,21 @@ def test_report_v2_table_format_newer_wins():
     m = mailbox.merge([{**v1, "source": {"id": "a", "name": "v1", "modified": "1"}},
                        {**v2, "source": {"id": "b", "name": "v2", "modified": "2"}}])
     assert m["final_video"] == "1DGLOjF813gO9DJoIDddsmum3j9dAo3RX"
+
+
+def test_parse_goi35_loai3_and_dialogue_from_prompts():
+    doc = """# Phiếu gói 35 — Trà ấm cuối năm
+Loại 3 (Video tăng follow, không giỏ hàng).
+
+## Prompt video
+**Cảnh 1 (0–10s):** Slow push-in on garden veranda. She speaks softly in Vietnamese through her veil: "Còn đúng ba mươi bốn ngày nữa là hết năm rồi. Bấm theo dõi Cô Kim nha."
+**Cảnh 2 (10–20s):** Medium close-up at tea table. She speaks softly in Vietnamese through her veil: "Năm qua chị em đã gánh vác nhiều chuyện nhọc nhằn."
+
+canh_1_0_10s: GOI_35_V3_3_CANH_1_TraAmCuoiNam_RotTraVuonNang
+"""
+    p = mailbox.parse(doc, "SANXUAT-2711-GOI-35-TRA-AM-CUOI-NAM__XONG.md")
+    assert p["goi"] == "35" and p["loai"] == 3
+    assert p["scene1"].startswith("Còn đúng ba mươi bốn ngày")
+    assert p["scene2"].startswith("Năm qua chị em")
+    assert "images" not in p  # không nhầm tên file giữ chỗ GOI_35_... thành Drive file ID
+
