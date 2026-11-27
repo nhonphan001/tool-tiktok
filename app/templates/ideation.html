@@ -14,6 +14,69 @@
   </div>
 </div>
 
+<div class="card scroll" style="margin:12px 0 16px">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div>
+      <h2 style="margin:0">📅 Lịch đăng đề xuất 7 ngày tới</h2>
+      <div class="muted small">Gợi ý rõ <b>ngày nào · khung giờ nào · đăng gói nào</b> (ưu tiên Gói SX đã có sẵn trong tool, sau đó ghép Ý tưởng điểm cao nhất không trùng). Khung chuẩn: <b>11:00</b> Loại 3 · <b>12:00</b> Loại 2 · <b>19:00</b> Loại 1.</div>
+    </div>
+    <span class="badge {{ 'ok' if schedule.empty_count == 0 else '' }}">Đã xếp {{ schedule.filled_count }} khung{% if schedule.empty_count %} · {{ schedule.empty_count }} khung trống{% endif %}</span>
+  </div>
+  <table>
+    <tr>
+      <th>Ngày</th>
+      <th>Khung giờ</th>
+      <th>Loại</th>
+      <th>Gói / Ý tưởng đề xuất</th>
+      <th>Trạng thái</th>
+      <th>Thao tác</th>
+    </tr>
+    {% for day in schedule.days %}
+      {% for s in day.slots %}
+      <tr{% if s.kind == 'empty' %} style="opacity:0.75"{% endif %}>
+        <td class="nw">
+          {% if loop.first %}<b>{{ day.date_label }}</b>{% if day.tag %} <span class="badge ok">{{ day.tag }}</span>{% endif %}{% endif %}
+        </td>
+        <td class="nw"><b>{{ s.time }}</b></td>
+        <td class="nw"><span class="badge loai-{{ s.loai }}">L{{ s.loai }}</span></td>
+        <td>
+          {% if s.kind == 'package' %}
+            <a href="/packages/{{ s.ref_id }}"><b>{% if s.goi %}Gói {{ s.goi }} — {% endif %}{{ s.title }}</b></a>
+          {% elif s.kind == 'idea' %}
+            <b>{{ s.title }}</b>
+            {% if s.score %}<span class="muted small"> · {{ s.score }}/100</span>{% endif %}
+          {% else %}
+            <span class="muted">{{ s.title }}</span>
+          {% endif %}
+          {% if s.reason %}<div class="muted small">{{ s.reason[:140] }}</div>{% endif %}
+          {% if s.dup_warning %}<div class="small" style="color:#b7791f">⚠ {{ s.dup_warning }}</div>{% endif %}
+        </td>
+        <td class="nw">
+          {% if s.kind == 'package' %}
+            <span class="badge ok">📦 {{ s.status_label }}</span>
+          {% elif s.kind == 'idea' %}
+            <span class="badge">💡 {{ s.status_label }}</span>
+          {% else %}
+            <span class="muted small">Trống</span>
+          {% endif %}
+        </td>
+        <td class="nw">
+          {% if s.kind == 'package' %}
+            <a class="btn sec small" href="/packages/{{ s.ref_id }}">Mở Gói</a>
+          {% elif s.kind == 'idea' %}
+            <form method="post" action="/y-tuong/{{ s.ref_id }}/duyet" style="margin:0">
+              <button class="btn small">✓ Duyệt → Gói SX</button>
+            </form>
+          {% else %}
+            <a class="btn sec small" href="#them-y-tuong">＋ Thêm</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+  </table>
+</div>
+
 <div class="row" style="gap:6px;margin:12px 0">
   <a class="btn small {{ '' if status=='pending' else 'sec' }}" href="/y-tuong?status=pending">Chờ duyệt ({{ counts.pending }})</a>
   <a class="btn small {{ '' if status=='approved' else 'sec' }}" href="/y-tuong?status=approved">Đã duyệt ({{ counts.approved }})</a>
@@ -30,7 +93,9 @@
           <span class="badge loai-{{ it.loai }}">Loại {{ it.loai }} · {{ it.scenes }} cảnh</span>
           <span class="badge {{ 'ok' if it.score >= 85 else '' }}">Điểm {{ it.score }}/100</span>
           <span class="badge">{{ it.source_label }}</span>
-          <span class="muted small">Khung {{ it.publish_slot }} · {{ it.status_label }}</span>
+          {% set sch = schedule.idea_schedule.get(it.id) %}
+          {% if sch %}<span class="badge ok">📅 Đề xuất: {{ sch.full }}</span>{% else %}<span class="muted small">Khung {{ it.publish_slot }}</span>{% endif %}
+          <span class="muted small">· {{ it.status_label }}</span>
         </div>
         <h2 style="margin:4px 0 6px">{{ it.title }}</h2>
         {% if it.hook_idea %}<div class="small" style="margin-bottom:4px"><b>Hook gợi ý:</b> {{ it.hook_idea }}</div>{% endif %}
@@ -69,7 +134,7 @@
   </div>
 {% endif %}
 
-<div class="card" style="margin-top:16px">
+<div class="card" id="them-y-tuong" style="margin-top:16px">
   <h2>＋ Thêm ý tưởng thủ công</h2>
   <form method="post" action="/y-tuong/moi">
     <div class="row" style="gap:8px">

@@ -372,12 +372,70 @@ def _cust_form(form) -> dict:
 
 
 @app.get("/khach-hang", response_class=HTMLResponse)
-def customers_page(request: Request, q: str = "", tier: str = ""):
+def customers_page(request: Request, q: str = "", tier: str = "", show_nick: int = 0):
     from . import customers
 
     return render(request, "customers.html", active="customers", rows=customers.all_customers(q, tier), q=q, tier=tier,
                   tiers=customers.TIERS, counts=customers.counts(), c=None, msgs=[], ch=None, col=None,
-                  channels=customers.CHANNELS)
+                  channels=customers.CHANNELS, sync=customers.studio_sync_status(),
+                  api_ready=bool(settings.api_token), show_nick=bool(show_nick))
+
+
+@app.post("/khach-hang/scan-studio-api")
+def customers_scan_studio_api(request: Request, back: str = Form("/khach-hang")):
+    """Quét ngay TikTok Display API & kiểm tra đồng bộ dữ liệu Bình luận Studio mới nhất."""
+    from . import customers
+
+    target = back if back.startswith(("/khach-hang", "/binh-luan")) else "/khach-hang"
+    acc = db.get_active_account()
+    api_msg = ""
+    api_err = ""
+    if not acc:
+        api_err = "Chưa kết nối tài khoản TikTok API"
+    else:
+        try:
+            res = scanner.run_scan("manual")
+            if res.get("status") == "ok":
+                api_msg = res.get("message") or "Đã quét xong TikTok API"
+            else:
+                api_err = res.get("message") or "Không quét được TikTok API"
+        except Exception as e:  # noqa: BLE001
+            api_err = str(e)[:180]
+
+    st = customers.studio_sync_status()
+    parts = []
+    if api_msg:
+        parts.append(f"API TikTok: {api_msg}.")
+    elif api_err:
+        parts.append(f"API TikTok: {api_err}.")
+    if st["comment_delta"] > 0:
+        parts.append(
+            f"Phát hiện thêm +{st['comment_delta']} bình luận mới trên API chưa nạp nội dung từ TikTok Studio "
+            f"(API: {st['api_comments_total']} · Studio đã nạp: {st['studio_comments_total']}). "
+            "Nhắn An 'quét bình luận Studio' để nạp chữ bình luận mới qua Studio API."
+        )
+    else:
+        parts.append(
+            f"Dữ liệu bình luận Studio đã khớp (Studio: {st['studio_comments_total']} · API: {st['api_comments_total']})."
+        )
+    if st["studio_leads_total"]:
+        parts.append(f"Có {st['studio_leads_total']} khách xin lá số từ Studio chưa lưu vào Khách hàng.")
+    flash(request, " ".join(parts), "error" if (api_err and not st["studio_comments_total"]) else ("info" if st["comment_delta"] > 0 else "success"))
+    return RedirectResponse(target, status_code=303)
+
+
+@app.post("/khach-hang/tu-binh-luan/{sc_id}")
+def customer_from_studio_comment(request: Request, sc_id: int):
+    """Lưu nhanh 1 khách xin lá số từ dữ liệu Bình luận Studio vào Khách hàng."""
+    from . import customers
+
+    try:
+        cid = customers.import_from_studio_comment(sc_id)
+        flash(request, "Đã lưu khách từ bình luận Studio — kiểm tra lại ngày giờ sinh và soạn trả lời ngay bên dưới.", "success")
+        return RedirectResponse(f"/khach-hang/{cid}", status_code=303)
+    except ValueError as e:
+        flash(request, str(e), "error")
+        return RedirectResponse("/khach-hang", status_code=303)
 
 
 @app.post("/khach-hang/tu-laso")
@@ -511,12 +569,13 @@ def laso_comments(request: Request, text: str = Form("")):
 @app.get("/binh-luan", response_class=HTMLResponse)
 def comment_stats_page(request: Request, role: str = "viewer", status: str = "all", cat: str = "all",
                        vkey: str = "", q: str = "", show_nick: int = 0):
-    from . import comment_stats
+    from . import comment_stats, customers
 
     data = comment_stats.dashboard_data(role=role, status=status, cat=cat, vkey=vkey, q=q)
     return render(
         request, "comment_stats.html", active="comment_stats",
         role=role, status=status, cat=cat, vkey=vkey, q=q, show_nick=bool(show_nick),
+        sync=customers.studio_sync_status(),
         **data,
     )
 
@@ -594,7 +653,9 @@ def ideation_page(request: Request, status: str = "pending"):
         "all": len(all_rows),
     }
     rows = all_rows if status == "all" else [r for r in all_rows if r["status"] == status]
-    return render(request, "ideation.html", active="ideation", rows=rows, status=status, counts=counts)
+    schedule = ideation.build_schedule(days=7)
+    return render(request, "ideation.html", active="ideation", rows=rows, status=status, counts=counts,
+                  schedule=schedule)
 
 
 @app.post("/y-tuong/de-xuat")
@@ -640,8 +701,9 @@ def ideation_approve(request: Request, iid: int):
     if not it:
         flash(request, "Không tìm thấy ý tưởng", "error")
         return RedirectResponse("/y-tuong", status_code=303)
+    sched = ideation.build_schedule(days=7)["idea_schedule"].get(iid)
     ideation.set_status(iid, "approved")
-    request.session["pre_request"] = ideation.prefill_request(it)
+    request.session["pre_request"] = ideation.prefill_request(it, sched)
     flash(request, f"Đã duyệt ý tưởng “{it['title'][:50]}” — đã điền sẵn form Yêu cầu Gemini bên dưới.", "success")
     return RedirectResponse("/requests#moi", status_code=303)
 

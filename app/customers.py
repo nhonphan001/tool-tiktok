@@ -324,3 +324,108 @@ def counts() -> dict:
     init()
     rows = db.query("SELECT tier, COUNT(*) AS n FROM customers GROUP BY tier")
     return {r["tier"]: r["n"] for r in rows}
+
+
+def studio_sync_status() -> dict:
+    """Tổng hợp trạng thái đồng bộ TikTok API + Bình luận Studio và lọc khách xin lá số mới chưa lưu."""
+    from . import comment_stats
+
+    init()
+    comment_stats.init()
+    last_scan = db.query_one("SELECT started_at, status, message FROM scans ORDER BY id DESC LIMIT 1")
+    last_imp = db.query_one("SELECT imported_at, source, total_rows, note FROM studio_comment_imports ORDER BY id DESC LIMIT 1")
+
+    acc = db.get_active_account()
+    api_comments_total = 0
+    if acc:
+        row = db.query_one(
+            """SELECT COALESCE(SUM(vs.comment_count), 0) AS n
+               FROM video_snapshots vs
+               INNER JOIN (
+                   SELECT video_id, MAX(id) AS max_id FROM video_snapshots GROUP BY video_id
+               ) latest ON latest.max_id = vs.id
+               INNER JOIN videos v ON v.id = vs.video_id
+               WHERE v.open_id = ?""",
+            (acc["open_id"],),
+        )
+        api_comments_total = int((row or {}).get("n") or 0)
+
+    studio_total_row = db.query_one("SELECT COUNT(*) AS n FROM studio_comments")
+    studio_comments_total = int((studio_total_row or {}).get("n") or 0)
+    comment_delta = max(0, api_comments_total - studio_comments_total)
+
+    existing = all_customers()
+    saved_handles = {(c.get("tiktok") or "").strip().lstrip("@").lower() for c in existing if (c.get("tiktok") or "").strip()}
+    saved_births = {
+        (int(c["dd"]), int(c["mm"]), int(c["yy"]))
+        for c in existing
+        if c.get("dd") and c.get("mm") and c.get("yy")
+    }
+
+    cdata = comment_stats.dashboard_data(role="viewer", cat="xin_la_so")
+    leads = []
+    for r in cdata.get("rows") or []:
+        handle = (r.get("author_display") or "").strip().lstrip("@")
+        b = r.get("birth") or {}
+        bkey = (int(b["dd"]), int(b["mm"]), int(b["yy"])) if (b.get("dd") and b.get("mm") and b.get("yy")) else None
+        if handle and handle.lower() in saved_handles:
+            continue
+        if bkey and bkey in saved_births:
+            continue
+        leads.append({
+            "sc_id": r["id"],
+            "author_display": handle,
+            "masked": r.get("author_masked") or comment_stats.mask_handle(handle),
+            "text": r.get("text") or "",
+            "time_text": r.get("time_text") or "",
+            "birth_summary": r.get("birth_summary") or "",
+            "birth": b,
+            "replied": bool(r.get("is_replied")),
+            "video_caption": (r.get("video_caption") or "")[:70],
+        })
+    # Ưu tiên khách chưa trả lời và có đủ ngày sinh lên đầu
+    leads.sort(key=lambda x: (1 if x["replied"] else 0, 0 if (x["birth"] or {}).get("has_full_date") else 1, -x["sc_id"]))
+
+    return {
+        "last_api_scan": last_scan,
+        "last_studio_import": last_imp,
+        "api_comments_total": api_comments_total,
+        "studio_comments_total": studio_comments_total,
+        "comment_delta": comment_delta,
+        "studio_leads": leads[:25],
+        "studio_leads_total": len(leads),
+    }
+
+
+def import_from_studio_comment(sc_id: int) -> int:
+    """Chuyển 1 bình luận xin lá số từ `/binh-luan` thành hồ sơ khách hàng trong `/khach-hang`."""
+    from . import comment_stats
+
+    init()
+    comment_stats.init()
+    r = db.query_one("SELECT * FROM studio_comments WHERE id=?", (sc_id,))
+    if not r:
+        raise ValueError("Không tìm thấy bình luận trong dữ liệu Studio.")
+    try:
+        b = json.loads(r.get("birth_json") or "{}")
+    except ValueError:
+        b = {}
+    handle = (r.get("author_display") or "").strip().lstrip("@")
+    cc = (r.get("can_chi_tags") or "").split(",")[0].strip()
+    yy = b.get("yy") or ""
+    alias = handle or (f"Khách {cc} {yy}".strip() if (cc or yy) else f"Khách Studio #{sc_id}")
+    cid = save({
+        "alias": alias,
+        "tiktok": handle,
+        "gioi": b.get("gioi") or "",
+        "dd": b.get("dd") or "",
+        "mm": b.get("mm") or "",
+        "yy": yy,
+        "t": b.get("t") or "",
+        "lich": b.get("lich") or "duong",
+        "tier": "moi",
+        "tags": "từ bình luận Studio" + (f", {cc}" if cc else ""),
+        "note": f"Nguồn: bình luận video '{(r.get('video_caption') or '')[:80]}' ({r.get('time_text') or ''})".strip(),
+    })
+    add_message(cid, "binh_luan", "khach", r.get("text") or "")
+    return cid

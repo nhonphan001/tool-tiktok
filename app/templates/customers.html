@@ -24,8 +24,60 @@
 {% endmacro %}
 
 {% if not c %}
-<div class="row" style="justify-content:space-between"><h1>Khách hàng ({{ rows|length }})</h1>
-  <div class="muted small">Thân thiết {{ counts.get('than_thiet', 0) }} · Quen {{ counts.get('quen', 0) }} · Mới {{ counts.get('moi', 0) }}</div></div>
+<div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+  <div>
+    <h1 style="margin-bottom:4px">Khách hàng ({{ rows|length }})</h1>
+    <div class="muted small">Thân thiết {{ counts.get('than_thiet', 0) }} · Quen {{ counts.get('quen', 0) }} · Mới {{ counts.get('moi', 0) }}</div>
+  </div>
+  <div class="row" style="gap:6px">
+    <form method="post" action="/khach-hang/scan-studio-api" style="margin:0"
+          onsubmit="const b=this.querySelector('button');b.disabled=true;b.textContent='⏳ Đang quét Studio & API…';">
+      <input type="hidden" name="back" value="/khach-hang">
+      <button class="btn small">🔄 Scan Studio &amp; API mới nhất</button>
+    </form>
+    <a class="btn sec small" href="/binh-luan">💬 Bình luận Studio</a>
+  </div>
+</div>
+<div class="card" style="margin:10px 0 12px;padding:10px 12px">
+  <div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="small">
+      <b>Trạng thái đồng bộ:</b>
+      TikTok API {% if sync and sync.last_api_scan %}<b>{{ sync.last_api_scan.started_at|localtime }}</b> ({{ sync.api_comments_total }} BL){% else %}<span class="muted">chưa quét</span>{% endif %}
+      · Bình luận Studio {% if sync and sync.last_studio_import %}<b>{{ sync.last_studio_import.imported_at|localtime }}</b> ({{ sync.studio_comments_total }} BL){% else %}<span class="muted">chưa nạp</span>{% endif %}
+      {% if sync and sync.comment_delta > 0 %}
+        · <span class="badge error">⚡ +{{ sync.comment_delta }} BL mới trên API chưa nạp từ Studio</span>
+      {% elif sync and sync.studio_comments_total %}
+        · <span class="badge ok">✓ Đã khớp mới nhất</span>
+      {% endif %}
+    </div>
+    <div class="muted small">Studio API: <b>{{ 'Đã bật' if api_ready else 'Chưa bật API_TOKEN' }}</b></div>
+  </div>
+</div>
+{% if sync and sync.studio_leads %}
+<div class="card scroll" style="margin-bottom:12px">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h2 style="margin:0">🔥 Khách mới xin lá số từ Bình luận Studio ({{ sync.studio_leads_total }} chưa lưu)</h2>
+    <div class="row" style="gap:6px">
+      <a class="btn sec small" href="/khach-hang?q={{ q|urlencode }}&tier={{ tier|urlencode }}&show_nick={{ 0 if show_nick else 1 }}">{{ '🙈 Ẩn nick' if show_nick else '👁 Hiện nick' }}</a>
+      <a class="btn sec small" href="/binh-luan?role=viewer&cat=xin_la_so#chi-tiet">Xem tất cả</a>
+    </div>
+  </div>
+  <table>
+    <tr><th>Khách</th><th>Ngày sinh / Can Chi</th><th>Nội dung bình luận</th><th>Trạng thái</th><th>Thao tác</th></tr>
+    {% for l in sync.studio_leads %}<tr>
+      <td class="nw"><b>{{ l.author_display if show_nick else l.masked }}</b><div class="muted small">{{ l.time_text or '' }}</div></td>
+      <td class="small">{{ l.birth_summary or 'Chưa đủ ngày' }}</td>
+      <td class="small" style="max-width:340px">{{ l.text[:160] }}{% if l.video_caption %}<div class="muted small">🎬 {{ l.video_caption }}</div>{% endif %}</td>
+      <td class="nw">{% if l.replied %}<span class="badge ok">Đã TL</span>{% else %}<span class="badge error">Chưa TL</span>{% endif %}</td>
+      <td class="nw">
+        <form method="post" action="/khach-hang/tu-binh-luan/{{ l.sc_id }}" style="margin:0">
+          <button class="btn small">💾 Lưu thành khách</button>
+        </form>
+      </td>
+    </tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
 <p class="muted">Khách chỉ được lưu khi anh bấm Lưu. Dữ liệu (ngày sinh, tin nhắn) <b>chỉ nằm trên TikTok Manager</b>: không đồng bộ Drive, không gửi Gemini/Claude trong báo cáo. Khách nhắn từ 3 lần trở lên tự lên mức <b>Thân thiết</b>.</p>
 
 <div class="card" style="margin-bottom:12px"><h2>✍️ Soạn trả lời nhanh</h2>

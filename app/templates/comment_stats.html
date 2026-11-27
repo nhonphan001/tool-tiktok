@@ -10,6 +10,11 @@
     </div>
   </div>
   <div class="row" style="gap:6px">
+    <form method="post" action="/khach-hang/scan-studio-api" style="margin:0"
+          onsubmit="const b=this.querySelector('button');b.disabled=true;b.textContent='⏳ Đang quét…';">
+      <input type="hidden" name="back" value="/binh-luan">
+      <button class="btn small">🔄 Scan Studio &amp; API mới nhất</button>
+    </form>
     {% if kpi.total %}<a class="btn sec small" href="/binh-luan/bao-cao.md">📥 Xuất báo cáo ẩn danh (.md)</a>{% endif %}
     <a class="btn sec small" href="#nhap-du-lieu">＋ Nhập từ Studio</a>
   </div>

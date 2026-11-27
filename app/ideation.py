@@ -193,15 +193,16 @@ def delete(iid: int) -> None:
         c.execute("DELETE FROM ideas WHERE id=?", (iid,))
 
 
-def prefill_request(idea: dict) -> dict:
+def prefill_request(idea: dict, sched: dict | None = None) -> dict:
     """Chuyển 1 ý tưởng đã duyệt thành payload điền sẵn cho form `/requests#moi`."""
     b = idea.get("birth") or {}
+    publish_text = (sched or {}).get("full") or f"{idea.get('publish_slot') or '19:00'} sắp tới"
     out = {
         "title": (idea.get("title") or "")[:60],
         "loai": int(idea.get("loai") or 1),
         "scenes": int(idea.get("scenes") or (7 if int(idea.get("loai") or 1) == 1 else 4)),
         "goal": idea.get("goal") or ("comment" if int(idea.get("loai") or 1) == 1 else "follow"),
-        "publish": f"{idea.get('publish_slot') or '19:00'} sắp tới",
+        "publish": publish_text,
         "brief": idea.get("brief") or f"{idea.get('title')}\nHook gợi ý: {idea.get('hook_idea')}",
     }
     if b.get("dd") and b.get("mm") and b.get("yy"):
@@ -214,6 +215,186 @@ def prefill_request(idea: dict) -> dict:
             "gioi": b.get("gioi") or "",
         })
     return out
+
+
+_WEEKDAYS_VI = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+_LOAI_SLOT_LABELS = {
+    1: "Loại 1 · Giải mã lá số (7c)",
+    2: "Loại 2 · Sản phẩm / Giỏ hàng",
+    3: "Loại 3 · Tăng follow (4c)",
+}
+
+
+def _slot_defs() -> list[tuple[str, int]]:
+    """Đọc `settings.posting_slots` (mặc định 11:00 L3 · 12:00 L2 · 19:00 L1) → [(khung_gio, loai)]."""
+    from .config import settings
+
+    raw = [s.strip() for s in (settings.posting_slots or "11:00,12:00,19:00").split(",") if s.strip()]
+    if not raw:
+        raw = ["11:00", "12:00", "19:00"]
+    out: list[tuple[str, int]] = []
+    for s in raw:
+        try:
+            hh = int(s.split(":")[0])
+        except ValueError:
+            hh = 19
+        if hh <= 11:
+            loai = 3
+        elif hh <= 14:
+            loai = 2
+        else:
+            loai = 1
+        out.append((s, loai))
+    if not any(loai == 1 for _, loai in out):
+        out.append(("19:00", 1))
+    return out
+
+
+def build_schedule(days: int = 7, start: date | None = None) -> dict:
+    """Lập lịch đăng đề xuất cho `days` ngày tiếp theo: gói nào · ngày nào · khung giờ nào.
+
+    Ưu tiên:
+    1. Gói SX đã có trong tool đang chờ đăng / lên lịch / sẵn sàng dựng (xếp theo từng Loại 1/2/3).
+    2. Ý tưởng trong `/y-tuong` (Đã duyệt → Chờ duyệt, điểm cao trước, ưu tiên không trùng gói cũ).
+    """
+    from . import packages
+
+    init()
+    now_vn = datetime.now(VN)
+    today_vn = now_vn.date()
+    if start is None:
+        # Sau 18:00 coi như lịch hôm nay đã kín, bắt đầu gợi ý từ ngày mai
+        start = today_vn + timedelta(days=1 if now_vn.hour >= 18 else 0)
+
+    slot_defs = _slot_defs()
+
+    # 1. Kho Gói SX đã có sẵn (chưa đăng) phân theo loại
+    pkg_priority = {"cho_dang": 0, "len_lich": 1, "san_sang": 2}
+    pkg_pool: dict[int, list[dict]] = {1: [], 2: [], 3: []}
+    try:
+        all_pkgs = packages.all_packages()
+    except Exception:  # noqa: BLE001
+        all_pkgs = []
+    ready_pkgs = [p for p in all_pkgs if (p.get("status") or "nhap") in pkg_priority]
+    ready_pkgs.sort(key=lambda p: (pkg_priority.get(p.get("status") or "", 9), int(p["goi"]) if str(p.get("goi") or "").isdigit() else 9999))
+    for p in ready_pkgs:
+        loai = int(p.get("loai") or 1)
+        pkg_pool.setdefault(loai, []).append(p)
+
+    # 2. Kho Ý tưởng (đã duyệt + chờ duyệt) phân theo loại
+    idea_pool: dict[int, list[dict]] = {1: [], 2: [], 3: []}
+    all_ideas = [r for r in list_ideas("all", limit=200) if r["status"] in ("approved", "pending")]
+    all_ideas.sort(
+        key=lambda r: (
+            0 if r["status"] == "approved" else 1,
+            1 if r.get("dup_warning") else 0,
+            -int(r.get("score") or 0),
+            r["id"],
+        )
+    )
+    for it in all_ideas:
+        loai = int(it.get("loai") or 1)
+        idea_pool.setdefault(loai, []).append(it)
+
+    schedule_days: list[dict] = []
+    idea_schedule: dict[int, dict] = {}
+    used_pkg_ids: set[int] = set()
+    used_idea_ids: set[int] = set()
+
+    for offset in range(max(1, min(days, 14))):
+        d = start + timedelta(days=offset)
+        weekday = _WEEKDAYS_VI[d.weekday()]
+        date_str = d.strftime("%d/%m")
+        tag = "Hôm nay" if d == today_vn else ("Ngày mai" if d == today_vn + timedelta(days=1) else "")
+        date_label = f"{weekday} {date_str}"
+        day_slots: list[dict] = []
+
+        for time_str, loai in slot_defs:
+            # Nếu là hôm nay và đã qua giờ của khung này thì bỏ qua khung đã qua
+            if d == today_vn:
+                try:
+                    slot_h = int(time_str.split(":")[0])
+                except ValueError:
+                    slot_h = 19
+                if now_vn.hour >= slot_h:
+                    continue
+
+            picked_pkg = next((p for p in pkg_pool.get(loai, []) if p["id"] not in used_pkg_ids), None)
+            if picked_pkg:
+                used_pkg_ids.add(picked_pkg["id"])
+                day_slots.append({
+                    "time": time_str,
+                    "loai": loai,
+                    "loai_label": _LOAI_SLOT_LABELS.get(loai, f"Loại {loai}"),
+                    "kind": "package",
+                    "ref_id": picked_pkg["id"],
+                    "goi": picked_pkg.get("goi") or "",
+                    "title": picked_pkg.get("title") or f"Gói {picked_pkg.get('goi') or picked_pkg['id']}",
+                    "status_label": packages.STATUS.get(picked_pkg.get("status") or "nhap", picked_pkg.get("status") or ""),
+                    "score": None,
+                    "reason": "Gói đã có sẵn trong tool — ưu tiên xếp lịch đăng trước.",
+                    "dup_warning": "",
+                })
+                continue
+
+            picked_idea = next((it for it in idea_pool.get(loai, []) if it["id"] not in used_idea_ids), None)
+            if picked_idea:
+                used_idea_ids.add(picked_idea["id"])
+                idea_schedule[picked_idea["id"]] = {
+                    "date_iso": d.isoformat(),
+                    "date_label": date_label,
+                    "tag": tag,
+                    "time": time_str,
+                    "full": f"{date_label} · {time_str}",
+                }
+                day_slots.append({
+                    "time": time_str,
+                    "loai": loai,
+                    "loai_label": _LOAI_SLOT_LABELS.get(loai, f"Loại {loai}"),
+                    "kind": "idea",
+                    "ref_id": picked_idea["id"],
+                    "goi": "",
+                    "title": picked_idea["title"],
+                    "status_label": picked_idea["status_label"],
+                    "score": picked_idea["score"],
+                    "reason": picked_idea.get("rationale") or picked_idea.get("hook_idea") or "",
+                    "dup_warning": picked_idea.get("dup_warning") or "",
+                })
+                continue
+
+            # Chỉ hiển thị ô trống cho khung chính (19:00 Loại 1 và 11:00 Loại 3); khung 12:00 Loại 2 chỉ hiện khi có gói/ý tưởng
+            if loai in (1, 3):
+                day_slots.append({
+                    "time": time_str,
+                    "loai": loai,
+                    "loai_label": _LOAI_SLOT_LABELS.get(loai, f"Loại {loai}"),
+                    "kind": "empty",
+                    "ref_id": None,
+                    "goi": "",
+                    "title": "Chưa có gói/ý tưởng cho khung này",
+                    "status_label": "Trống",
+                    "score": None,
+                    "reason": "Bấm “Tự sinh lô ý tưởng mới” hoặc thêm ý tưởng thủ công để lấp khung.",
+                    "dup_warning": "",
+                })
+
+        if day_slots:
+            schedule_days.append({
+                "date_iso": d.isoformat(),
+                "weekday": weekday,
+                "date_str": date_str,
+                "date_label": date_label,
+                "tag": tag,
+                "slots": day_slots,
+            })
+
+    return {
+        "days": schedule_days,
+        "idea_schedule": idea_schedule,
+        "slot_defs": slot_defs,
+        "filled_count": sum(1 for day in schedule_days for s in day["slots"] if s["kind"] != "empty"),
+        "empty_count": sum(1 for day in schedule_days for s in day["slots"] if s["kind"] == "empty"),
+    }
 
 
 def _upcoming_seasonal(today: date) -> list[dict]:
