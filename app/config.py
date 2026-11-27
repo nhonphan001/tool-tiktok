@@ -77,6 +77,8 @@ class Settings:
     mailbox_folder_ids: str = field(default_factory=lambda: os.getenv(
         "MAILBOX_FOLDER_IDS", "16C0ZEvMyfdRZ_lcgXdxlN7JhuruaXy9l,1oFj8HZVoIY0CYQkkkyza9d2GCToaQUVC"))
     # Doc "hộp thư đi" (HOP_THU_TOOL__YEUCAU trong GUI_GEMINI) — dùng khi service account không tạo được file mới
+    # Thư mục 01_KICH_BAN_VA_ANH_AI: ảnh cảnh & ảnh bìa thương hiệu → tool tự gắn vào gói (app/scene_images.py)
+    scene_images_folder_id: str = field(default_factory=lambda: os.getenv("SCENE_IMAGES_FOLDER_ID", "1iePe5cdLrnz0O6nccQch8TP4w4i4HzIQ"))
     # Thư mục 02_VIDEO_THO_CHO_KIEM_DUYET (clip thô anh Nhơn tạo, P8a) — tool đọc để duyệt trên web
     raw_video_folder_id: str = field(default_factory=lambda: os.getenv("RAW_VIDEO_FOLDER_ID", "1zG9VyoYDtHgYnJs-SH8kqy_bQPdpRTyM"))
     # 04_VIDEO_DA_DUYET_SAN_SANG_DANG: Gemini tải video thành phẩm vào đây → tool tự gắn vào gói (app/finals.py)
@@ -155,6 +157,7 @@ EDITABLE_KEYS = {
     "product_csv_url": str,
     "mailbox_folder_ids": str,
     "mailbox_outbox_doc_id": str,
+    "scene_images_folder_id": str,
     "raw_video_folder_id": str,
     "final_video_folder_id": str,
     "gemini_price_input": float,

@@ -75,6 +75,13 @@ def reschedule() -> None:
         except Exception:  # noqa: BLE001
             log.exception("clips.sync_all")
         try:
+            from . import scene_images  # ảnh cảnh & ảnh bìa trong 01 → tự gắn vào gói
+
+            for m in scene_images.sync():
+                log.info(m)
+        except Exception:  # noqa: BLE001
+            log.exception("scene_images.sync")
+        try:
             from . import finals  # video thành phẩm Gemini tải lên 04 → gắn vào gói + thông báo
 
             for m in finals.sync():

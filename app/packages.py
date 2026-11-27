@@ -79,7 +79,7 @@ def init() -> None:
     with db.tx() as c:
         c.executescript(SCHEMA)
         cols = {r[1] for r in c.execute("PRAGMA table_info(packages)").fetchall()}
-        for col in ("ads_plan", "prompts_json", "images_json", "final_video", "clean_video", "post_plan_json", "clips_json",
+        for col in ("ads_plan", "prompts_json", "images_json", "cover_image", "final_video", "clean_video", "post_plan_json", "clips_json",
                     *[f"scene{i}" for i in range(5, MAX_SCENES + 1)]):
             if col not in cols:
                 c.execute(f"ALTER TABLE packages ADD COLUMN {col} TEXT DEFAULT ''")
@@ -126,6 +126,8 @@ def save(data: dict, pid: int | None = None) -> int:
                                       if str(data.get(f"prompt{i}") or "").strip()}, ensure_ascii=False)
     for k in VIDEOS:
         row[k] = _drive_id(str(data.get(k) or ""))
+    if "cover_image" in data:
+        row["cover_image"] = _drive_id(str(data.get("cover_image") or ""))
     if "post_plan_json" in data:
         row["post_plan_json"] = data["post_plan_json"]
     row["images_json"] = json.dumps({str(i): _drive_id(str(data.get(f"image{i}") or "")) for i in range(1, MAX_SCENES + 1)

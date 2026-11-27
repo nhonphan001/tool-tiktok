@@ -896,6 +896,16 @@ def packages_import_one(request: Request, goi: str):
         return RedirectResponse("/packages/import", status_code=303)
     existing = next((p for p in packages.all_packages() if p.get("goi") == str(goi)), None)
     p = {k: g.get(k, "") for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS)}
+    p["cover_image"] = g.get("cover_image", "")
+    try:
+        from . import scene_images
+
+        img01 = scene_images.for_goi(goi)
+        for k, fid in img01.items():
+            if not p.get(k):
+                p[k] = fid
+    except Exception:  # noqa: BLE001
+        pass
     p["content_group"] = g.get("content_group") or ""
     p["loai"] = g.get("loai") or 2
     req = next((r for r in gemini_requests.all_requests() if str(r["goi"]) == str(goi)), None)
@@ -904,7 +914,7 @@ def packages_import_one(request: Request, goi: str):
         p["id"] = existing["id"]
         p["status"] = existing.get("status")
         full = packages.get(existing["id"]) or {}
-        for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS, "content_group", "post_plan_json"):
+        for k in (*packages.FIELDS, *packages.PROMPTS, *packages.IMAGES, *packages.VIDEOS, "cover_image", "content_group", "post_plan_json"):
             if not p.get(k) and full.get(k):
                 p[k] = full[k]  # thư không có trường này → giữ giá trị đang lưu trong tool
     ctx = _package_ctx({**p, "id": None})
@@ -968,7 +978,7 @@ def media_zip(pid: int):
     if not data or len(data) < 100:
         return PlainTextResponse("Không tải được ảnh nào. " + " · ".join(errors), status_code=502)
     return HTMLResponse(data, media_type="application/zip",
-                        headers={"Content-Disposition": f'attachment; filename="GOI_{p.get("goi") or pid}_anh_4_canh.zip"'})
+                        headers={"Content-Disposition": f'attachment; filename="GOI_{p.get("goi") or pid}_anh_canh.zip"'})
 
 
 @app.get("/media/{pid}/{kind}")
@@ -1037,13 +1047,35 @@ def _raw_files(force: bool = False) -> tuple[list, str]:
     return _RAW_CACHE["files"] or [], _RAW_CACHE["err"]
 
 
+_IMG01_CACHE: dict = {"t": 0.0, "files": None, "err": ""}
+
+
+def _scene_image_files(force: bool = False) -> tuple[list, str]:
+    """Danh sách ảnh trong thư mục 01_KICH_BAN_VA_ANH_AI (đệm 60 giây)."""
+    import time
+
+    from . import scene_images
+
+    if force or _IMG01_CACHE["files"] is None or time.time() - _IMG01_CACHE["t"] > 60:
+        try:
+            _IMG01_CACHE.update(files=scene_images.list_images(), err="", t=time.time())
+        except Exception as e:  # noqa: BLE001
+            _IMG01_CACHE.update(files=[], err=str(e)[:200], t=time.time())
+    return _IMG01_CACHE["files"] or [], _IMG01_CACHE["err"]
+
+
 @app.get("/packages/{pid}", response_class=HTMLResponse)
 def package_detail(request: Request, pid: int):
-    from . import clips
+    from . import clips, scene_images
 
     p = packages.get(pid)
     if not p:
         return RedirectResponse("/packages", status_code=303)
+    nsc = packages.n_scenes(p)
+    if p.get("goi") and (not p.get("cover_image") or any(not p.get(f"image{i}") for i in range(1, nsc + 1))):
+        img_files, _ = _scene_image_files()
+        if img_files and scene_images.sync(files=img_files, only_goi=str(p["goi"])):
+            p = packages.get(pid)
     files, raw_err = _raw_files()
     cl, new = clips.sync(p, files)
     if new:
@@ -1066,6 +1098,23 @@ def package_detail(request: Request, pid: int):
                tts_voice=tts.VOICES[vk][2] if vk else "", tts_scenes=tts.scene_info(p),
                tts_usd=tts.estimate_scenes(p))
     return render(request, "package.html", **ctx)
+
+
+@app.post("/packages/{pid}/images/sync")
+def package_images_sync(request: Request, pid: int):
+    from . import scene_images
+
+    p = packages.get(pid)
+    if not p:
+        return RedirectResponse("/packages", status_code=303)
+    files, err = _scene_image_files(force=True)
+    if err:
+        flash(request, f"Không đọc được thư mục 01: {err}", "error")
+    else:
+        msgs = scene_images.sync(files=files, only_goi=str(p.get("goi") or "")) if p.get("goi") else []
+        flash(request, msgs[0] if msgs else f"Đã quét thư mục 01 ({len(files)} ảnh): ảnh của Gói {p.get('goi')} đã đồng bộ mới nhất.",
+              "success" if msgs else "info")
+    return RedirectResponse(f"/packages/{pid}#kit", status_code=303)
 
 
 @app.post("/packages/{pid}/clips/sync")

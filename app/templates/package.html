@@ -58,6 +58,7 @@
       <button type="button" class="btn sec small" onclick="addScene()">+ Thêm cảnh</button>
       <button type="button" class="btn sec small" onclick="setScenes(7)">Video 60 giây (7 cảnh)</button>
       <span class="muted small">Tối đa {{ max_sc }} cảnh · 7 cảnh × clip {{ clip_s }}s ≈ 61–66 giây sau khi ghép.</span></div>
+    <label>Ảnh bìa thương hiệu (Hook) — ID / link Drive</label><input name="cover_image" value="{{ p.cover_image or '' }}" placeholder="tự lấy từ thư mục 01 (GOI_N_ANH_BIA_HOOK.png)">
     <label>Chữ trên hình (hook, phụ đề nổi bật)</label><textarea name="on_screen" rows="2">{{ p.on_screen or '' }}</textarea>
     <label>Caption + hashtag</label><textarea name="caption" rows="3">{{ p.caption or '' }}</textarea>
     <label>Bình luận ghim</label><textarea name="pinned" rows="2">{{ p.pinned or '' }}</textarea>
@@ -126,9 +127,19 @@
       {% if p.id %}<a class="btn sec small" href="/media/{{ p.id }}/{{ key }}?download=1">Tải về</a>{% else %}<a class="btn sec small" href="https://drive.google.com/uc?export=download&amp;id={{ p[key] }}" target="_blank" rel="noopener">Tải về</a>{% endif %}</span></div>
       <div class="muted small">Drive ID {{ p[key] }}</div></div>{% endif %}{% endfor %}
     {% if not p.final_video %}<div class="kit-item"><span class="muted small">Chưa có video thành phẩm — tool tự lấy từ thư BAOCAO-…GOI-{{ p.goi }}… của Gemini khi nhập từ hộp thư, hoặc dán link vào ô “Video thành phẩm”.</span></div>{% endif %}
-    {% if p.id and (p.image1 or p.image2 or p.image3 or p.image4) %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh {{ nsc }} cảnh</b>
-      <a class="btn sec small" href="/media/{{ p.id }}/images.zip">Tải cả {{ nsc }} ảnh (.zip)</a></div>
-      <div class="kit-thumbs">{% for i in range(1, nsc + 1) %}{% if p['image' ~ i] %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener"><img src="/media/{{ p.id }}/image{{ i }}" alt="Cảnh {{ i }}" loading="lazy" onerror="this.style.display='none'"><span>C{{ i }}</span></a>{% endif %}{% endfor %}</div></div>{% endif %}
+    {% set any_img = p.cover_image or p.image1 or p.image2 or p.image3 or p.image4 or p.image5 or p.image6 or p.image7 or p.image8 %}
+    {% if p.id and p.cover_image %}<div class="kit-item"><div class="kit-head"><b>✨ Ảnh bìa thương hiệu (Hook)</b>
+      <span class="row" style="gap:6px"><a class="btn small" href="/media/{{ p.id }}/cover_image" target="_blank" rel="noopener">Xem</a>
+      <a class="btn sec small" href="/media/{{ p.id }}/cover_image?download=1">Tải ảnh bìa</a></span></div>
+      <a href="/media/{{ p.id }}/cover_image" target="_blank" rel="noopener" class="kit-img">
+        <img src="/media/{{ p.id }}/cover_image" alt="Ảnh bìa thương hiệu Gói {{ p.goi }}" loading="lazy" style="max-height:360px"></a></div>{% endif %}
+    {% if p.id and any_img %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh {{ nsc }} cảnh{% if p.cover_image %} + ảnh bìa{% endif %}</b>
+      <span class="row" style="gap:6px"><a class="btn sec small" href="/media/{{ p.id }}/images.zip">Tải cả {{ nsc }} ảnh{% if p.cover_image %} + bìa{% endif %} (.zip)</a>
+      <form method="post" action="/packages/{{ p.id }}/images/sync" style="margin:0"><button class="btn sec small">🔄 Quét thư mục 01</button></form></span></div>
+      <div class="kit-thumbs">{% for i in range(1, nsc + 1) %}{% if p['image' ~ i] %}<a href="/media/{{ p.id }}/image{{ i }}" target="_blank" rel="noopener"><img src="/media/{{ p.id }}/image{{ i }}" alt="Cảnh {{ i }}" loading="lazy" onerror="this.style.display='none'"><span>C{{ i }}</span></a>{% endif %}{% endfor %}</div></div>
+    {% elif p.id %}<div class="kit-item"><div class="kit-head"><b>🖼 Ảnh {{ nsc }} cảnh (thư mục 01)</b>
+      <form method="post" action="/packages/{{ p.id }}/images/sync" style="margin:0"><button class="btn sec small">🔄 Quét ảnh từ thư mục 01</button></form></div>
+      <span class="muted small">Chưa gắn ảnh cảnh — bấm “Quét ảnh từ thư mục 01” để tool tự lấy các ảnh <code>GOI_{{ p.goi }}_…CANH_1…{{ nsc }}</code> và <code>GOI_{{ p.goi }}_ANH_BIA_HOOK</code> từ Drive.</span></div>{% endif %}
     {{ item('Caption + hashtag', p.caption) }}
     {{ item('Bình luận ghim', p.pinned) }}
     {{ item('Chữ trên hình', p.on_screen) }}

@@ -36,7 +36,7 @@ def file_id_for(p: dict, kind: str) -> str:
         except ValueError:
             v = ""
         return v if re.fullmatch(r"[A-Za-z0-9_-]{20,80}", v) else ""
-    if re.fullmatch(r"image[1-8]", kind) or kind in ("final_video", "clean_video"):
+    if re.fullmatch(r"image[1-8]", kind) or kind in ("cover_image", "final_video", "clean_video"):
         v = (p.get(kind) or "").strip()
         if re.fullmatch(r"[A-Za-z0-9_-]{20,80}", v):
             return v
@@ -81,6 +81,13 @@ def fetch(file_id: str) -> tuple[str, dict]:
 def images_zip(p: dict) -> tuple[bytes, list[str]]:
     buf, errors = io.BytesIO(), []
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        cov = file_id_for(p, "cover_image")
+        if cov:
+            try:
+                path, meta = fetch(cov)
+                z.write(path, f"00_anh_bia_hook__{meta['name']}")
+            except MediaError as e:
+                errors.append(f"Ảnh bìa: {e}")
         for i in range(1, 9):
             fid = file_id_for(p, f"image{i}")
             if not fid:
