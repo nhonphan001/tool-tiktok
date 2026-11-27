@@ -1,14 +1,15 @@
-BỘ QUY TẮC KỊCH BẢN TIỆM TRÀ GIẢI MÃ (bản 2, chốt 26/11/2026)
-Tổng hợp mọi quy tắc và chỉnh sửa từ 17/11 đến 26/11 (anh Nhơn, Claude, Gemini, Antigravity, số liệu TikTok Studio).
+BỘ QUY TẮC KỊCH BẢN TIỆM TRÀ GIẢI MÃ (bản 2.1, chốt 27/11/2026)
+Tổng hợp mọi quy tắc và chỉnh sửa từ 17/11 đến 27/11 (anh Nhơn, Claude, Gemini, Antigravity, số liệu TikTok Studio).
 Áp dụng cho MỌI kịch bản, không cần nhắc lại.
 
-A. MỞ ĐẦU VÀ GIỮ CHÂN (mọi video mất ~50% người xem ở giây 2; chỉ 2–6% xem tới cảnh cuối)
+A. MỞ ĐẦU, ẢNH BÌA THƯƠNG HIỆU VÀ GIỮ CHÂN (mọi video mất ~50% người xem ở giây 2; chỉ 2–6% xem tới cảnh cuối)
 A1. Khung hình 0 sáng (nắng cửa sổ/vườn/đèn ấm), có chuyển động ngay (rót trà bốc khói, thả trà, mở hộp). Cấm phòng tối.
 A2. Cô Kim nói ngay giây 0. Không lời chào, không tả cảnh trước. Câu đầu nói thẳng vào người xem trong ≤ 6 âm tiết.
 A3. Chữ hook lớn giữa màn hình hiện từ khung 0 (không fade-in), tối đa 70 ký tự, ≤ 2 dòng.
 A4. Câu kêu gọi ngắn ở CUỐI CẢNH 1 (giây 3–8). Clip 10 giây nên cảnh 2 đã bắt đầu từ giây ~8 → không để câu kêu gọi đầu tiên ở cảnh 2. Cảnh cuối vẫn có câu kêu gọi đầy đủ.
 A5. Một gói = một bối cảnh, một ánh sáng, một thời điểm trong ngày; khoá mặt Cô Kim 3957. Mỗi cảnh một hành động khác nhau.
 A6. Móc cụ thể thắng móc chung chung: con số đếm ngược ("Chỉ còn đúng 40 ngày nữa là khép lại năm…" – Gói 21: giữ chân 2s 65%, follow 8,7%), năm sinh + con giáp, câu hỏi chạm nỗi niềm.
+A7. Ảnh bìa thương hiệu đồng nhất (chốt 27/11/2026): ngoài bộ ảnh từng cảnh, mỗi gói có thêm 1 ảnh bìa riêng 1080×1920 (`GOI_<n>_ANH_BIA_HOOK.png`) dùng nền ảnh Cảnh 1 + khung chữ Hook thương hiệu thống nhất toàn kênh (thẻ nhãn "TIỆM TRÀ GIẢI MÃ · CÔ KIM" phía trên vùng an toàn 3:4, khối Hook nổi bật màu Tím Hoàng Gia `#240E3A` + Vàng Kim `#F5C96A` + Trắng Kem `#FFFDF7` ở vùng 60%–77% không che mặt Cô Kim và không bị nút TikTok che). Dùng công cụ `scripts/tao_anh_bia.py` để giữ 100% chuẩn dấu tiếng Việt và đồng nhất thương hiệu.
 
 B. LOẠI 1 – LÁ SỐ (không bao giờ quảng bá; TikTok từ chối quảng bá Bát Tự)
 B1. Ưu tiên lá số theo NĂM SINH cụ thể 1970–1995 (đông người, có lượt Tìm kiếm 19–35%) hoặc trả lời một bình luận thật (nhóm 4). Bỏ dạng nhóm mơ hồ ("nữ sinh mùa Đông").
@@ -45,6 +46,6 @@ F1. Khung: 11:00 Loại 3; lá số 12:30 / 19:00 (đang thử); giỏ hàng 12:
 F2. Tuần 25/11–01/12 KHÔNG quảng bá. Khi quảng bá lại: chỉ Loại 3, mỗi lệnh 1 video, ~50K/12 giờ, đặt ~10:30–11:00, đối tượng tuỳ chỉnh 25+; không bao giờ mục tiêu "Mua sản phẩm".
 
 G. SẢN XUẤT
-G1. Mỗi prompt video 10 giây chứa NGUYÊN VĂN lời thoại cảnh đó + khối giọng (VOICE_BLOCK) giống hệt nhau ở mọi cảnh; không nhạc nền.
+G1. An (Antigravity) trực tiếp biên soạn kịch bản chuẩn Bát Tự & Bộ quy tắc (tắt mặc định bước Gemini API soạn nháp). Mỗi prompt video 10 giây chứa NGUYÊN VĂN lời thoại cảnh đó + khối giọng (VOICE_BLOCK) giống hệt nhau ở mọi cảnh; không nhạc nền.
 G2. Anh Nhơn đưa clip thô trực tiếp cho Gemini; Gemini dựng P8b (giọng vào 0,0s, hook từ khung 0, -14 LUFS, fade 25ms, giữ ✦, < 7 MB) và tải lên 04 với tên Goi_<n>_<MoTa>_Final_Sub.mp4 / _Clean_Master.mp4 (bản sửa thêm _v2).
 G3. Loại 1 thành phẩm dưới 61 giây: không cắt câu, giảm khoảng lặng giữa cảnh rồi báo lại.
