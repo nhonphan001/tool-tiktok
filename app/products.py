@@ -10,7 +10,108 @@ from .compliance import normalize
 from .config import settings
 
 SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}"
+SHOWCASE_URL = "https://shop.tiktok.com/streamer/showcase/product/list"
 ELEMENTS = ["Kim", "Mộc", "Thủy", "Hỏa", "Thổ"]
+DECISIONS = {
+    "giu": "⭐ Giữ mũi nhọn",
+    "thu_nghiem": "🧪 Thử nghiệm",
+    "de_xuat": "💡 Đề xuất thêm",
+    "cho_duyet": "Chờ đánh giá",
+    "loai_bo": "✕ Loại bỏ",
+}
+SOURCES = {
+    "showcase": "Showcase TikTok",
+    "sheet": "Google Sheets",
+    "manual": "Thêm trực tiếp",
+    "ai_proposal": "Đề xuất Affiliate",
+}
+_EXTRA_COLS = (
+    ("decision", "TEXT DEFAULT 'cho_duyet'"),
+    ("score", "INTEGER DEFAULT 0"),
+    ("source", "TEXT DEFAULT 'sheet'"),
+    ("showcase_id", "TEXT DEFAULT ''"),
+    ("shop_name", "TEXT DEFAULT ''"),
+    ("stock_info", "TEXT DEFAULT ''"),
+    ("est_commission", "TEXT DEFAULT ''"),
+    ("orders", "INTEGER DEFAULT 0"),
+    ("gmv", "INTEGER DEFAULT 0"),
+    ("revenue_vnd", "INTEGER DEFAULT 0"),
+    ("updated_at", "TEXT DEFAULT ''"),
+)
+
+
+def init() -> None:
+    """Bảo đảm bảng products có đủ các cột quản trị Affiliate cục bộ trên TikTok Manager."""
+    with db.tx() as c:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(products)").fetchall()}
+        for col, spec in _EXTRA_COLS:
+            if col not in cols:
+                c.execute(f"ALTER TABLE products ADD COLUMN {col} {spec}")
+
+
+def _parse_money(text: str) -> int:
+    digits = re.sub(r"[^\d]", "", str(text or ""))
+    return int(digits) if digits else 0
+
+
+def _parse_pct(text: str) -> float:
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*%", str(text or ""))
+    return float(m.group(1).replace(",", ".")) if m else 0.0
+
+
+def auto_score(p: dict) -> tuple[int, str, str]:
+    """Chấm điểm sơ bộ 0–100 theo chuẩn Bộ phận Affiliate & Phân tích Thị trường (Nữ 35–54 · bàn trà Cô Kim)."""
+    name_norm = normalize(f"{p.get('name', '')} {p.get('video_name', '')} {p.get('category', '')} {p.get('material', '')}")
+    aud = audit(p)
+    score = 50
+    reasons = []
+
+    # 1. Phù hợp tệp Nữ 35–54 & định vị Tiệm Trà Giải Mã
+    core_kw = ("tra ", "am tra", "tu sa", "tram huong", "nu tram", "nhang", "lu xong", "den da muoi", "nen thom", "khan lau ban tho", "ngoc am", "cay ")
+    off_kw = ("ve sinh", "giay an", "but chi", "ao polo", "son ", "banh quy", "dau den", "khan tam", "sat bao", "tay trang")
+    if any(k in name_norm for k in core_kw):
+        score += 24
+        reasons.append("khớp định vị trà/thư giãn/gia đạo Nữ 35–54")
+    elif any(k in name_norm for k in off_kw):
+        score -= 35
+        reasons.append("lệch định vị Tiệm Trà Cô Kim")
+
+    # 2. Rà tuân thủ B.4 (rất quan trọng với TikTok Shop & Ads)
+    b4_heavy = ("than tai", "phat ban menh", "ho menh", "xin loc", "chua tai", "chieu tai", "ty huu", "thiem thu", "bo de", "kinh phat", "tu linh", "hu tien")
+    if aud or any(k in name_norm for k in b4_heavy):
+        score -= 30
+        reasons.append("dính từ khóa tâm linh/B.4 rủi ro cao")
+    else:
+        score += 10
+        reasons.append("sạch B.4")
+
+    # 3. Vùng giá ngọt (90k–550k) & Hoa hồng
+    price = _parse_money(p.get("price", ""))
+    pct = _parse_pct(p.get("commission", ""))
+    if 80_000 <= price <= 550_000:
+        score += 10
+    elif 0 < price < 50_000 or price > 700_000:
+        score -= 8
+    if pct >= 12:
+        score += 10
+        reasons.append(f"hoa hồng tốt ({pct:g}%)")
+    elif 0 < pct < 8:
+        score -= 8
+        reasons.append(f"hoa hồng mỏng ({pct:g}%)")
+
+    # 4. Link / tồn kho
+    if "out of stock" in str(p.get("stock_info") or "").lower():
+        score -= 20
+        reasons.append("hết hàng")
+
+    score = max(5, min(98, score))
+    if score >= 78:
+        dec = "giu"
+    elif score >= 55:
+        dec = "thu_nghiem"
+    else:
+        dec = "loai_bo"
+    return score, dec, "; ".join(reasons)
 # Cột theo tài liệu bàn giao: A mã, B hành, C tên, E màu sắc & chất liệu, H giá, I hoa hồng, J link, M trạng thái, N ghi chú
 SHEET_COLUMNS = {"code": 0, "element": 1, "name": 2, "category": 3, "material": 4, "benefit": 5, "cta": 6, "price": 7,
                  "commission": 8, "link": 9, "status": 12, "note": 13, "video_name": 14}
@@ -103,18 +204,35 @@ def sync() -> tuple[str, None]:
     items = [r for r in rows if CODE_RE.match(r.get("code", ""))]
     if not items:
         raise RuntimeError("Không đọc được mã sản phẩm nào (mã phải có dạng SP-HANH-01)")
+    init()
     ts = db.now_iso()
+    existing = by_code()
     with db.tx() as c:
-        c.execute("DELETE FROM products")
+        # Giữ nguyên các sản phẩm thêm trực tiếp / Showcase / Đề xuất AI; chỉ cập nhật các dòng từ Google Sheets
+        c.execute("DELETE FROM products WHERE COALESCE(source, 'sheet') = 'sheet'")
         for it in items:
+            code = it["code"].upper()
+            prev = existing.get(code) or {}
+            sc = int(prev.get("score") or 0)
+            dec = prev.get("decision") or "cho_duyet"
+            if not sc:
+                sc, dec_auto, _ = auto_score(it)
+                if dec == "cho_duyet":
+                    dec = dec_auto
             c.execute(
                 "INSERT OR REPLACE INTO products(code, element, name, material, price, commission, link, status, note,"
-                " synced_at, video_name, benefit, cta, category) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " synced_at, video_name, benefit, cta, category, decision, score, source, showcase_id, shop_name,"
+                " stock_info, est_commission, orders, gmv, revenue_vnd, updated_at)"
+                " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
-                    it["code"].upper(), normalize_element(it.get("element", "")), it.get("name", ""),
+                    code, normalize_element(it.get("element", "")), it.get("name", ""),
                     it.get("material", ""), it.get("price", ""), it.get("commission", ""), it.get("link", ""),
                     it.get("status", ""), it.get("note", ""), ts, it.get("video_name", ""), it.get("benefit", ""),
                     it.get("cta", ""), it.get("category", ""),
+                    dec, sc, "sheet",
+                    prev.get("showcase_id") or "", prev.get("shop_name") or "", prev.get("stock_info") or "",
+                    prev.get("est_commission") or "", int(prev.get("orders") or 0), int(prev.get("gmv") or 0),
+                    int(prev.get("revenue_vnd") or 0), ts,
                 ),
             )
     missing = sum(1 for it in items if not real_link(it.get("link", "")))
@@ -143,12 +261,193 @@ def audit(p: dict) -> list[dict]:
     return out
 
 
-def all_products() -> list[dict]:
-    return db.query("SELECT * FROM products ORDER BY code")
+def all_products(decision: str = "all", q: str = "") -> list[dict]:
+    init()
+    rows = db.query(
+        "SELECT * FROM products ORDER BY "
+        "CASE COALESCE(decision, 'cho_duyet') WHEN 'giu' THEN 0 WHEN 'thu_nghiem' THEN 1 "
+        "WHEN 'de_xuat' THEN 2 WHEN 'cho_duyet' THEN 3 ELSE 4 END, "
+        "COALESCE(score, 0) DESC, code ASC"
+    )
+    if decision and decision != "all":
+        rows = [r for r in rows if (r.get("decision") or "cho_duyet") == decision]
+    if q:
+        ql = normalize(q)
+        rows = [
+            r for r in rows
+            if ql in normalize(f"{r.get('code','')} {r.get('name','')} {r.get('video_name','')} {r.get('shop_name','')} {r.get('note','')} {r.get('element','')}")
+        ]
+    return rows
 
 
 def by_code() -> dict[str, dict]:
-    return {p["code"]: p for p in all_products()}
+    init()
+    return {p["code"]: p for p in db.query("SELECT * FROM products")}
+
+
+def get(code: str) -> dict | None:
+    init()
+    return db.query_one("SELECT * FROM products WHERE code=?", ((code or "").strip().upper(),))
+
+
+def decision_counts() -> dict[str, int]:
+    init()
+    rows = db.query("SELECT COALESCE(NULLIF(decision,''), 'cho_duyet') AS d, COUNT(*) AS n FROM products GROUP BY d")
+    out = {k: 0 for k in DECISIONS}
+    for r in rows:
+        if r["d"] in out:
+            out[r["d"]] = int(r["n"])
+    out["all"] = sum(out.values())
+    return out
+
+
+def sales_totals() -> dict[str, int]:
+    init()
+    row = db.query_one("SELECT COALESCE(SUM(orders),0) AS orders, COALESCE(SUM(gmv),0) AS gmv, COALESCE(SUM(revenue_vnd),0) AS rev FROM products")
+    return {
+        "orders": int((row or {}).get("orders") or 0),
+        "gmv": int((row or {}).get("gmv") or 0),
+        "revenue_vnd": int((row or {}).get("revenue_vnd") or 0),
+    }
+
+
+def save_local(data: dict, old_code: str | None = None) -> str:
+    """Thêm mới hoặc cập nhật sản phẩm trực tiếp trong TikTok Manager (không cần sửa Google Sheets)."""
+    init()
+    code = re.sub(r"\s+", "-", str(data.get("code") or "").strip().upper())
+    name = str(data.get("name") or "").strip()
+    if not name:
+        raise ValueError("Thiếu tên sản phẩm.")
+    if not code:
+        prefix = "SC" if data.get("showcase_id") else ("DX" if data.get("decision") == "de_xuat" else "SP-TM")
+        existing = by_code()
+        n = 1
+        while f"{prefix}-{n:02d}" in existing:
+            n += 1
+        code = f"{prefix}-{n:02d}"
+
+    prev = get(old_code or code) or {}
+    decision = str(data.get("decision") or prev.get("decision") or "cho_duyet").strip()
+    if decision not in DECISIONS:
+        decision = "cho_duyet"
+    source = str(data.get("source") or prev.get("source") or "manual").strip()
+    if source not in SOURCES:
+        source = "manual"
+    row_dict = {
+        "code": code,
+        "element": normalize_element(data.get("element", "")) if data.get("element") else "",
+        "name": name[:300],
+        "video_name": str(data.get("video_name") or "").strip()[:160],
+        "category": str(data.get("category") or "").strip()[:120],
+        "material": str(data.get("material") or "").strip()[:200],
+        "benefit": str(data.get("benefit") or "").strip()[:400],
+        "cta": str(data.get("cta") or "").strip()[:400],
+        "price": str(data.get("price") or "").strip()[:60],
+        "commission": str(data.get("commission") or "").strip()[:60],
+        "est_commission": str(data.get("est_commission") or "").strip()[:60],
+        "link": str(data.get("link") or "").strip()[:500],
+        "status": str(data.get("status") or "Đang Bật").strip()[:60],
+        "note": str(data.get("note") or "").strip()[:600],
+        "showcase_id": str(data.get("showcase_id") or prev.get("showcase_id") or "").strip()[:60],
+        "shop_name": str(data.get("shop_name") or prev.get("shop_name") or "").strip()[:120],
+        "stock_info": str(data.get("stock_info") or prev.get("stock_info") or "").strip()[:80],
+        "orders": int(data.get("orders") if str(data.get("orders") or "").strip().isdigit() else (prev.get("orders") or 0)),
+        "gmv": int(data.get("gmv") if str(data.get("gmv") or "").strip().isdigit() else (prev.get("gmv") or 0)),
+        "revenue_vnd": int(data.get("revenue_vnd") if str(data.get("revenue_vnd") or "").strip().isdigit() else (prev.get("revenue_vnd") or 0)),
+    }
+    raw_score = str(data.get("score") or "").strip()
+    if raw_score.isdigit():
+        score = max(0, min(100, int(raw_score)))
+    else:
+        score, dec_auto, _ = auto_score(row_dict)
+        if not data.get("decision") and not prev.get("decision"):
+            decision = dec_auto
+
+    ts = db.now_iso()
+    with db.tx() as c:
+        if old_code and old_code.strip().upper() != code:
+            c.execute("DELETE FROM products WHERE code=?", (old_code.strip().upper(),))
+        c.execute(
+            """INSERT OR REPLACE INTO products(
+                code, element, name, material, price, commission, link, status, note, synced_at,
+                video_name, benefit, cta, category, decision, score, source, showcase_id, shop_name,
+                stock_info, est_commission, orders, gmv, revenue_vnd, updated_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                row_dict["code"], row_dict["element"], row_dict["name"], row_dict["material"],
+                row_dict["price"], row_dict["commission"], row_dict["link"], row_dict["status"],
+                row_dict["note"], prev.get("synced_at") or ts, row_dict["video_name"], row_dict["benefit"],
+                row_dict["cta"], row_dict["category"], decision, score, source, row_dict["showcase_id"],
+                row_dict["shop_name"], row_dict["stock_info"], row_dict["est_commission"],
+                row_dict["orders"], row_dict["gmv"], row_dict["revenue_vnd"], ts,
+            ),
+        )
+    return code
+
+
+def set_decision(code: str, decision: str, score: int | None = None, note: str | None = None) -> None:
+    init()
+    c_up = (code or "").strip().upper()
+    if decision not in DECISIONS:
+        raise ValueError("Quyết định không hợp lệ.")
+    ts = db.now_iso()
+    with db.tx() as c:
+        if score is not None and note is not None:
+            c.execute("UPDATE products SET decision=?, score=?, note=?, updated_at=? WHERE code=?",
+                      (decision, max(0, min(100, int(score))), note.strip()[:600], ts, c_up))
+        elif score is not None:
+            c.execute("UPDATE products SET decision=?, score=?, updated_at=? WHERE code=?",
+                      (decision, max(0, min(100, int(score))), ts, c_up))
+        else:
+            c.execute("UPDATE products SET decision=?, updated_at=? WHERE code=?", (decision, ts, c_up))
+
+
+def update_sales(code: str, orders: int, gmv: int, revenue_vnd: int) -> None:
+    init()
+    with db.tx() as c:
+        c.execute(
+            "UPDATE products SET orders=?, gmv=?, revenue_vnd=?, updated_at=? WHERE code=?",
+            (max(0, int(orders)), max(0, int(gmv)), max(0, int(revenue_vnd)), db.now_iso(), (code or "").strip().upper()),
+        )
+
+
+def delete_local(code: str) -> None:
+    init()
+    with db.tx() as c:
+        c.execute("DELETE FROM products WHERE code=?", ((code or "").strip().upper(),))
+
+
+def import_showcase(items: list[dict]) -> dict:
+    """Nạp danh sách sản phẩm từ Showcase TikTok Shop hoặc Đề xuất Affiliate vào bảng quản lý cục bộ."""
+    init()
+    saved = 0
+    for it in items:
+        if not isinstance(it, dict) or not str(it.get("name") or "").strip():
+            continue
+        save_local({
+            "code": it.get("code") or "",
+            "element": it.get("element") or "",
+            "name": it.get("name") or "",
+            "video_name": it.get("video_name") or "",
+            "category": it.get("category") or "",
+            "material": it.get("material") or "",
+            "benefit": it.get("benefit") or "",
+            "cta": it.get("cta") or "",
+            "price": it.get("price") or "",
+            "commission": it.get("commission") or "",
+            "est_commission": it.get("est_commission") or "",
+            "link": it.get("link") or "",
+            "status": it.get("status") or "Live",
+            "note": it.get("note") or "",
+            "decision": it.get("decision") or "",
+            "score": it.get("score") if it.get("score") is not None else "",
+            "source": it.get("source") or "showcase",
+            "showcase_id": it.get("showcase_id") or "",
+            "shop_name": it.get("shop_name") or "",
+            "stock_info": it.get("stock_info") or "",
+        })
+        saved += 1
+    return {"saved": saved, "counts": decision_counts()}
 
 
 # ---------- Ghi bảng: CHỈ THÊM DÒNG MỚI (không sửa, không xoá dòng có sẵn) ----------

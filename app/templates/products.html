@@ -1,26 +1,171 @@
 {% extends "base.html" %}
+{% block title %}Quản lý Sản phẩm Affiliate · TikTok Manager{% endblock %}
 {% block content %}
-<div class="row" style="justify-content:space-between"><h1>Sản phẩm affiliate ({{ items|length }})</h1>
-  <form method="post" action="/products/sync" style="margin:0"><button class="btn" {{ 'disabled' if running }}>{{ 'Đang đọc bảng…' if running else 'Đọc lại bảng quản trị' }}</button></form></div>
-<p class="muted">Cột <b>“Tên dùng trong video”</b> (cột O trong bảng quản trị) là tên ngắn, sạch quy tắc B.4 để đọc trong lời thoại và caption; Gói SX đối chiếu theo cột này. Cột “Rà B.4” liệt kê từ cấm trong tên, công năng và lời thoại gợi ý của bảng — cần sửa trong bảng để Gemini không viết lại các câu này.</p>
-<p class="muted">Nguồn: {% if s.product_csv_url %}link CSV xuất bản{% elif s.product_sheet_id %}Google Sheets (<code>{{ s.product_sheet_range }}</code>){% else %}<b>chưa cấu hình</b> — vào Cài đặt điền ID bảng hoặc link CSV{% endif %}.
-  Tool chỉ <b>thêm dòng mới</b> vào bảng (form bên dưới), không sửa hay xoá dòng có sẵn. {% if synced %}Lần đọc gần nhất: {{ synced|localtime }}.{% endif %}</p>
+<div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+  <div>
+    <h1 style="margin-bottom:4px">🛍 Quản lý Sản phẩm Affiliate ({{ dcounts.all }})</h1>
+    <div class="muted small">
+      Trung tâm quản trị sản phẩm của Bộ phận Tiếp thị Liên kết: phân loại <b>Giữ mũi nhọn / Thử nghiệm / Đề xuất thêm / Loại bỏ</b>, rà B.4 và theo dõi doanh thu thực.
+      {% if synced %} · Đồng bộ gần nhất: <b>{{ synced|localtime }}</b>{% endif %}
+    </div>
+  </div>
+  <div class="row" style="gap:6px">
+    <a class="btn small" href="#quan-ly">＋ Thêm sản phẩm</a>
+    <a class="btn sec small" href="{{ showcase_url }}" target="_blank" rel="noopener">🔗 Showcase TikTok Shop</a>
+    <form method="post" action="/products/sync" style="margin:0"><button class="btn sec small" {{ 'disabled' if running }}>{{ 'Đang đồng bộ…' if running else '🔄 Đọc Google Sheets' }}</button></form>
+  </div>
+</div>
+
+<div class="grid g4" style="margin:12px 0">
+  <div class="card stat">
+    <div class="label">⭐ Giữ mũi nhọn</div>
+    <div class="value up">{{ dcounts.giu }}</div>
+    <div class="sub">Ưu tiên lên Video Loại 2 (12:00)</div>
+  </div>
+  <div class="card stat">
+    <div class="label">🧪 Thử nghiệm</div>
+    <div class="value">{{ dcounts.thu_nghiem }}</div>
+    <div class="sub">Test nhẹ / theo dõi thêm</div>
+  </div>
+  <div class="card stat">
+    <div class="label">💡 Đề xuất thêm mới</div>
+    <div class="value">{{ dcounts.de_xuat }}</div>
+    <div class="sub">Ngách còn trống nên nhập vào Showcase</div>
+  </div>
+  <div class="card stat">
+    <div class="label">💰 Doanh thu thực (ghi nhận)</div>
+    <div class="value">{{ sales.orders|num }} đơn</div>
+    <div class="sub">Hoa hồng: <b>{{ sales.revenue_vnd|num }} ₫</b> · Loại bỏ: {{ dcounts.loai_bo }}</div>
+  </div>
+</div>
+
+<div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap">
+  <div class="row" style="gap:6px;flex-wrap:wrap">
+    <a class="btn small {{ '' if decision=='all' else 'sec' }}" href="/products?decision=all&q={{ q|urlencode }}">Tất cả ({{ dcounts.all }})</a>
+    <a class="btn small {{ '' if decision=='giu' else 'sec' }}" href="/products?decision=giu&q={{ q|urlencode }}">⭐ Giữ mũi nhọn ({{ dcounts.giu }})</a>
+    <a class="btn small {{ '' if decision=='thu_nghiem' else 'sec' }}" href="/products?decision=thu_nghiem&q={{ q|urlencode }}">🧪 Thử nghiệm ({{ dcounts.thu_nghiem }})</a>
+    <a class="btn small {{ '' if decision=='de_xuat' else 'sec' }}" href="/products?decision=de_xuat&q={{ q|urlencode }}">💡 Đề xuất thêm ({{ dcounts.de_xuat }})</a>
+    <a class="btn small {{ '' if decision=='cho_duyet' else 'sec' }}" href="/products?decision=cho_duyet&q={{ q|urlencode }}">Chờ đánh giá ({{ dcounts.cho_duyet }})</a>
+    <a class="btn small {{ '' if decision=='loai_bo' else 'sec' }}" href="/products?decision=loai_bo&q={{ q|urlencode }}">✕ Loại bỏ ({{ dcounts.loai_bo }})</a>
+  </div>
+  <form method="get" action="/products" class="row" style="gap:6px;margin:0">
+    <input type="hidden" name="decision" value="{{ decision }}">
+    <input name="q" value="{{ q }}" placeholder="Tìm mã, tên, shop, hành…" style="min-width:190px">
+    <button class="btn sec small">Lọc</button>
+  </form>
+</div>
+
 <div class="card scroll"><table class="prods">
-<tr><th>Mã</th><th>Hành</th><th>Tên trong bảng</th><th>Tên dùng trong video</th><th>Rà B.4</th><th>Giá</th><th>Link TikTok Shop</th><th class="n">Video dùng</th><th class="n">Tổng view</th></tr>
+<tr>
+  <th>Mã / Nguồn</th>
+  <th>Quyết định</th>
+  <th class="n">Điểm</th>
+  <th>Sản phẩm / Shop / Tồn kho</th>
+  <th>Tên dùng trong video</th>
+  <th>Rà B.4</th>
+  <th>Giá &amp; Hoa hồng</th>
+  <th>Đơn / Hoa hồng thực</th>
+  <th>Thao tác</th>
+</tr>
 {% for p in items %}<tr>
-  <td class="nw">{{ p.code }}</td><td>{{ p.element }}</td><td><div class="clamp" title="{{ p.name }}" onclick="this.classList.toggle('open')">{{ p.name }}</div><div class="muted" style="font-size:12px">{{ p.material }}</div></td>
+  <td class="nw">
+    <b>{{ p.code }}</b>{% if p.element %} <span class="badge">{{ p.element }}</span>{% endif %}
+    <div class="muted small">{{ p.source_label }}</div>
+    {% if p.real_link %}<a class="small" href="{{ p.link }}" target="_blank" rel="noopener">Mở link ↗</a>{% elif p.showcase_id %}<span class="muted small">ID {{ p.showcase_id[:8] }}…</span>{% else %}<span class="badge error">link tạm / chưa có</span>{% endif %}
+  </td>
+  <td class="nw">
+    <form method="post" action="/products/{{ p.code }}/decision" style="margin:0">
+      <input type="hidden" name="back" value="/products?decision={{ decision }}&q={{ q|urlencode }}">
+      <select name="decision" onchange="this.form.submit()" style="font-size:12px;padding:4px 6px;min-width:130px">
+        {% for k, lbl in decisions.items() %}
+        <option value="{{ k }}" {{ 'selected' if p.decision==k }}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </td>
+  <td class="n nw"><span class="badge {{ 'ok' if (p.score or 0) >= 78 else ('error' if (p.score or 0) < 55 else '') }}">{{ p.score or 0 }}</span></td>
+  <td style="min-width:220px">
+    <div class="clamp" title="{{ p.name }}" onclick="this.classList.toggle('open')"><b>{{ p.name }}</b></div>
+    <div class="muted small">
+      {% if p.shop_name %}🏪 {{ p.shop_name }}{% endif %}
+      {% if p.stock_info %} · 📦 {{ p.stock_info }}{% endif %}
+      {% if p.material %} · {{ p.material }}{% endif %}
+    </div>
+    {% if p.note %}<div class="small" style="color:var(--muted);margin-top:2px">📝 {{ p.note }}</div>{% endif %}
+  </td>
   <td>{% if p.video_name %}{{ p.video_name }}{% else %}<span class="badge">chưa có</span>{% endif %}</td>
   <td class="small">{% if p.audit %}{% for a in p.audit %}<div style="color:var(--err)">{{ a.field }}: {{ a.found }}</div>{% endfor %}{% else %}<span class="badge ok">Sạch</span>{% endif %}</td>
-  <td>{{ p.price }}<div class="muted small">{{ p.commission }}</div></td>
-  <td>{% if p.real_link %}<a href="{{ p.link }}" target="_blank" rel="noopener">mở</a>{% else %}<span class="badge error">link tạm / chưa có</span>{% endif %}</td>
-  <td class="n">{{ usage[p.code].count if p.code in usage else 0 }}</td><td class="n">{{ (usage[p.code].views if p.code in usage else 0)|num }}</td>
-</tr>{% else %}<tr><td colspan="9" class="muted">Chưa có dữ liệu. Cấu hình nguồn trong Cài đặt rồi bấm "Đọc lại bảng quản trị".</td></tr>{% endfor %}
+  <td class="nw">
+    <b>{{ p.price or '—' }}</b>
+    <div class="muted small">{{ p.commission or '' }}{% if p.est_commission %} ({{ p.est_commission }}){% endif %}</div>
+  </td>
+  <td class="nw small">
+    <div><b>{{ p.orders or 0 }}</b> đơn · {{ (p.revenue_vnd or 0)|num }}₫</div>
+    <div class="muted">{{ usage[p.code].count if p.code in usage else 0 }} video · {{ (usage[p.code].views if p.code in usage else 0)|num }} view</div>
+    <details class="sub" style="margin-top:4px"><summary class="muted">Cập nhật đơn</summary>
+      <form method="post" action="/products/{{ p.code }}/sales" style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+        <input type="hidden" name="back" value="/products?decision={{ decision }}&q={{ q|urlencode }}">
+        <input type="number" name="orders" value="{{ p.orders or 0 }}" placeholder="Số đơn" min="0">
+        <input type="number" name="gmv" value="{{ p.gmv or 0 }}" placeholder="GMV (₫)" min="0">
+        <input type="number" name="revenue_vnd" value="{{ p.revenue_vnd or 0 }}" placeholder="Hoa hồng thực (₫)" min="0">
+        <button class="btn small">Lưu số</button>
+      </form>
+    </details>
+  </td>
+  <td class="nw">
+    <div class="row" style="gap:4px">
+      <a class="btn sec small" href="/products?edit={{ p.code }}#quan-ly">Sửa</a>
+      <form method="post" action="/products/{{ p.code }}/delete" onsubmit="return confirm('Xoá {{ p.code }} khỏi danh sách TikTok Manager?')" style="margin:0">
+        <button class="btn sec small">Xoá</button>
+      </form>
+    </div>
+  </td>
+</tr>{% else %}<tr><td colspan="9" class="muted">Chưa có sản phẩm trong bộ lọc này. Thêm trực tiếp bên dưới hoặc bấm “Đọc Google Sheets”.</td></tr>{% endfor %}
 </table></div>
 
-<div class="card" id="add" style="margin-top:16px"><h2>Thêm SKU mới vào bảng quản trị</h2>
+<div class="card" id="quan-ly" style="margin-top:16px">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2 style="margin:0">{{ ('✏️ Sửa sản phẩm ' ~ edit_item.code) if edit_item else '＋ Thêm sản phẩm trực tiếp trên TikTok Manager' }}</h2>
+    {% if edit_item %}<a class="btn sec small" href="/products#quan-ly">Huỷ sửa / Thêm mới</a>{% endif %}
+  </div>
+  <p class="muted small">Lưu trực tiếp vào kho quản trị của TikTok Manager (không phụ thuộc Google Sheets, không bị ghi đè khi đồng bộ bảng cũ).</p>
+  <form method="post" action="/products/local/save">
+    {% if edit_item %}<input type="hidden" name="old_code" value="{{ edit_item.code }}">{% endif %}
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:120px"><label>Mã SKU (trống = tự sinh)</label><input name="code" value="{{ edit_item.code if edit_item else '' }}" placeholder="VD: SC-AM-01 hoặc SP-TRA-01"></div>
+      <div style="flex:1;min-width:140px"><label>Quyết định</label><select name="decision">
+        {% for k, lbl in decisions.items() %}<option value="{{ k }}" {{ 'selected' if edit_item and edit_item.decision==k }}>{{ lbl }}</option>{% endfor %}
+      </select></div>
+      <div style="flex:1;min-width:90px"><label>Điểm (0–100)</label><input type="number" name="score" min="0" max="100" value="{{ edit_item.score if edit_item else '' }}" placeholder="tự chấm"></div>
+      <div style="flex:1;min-width:110px"><label>Hành (tuỳ chọn)</label><select name="element"><option value="">— không gắn —</option>{% for e in elements %}<option {{ 'selected' if edit_item and edit_item.element==e }}>{{ e }}</option>{% endfor %}</select></div>
+      <div style="flex:1;min-width:130px"><label>Nguồn</label><select name="source">
+        {% for k, lbl in sources.items() %}<option value="{{ k }}" {{ 'selected' if (edit_item and edit_item.source==k) or (not edit_item and k=='manual') }}>{{ lbl }}</option>{% endfor %}
+      </select></div>
+    </div>
+    <label>Tên sản phẩm đầy đủ *</label><input name="name" value="{{ edit_item.name if edit_item else '' }}" required placeholder="VD: Bộ Ấm Trà Tử Sa Cao Cấp Kèm 6 Ly Giữ Hương Trà">
+    <div class="row" style="gap:8px">
+      <div style="flex:2;min-width:200px"><label>Tên dùng trong video (cột O — ngắn, sạch B.4)</label><input name="video_name" value="{{ edit_item.video_name if edit_item else '' }}" placeholder="Bộ ấm chén tử sa 6 ly"></div>
+      <div style="flex:1;min-width:150px"><label>Tên Shop</label><input name="shop_name" value="{{ edit_item.shop_name if edit_item else '' }}" placeholder="Choviet"></div>
+      <div style="flex:1;min-width:130px"><label>Tồn kho</label><input name="stock_info" value="{{ edit_item.stock_info if edit_item else '' }}" placeholder="In stock (20)"></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <div style="flex:1;min-width:110px"><label>Giá bán</label><input name="price" value="{{ edit_item.price if edit_item else '' }}" placeholder="196.515₫"></div>
+      <div style="flex:1;min-width:100px"><label>Hoa hồng (%)</label><input name="commission" value="{{ edit_item.commission if edit_item else '' }}" placeholder="14,2%"></div>
+      <div style="flex:1;min-width:120px"><label>Hoa hồng ước tính</label><input name="est_commission" value="{{ edit_item.est_commission if edit_item else '' }}" placeholder="27.926₫"></div>
+      <div style="flex:1;min-width:150px"><label>Product ID (Showcase)</label><input name="showcase_id" value="{{ edit_item.showcase_id if edit_item else '' }}" placeholder="1738196162712405710"></div>
+    </div>
+    <label>Link TikTok Shop</label><input name="link" value="{{ edit_item.link if edit_item else '' }}" placeholder="https://vt.tiktok.com/...">
+    <label>Ghi chú phân tích (lý do giữ / bỏ / góc quay Loại 2)</label><textarea name="note" rows="2">{{ edit_item.note if edit_item else '' }}</textarea>
+    <p style="margin-top:10px"><button class="btn">{{ 'Lưu thay đổi' if edit_item else '💾 Lưu vào danh sách sản phẩm' }}</button></p>
+  </form>
+</div>
+
+<details class="card" id="add" style="margin-top:16px">
+  <summary style="cursor:pointer;font-weight:600">📄 Ghi thêm dòng mới vào Google Sheets cũ (tuỳ chọn)</summary>
+  <div style="margin-top:12px">
   {% if s.product_csv_url or not s.product_sheet_id %}<p class="muted">Cần nguồn là <b>ID Google Sheet</b> (Cài đặt) và chia sẻ bảng cho service account với quyền <b>Người chỉnh sửa</b>.</p>{% else %}
   <p class="muted small">Ghi 1 dòng vào cuối vùng <code>{{ s.product_sheet_range }}</code>. Trước khi ghi, tool kiểm tra: mã chưa tồn tại, đủ tên, và
-    “Tên dùng trong video”, “Công năng”, “Lời thoại gợi ý” sạch B.4 (có từ cấm là không ghi). Ghi dạng chữ thô, không chạy công thức.</p>
+    “Tên dùng trong video”, “Công năng”, “Lời thoại gợi ý” sạch B.4 (có từ cấm là không ghi).</p>
   <form method="post" action="/products/autofill" onsubmit="this.querySelector('button').textContent='Đang đọc link & viết nội dung…';this.querySelector('button').disabled=true">
     <label><b>1. Dán link sản phẩm TikTok Shop</b> — tool tự điền các ô bên dưới (chưa ghi vào bảng)</label>
     <div class="row" style="gap:8px"><input name="link" value="{{ new.link or '' }}" placeholder="https://vt.tiktok.com/..." style="flex:1 1 220px">
@@ -37,19 +182,20 @@
       <div style="flex:1;min-width:120px"><label>B · Hành</label><select name="element"><option value="">— không gắn —</option>{% for e in elements %}<option {{ 'selected' if new.element==e }}>{{ e }}</option>{% endfor %}</select></div>
       <div style="flex:1;min-width:130px"><label>M · Trạng thái</label><input name="status" value="{{ new.status or 'Đang Bật' }}"></div>
     </div>
-    <label>C · Tên trong bảng (tên đầy đủ như trên TikTok Shop) *</label><input name="name" value="{{ new.name or '' }}" required>
+    <label>C · Tên trong bảng *</label><input name="name" value="{{ new.name or '' }}" required>
     <label>O · Tên dùng trong video (ngắn, sạch B.4) *</label><input name="video_name" value="{{ new.video_name or '' }}" placeholder="Khăn lau bàn thờ Thiên Phúc" required>
-    <label>D · Phân loại (mô tả đúng bản chất hàng)</label><input name="category" value="{{ new.category or '' }}">
+    <label>D · Phân loại</label><input name="category" value="{{ new.category or '' }}">
     <label>E · Chất liệu / quy cách</label><input name="material" value="{{ new.material or '' }}">
-    <label>F · Công năng (mô tả, không hứa tâm linh)</label><textarea name="benefit" rows="2">{{ new.benefit or '' }}</textarea>
-    <label>G · Lời thoại gợi ý (kết bằng “bấm giỏ hàng góc trái”)</label><textarea name="cta" rows="2">{{ new.cta or '' }}</textarea>
+    <label>F · Công năng</label><textarea name="benefit" rows="2">{{ new.benefit or '' }}</textarea>
+    <label>G · Lời thoại gợi ý</label><textarea name="cta" rows="2">{{ new.cta or '' }}</textarea>
     <div class="row" style="gap:8px">
-      <div style="flex:1;min-width:120px"><label>H · Giá <span style="color:var(--err)">(tự điền)</span></label><input name="price" value="{{ new.price or '' }}"></div>
+      <div style="flex:1;min-width:120px"><label>H · Giá</label><input name="price" value="{{ new.price or '' }}"></div>
       <div style="flex:1;min-width:120px"><label>I · Hoa hồng</label><input name="commission" value="{{ new.commission or '' }}"></div>
     </div>
     <label>J · Link TikTok Shop</label><input name="link" value="{{ new.link or '' }}" placeholder="https://vt.tiktok.com/...">
     <label>N · Ghi chú</label><input name="note" value="{{ new.note or '' }}">
     <p class="row"><button class="btn sec" name="preview" value="1">Kiểm tra trước</button><button class="btn" onclick="return confirm('Ghi dòng này vào bảng quản trị?')">Thêm vào bảng</button></p>
   </form>{% endif %}
-</div>
+  </div>
+</details>
 {% endblock %}

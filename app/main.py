@@ -1732,8 +1732,9 @@ def compliance_check(request: Request, text: str = Form(""), has_cart: str = For
 
 
 @app.get("/products", response_class=HTMLResponse)
-def products_page(request: Request):
-    items = products.all_products()
+def products_page(request: Request, decision: str = "all", q: str = "", edit: str = ""):
+    products.init()
+    items = products.all_products(decision=decision, q=q)
     acc = db.get_active_account()
     usage = {}
     if acc:
@@ -1746,11 +1747,59 @@ def products_page(request: Request):
     for it in items:
         it["audit"] = products.audit(it)
         it["real_link"] = products.real_link(it.get("link") or "")
+        it["decision"] = it.get("decision") or "cho_duyet"
+        it["decision_label"] = products.DECISIONS.get(it["decision"], it["decision"])
+        it["source_label"] = products.SOURCES.get(it.get("source") or "sheet", it.get("source") or "sheet")
+    all_rows = products.all_products()
+    synced = max((r.get("synced_at") or "" for r in all_rows), default="") or None
+    edit_item = products.get(edit) if edit else None
     return render(
         request, "products.html", items=items, usage=usage, s=settings, running=jobs.running("products"),
-        new=request.session.get("new_sku") or {}, elements=tags.ELEMENTS,
-        synced=items[0]["synced_at"] if items else None,
+        new=request.session.get("new_sku") or {}, elements=tags.ELEMENTS, synced=synced,
+        decision=decision, q=q, decisions=products.DECISIONS, sources=products.SOURCES,
+        dcounts=products.decision_counts(), sales=products.sales_totals(),
+        showcase_url=products.SHOWCASE_URL, edit_item=edit_item,
     )
+
+
+@app.post("/products/local/save")
+async def products_local_save(request: Request):
+    """Thêm mới hoặc cập nhật sản phẩm trực tiếp trên TikTok Manager."""
+    form = dict(await request.form())
+    old_code = str(form.get("old_code") or "").strip() or None
+    try:
+        code = products.save_local(form, old_code=old_code)
+        flash(request, f"Đã lưu sản phẩm {code} trực tiếp trên TikTok Manager.", "success")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    return RedirectResponse("/products", status_code=303)
+
+
+@app.post("/products/{code}/decision")
+def products_set_decision(request: Request, code: str, decision: str = Form(...), back: str = Form("/products")):
+    try:
+        products.set_decision(code, decision)
+        flash(request, f"Đã cập nhật {code} → {products.DECISIONS.get(decision, decision)}.", "success")
+    except ValueError as e:
+        flash(request, str(e), "error")
+    target = back if back.startswith("/products") else "/products"
+    return RedirectResponse(target, status_code=303)
+
+
+@app.post("/products/{code}/sales")
+def products_update_sales(request: Request, code: str, orders: int = Form(0), gmv: int = Form(0),
+                          revenue_vnd: int = Form(0), back: str = Form("/products")):
+    products.update_sales(code, orders, gmv, revenue_vnd)
+    flash(request, f"Đã cập nhật doanh số thực cho {code} ({orders} đơn · {revenue_vnd:,}đ hoa hồng).", "success")
+    target = back if back.startswith("/products") else "/products"
+    return RedirectResponse(target, status_code=303)
+
+
+@app.post("/products/{code}/delete")
+def products_delete_local(request: Request, code: str):
+    products.delete_local(code)
+    flash(request, f"Đã xoá {code} khỏi danh sách quản lý trên TikTok Manager.", "info")
+    return RedirectResponse("/products", status_code=303)
 
 
 @app.post("/products/autofill")
@@ -2400,6 +2449,22 @@ async def api_studio_audit_post(request: Request):
         snapshot=d["counts"],
     )
     return JSONResponse({"ok": True, "audit_id": lid, "url": "/tong-duyet"}, headers=CORS)
+
+
+@app.post("/api/public/studio/products")
+async def api_studio_products_post(request: Request):
+    """Bộ phận Affiliate (An) đẩy danh sách sản phẩm kiểm toán từ Showcase / Đề xuất thêm lên /products."""
+    if not _check_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401, headers=CORS)
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400, headers=CORS)
+    items = data.get("items") if isinstance(data, dict) else (data if isinstance(data, list) else [])
+    if not isinstance(items, list) or not items:
+        return JSONResponse({"error": "missing_items"}, status_code=400, headers=CORS)
+    res = products.import_showcase(items)
+    return JSONResponse({"ok": True, **res, "url": "/products"}, headers=CORS)
 
 
 @app.post("/api/public/studio/ideas")
