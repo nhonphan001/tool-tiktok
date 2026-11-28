@@ -93,66 +93,66 @@ def build_html(bg_uri: str, tag: str, line1: str, line2: str,
     background: linear-gradient(0deg, rgba(18, 6, 30, 0.88) 0%, rgba(30, 11, 48, 0.62) 48%, transparent 100%);
   }}
 
-  /* Thẻ thương hiệu đồng nhất trên đầu — nằm phía trên búi tóc Cô Kim, gọn trong vùng an toàn */
+  /* Thẻ thương hiệu đồng nhất trên đầu — nằm gọn trong vùng an toàn trên của lưới Profile 3:4 */
   .brand-wrap {{
-    position: absolute; top: 150px; left: 0; right: 0;
+    position: absolute; top: 195px; left: 0; right: 0;
     display: flex; justify-content: center;
   }}
   .brand-pill {{
     display: inline-flex; align-items: center; gap: 14px;
-    padding: 13px 34px; border-radius: 999px;
+    padding: 12px 32px; border-radius: 999px;
     background: rgba(34, 13, 56, 0.84);
     border: 2px solid rgba(245, 201, 106, 0.82);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42), 0 0 22px rgba(245, 201, 106, 0.22);
-    color: #FFE7AC; font-size: 26px; font-weight: 700; letter-spacing: 3px;
+    color: #FFE7AC; font-size: 25px; font-weight: 700; letter-spacing: 3px;
     text-transform: uppercase;
   }}
-  .brand-star {{ color: #FFD166; font-size: 24px; }}
+  .brand-star {{ color: #FFD166; font-size: 23px; }}
 
-  /* Khối Hook thương hiệu nổi bật (vùng 63%–81%, khoe trọn ấm trà & vẫn an toàn lưới Profile 3:4) */
+  /* Khối Hook thương hiệu nổi bật (vùng giữa-dưới y=1040..1350px: nằm gọn 100% trong lưới Profile 3:4 & không che mặt/khăn Cô Kim) */
   .hook-wrap {{
-    position: absolute; left: 56px; right: 56px; bottom: 300px;
+    position: absolute; left: 56px; right: 56px; bottom: 570px;
     display: flex; flex-direction: column; align-items: center; text-align: center;
   }}
   .hook-card {{
     width: 100%;
-    padding: 34px 38px 36px;
-    border-radius: 34px;
-    background: linear-gradient(180deg, rgba(36, 14, 58, 0.78) 0%, rgba(22, 8, 38, 0.88) 100%);
-    border: 2.5px solid rgba(245, 201, 106, 0.78);
+    padding: 24px 34px 26px;
+    border-radius: 30px;
+    background: linear-gradient(180deg, rgba(36, 14, 58, 0.82) 0%, rgba(22, 8, 38, 0.90) 100%);
+    border: 2.5px solid rgba(245, 201, 106, 0.82);
     box-shadow:
-      0 24px 60px rgba(0, 0, 0, 0.58),
-      0 0 36px rgba(245, 201, 106, 0.18),
+      0 22px 54px rgba(0, 0, 0, 0.58),
+      0 0 32px rgba(245, 201, 106, 0.20),
       inset 0 1px 0 rgba(255, 248, 224, 0.3);
   }}
   .tag-badge {{
     display: inline-block;
-    padding: 12px 34px;
-    margin-bottom: 22px;
+    padding: 9px 28px;
+    margin-bottom: 16px;
     border-radius: 999px;
     background: {tag_bg};
     color: {tag_fg};
-    font-size: 34px; font-weight: 900; letter-spacing: 1.8px;
+    font-size: 31px; font-weight: 900; letter-spacing: 1.6px;
     text-transform: uppercase;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36), 0 0 20px rgba(255, 214, 107, 0.38);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.36), 0 0 18px rgba(255, 214, 107, 0.35);
   }}
   .line1 {{
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 74px; font-weight: 700; line-height: 1.14;
+    font-size: 68px; font-weight: 700; line-height: 1.14;
     color: #FFFDF7;
-    text-shadow: 0 6px 22px rgba(0, 0, 0, 0.72), 0 2px 4px rgba(0, 0, 0, 0.9);
-    margin-bottom: 10px;
+    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.72), 0 2px 4px rgba(0, 0, 0, 0.9);
+    margin-bottom: 8px;
   }}
   .line2 {{
-    font-size: 82px; font-weight: 900; line-height: 1.12;
+    font-size: 74px; font-weight: 900; line-height: 1.12;
     letter-spacing: -0.5px;
     background: {accent_grad};
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.82)) drop-shadow(0 0 18px rgba(245, 201, 106, 0.34));
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.82)) drop-shadow(0 0 16px rgba(245, 201, 106, 0.34));
   }}
   .divider {{
-    width: 180px; height: 3px; margin: 22px auto 0;
+    width: 170px; height: 3px; margin: 16px auto 0;
     border-radius: 999px;
     background: linear-gradient(90deg, transparent, #F5C96A, transparent);
   }}
