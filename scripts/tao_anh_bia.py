@@ -137,7 +137,7 @@ def build_html(bg_uri: str, tag: str, line1: str, line2: str,
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.36), 0 0 18px rgba(255, 214, 107, 0.35);
   }}
   .line1 {{
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Times New Roman", "Segoe UI", serif;
     font-size: 68px; font-weight: 700; line-height: 1.14;
     color: #FFFDF7;
     text-shadow: 0 6px 20px rgba(0, 0, 0, 0.72), 0 2px 4px rgba(0, 0, 0, 0.9);
